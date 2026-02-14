@@ -1,6 +1,6 @@
-import { Show, Switch, Match, createResource, onCleanup } from 'solid-js';
+import { Switch, Match, createResource, onCleanup } from 'solid-js';
 import type { Component } from 'solid-js';
-import { useParams, useNavigate, useBeforeLeave } from '@solidjs/router';
+import { useParams, useNavigate, useBeforeLeave, A } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import Scoreboard from './components/Scoreboard';
 import ScoreControls from './components/ScoreControls';
@@ -9,6 +9,7 @@ import type { ResumeState } from './hooks/useScoringActor';
 import { useWakeLock } from '../../shared/hooks/useWakeLock';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { Match as MatchData } from '../../data/types';
+import { settings } from '../../stores/settingsStore';
 
 interface ScoringViewProps {
   match: MatchData;
@@ -24,7 +25,9 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
   );
 
   const { request: requestWakeLock } = useWakeLock();
-  requestWakeLock();
+  if (settings().keepScreenAwake) {
+    requestWakeLock();
+  }
 
   const ctx = () => state().context;
   const stateName = () => {
@@ -203,18 +206,19 @@ const ScoringPage: Component = () => {
   };
 
   return (
-    <Show
-      when={match()}
-      fallback={
-        <PageLayout title="Loading...">
-          <div class="flex items-center justify-center min-h-[50vh]">
-            <p class="text-on-surface-muted">Loading match...</p>
+    <Switch fallback={<PageLayout title="Loading..."><div class="flex items-center justify-center min-h-[50vh]"><p class="text-on-surface-muted">Loading match...</p></div></PageLayout>}>
+      <Match when={match.error || (match.state === 'ready' && !match())}>
+        <PageLayout title="Error">
+          <div class="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+            <p class="text-on-surface-muted">{match.error ? 'Failed to load match' : 'Match not found'}</p>
+            <A href="/" class="text-primary underline">Back to Home</A>
           </div>
         </PageLayout>
-      }
-    >
-      {(loadedMatch) => <ScoringView match={loadedMatch()} initialState={initialState()} />}
-    </Show>
+      </Match>
+      <Match when={match()}>
+        {(loadedMatch) => <ScoringView match={loadedMatch()} initialState={initialState()} />}
+      </Match>
+    </Switch>
   );
 };
 

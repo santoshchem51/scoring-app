@@ -7,7 +7,7 @@ import { useLiveQuery } from '../../data/useLiveQuery';
 import { playerRepository } from '../../data/repositories/playerRepository';
 
 const PlayersPage: Component = () => {
-  const players = useLiveQuery(() => playerRepository.getAll());
+  const { data: players } = useLiveQuery(() => playerRepository.getAll());
 
   return (
     <PageLayout title="Players">

@@ -6,7 +6,7 @@ import { useLiveQuery } from '../../data/useLiveQuery';
 import { matchRepository } from '../../data/repositories/matchRepository';
 
 const HistoryPage: Component = () => {
-  const matches = useLiveQuery(() => matchRepository.getCompleted());
+  const { data: matches } = useLiveQuery(() => matchRepository.getCompleted());
 
   return (
     <PageLayout title="Match History">

@@ -111,7 +111,11 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
         team1Score: after.team1Score,
         team2Score: after.team2Score,
       };
-      await scoreEventRepository.save(event);
+      try {
+        await scoreEventRepository.save(event);
+      } catch (err) {
+        console.error('Failed to save score event:', err);
+      }
       persistSnapshot(matchId, after);
 
       // Bug #3: If a game was just won, save the completed game result
@@ -135,7 +139,11 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
       team1Score: after.team1Score,
       team2Score: after.team2Score,
     };
-    await scoreEventRepository.save(event);
+    try {
+      await scoreEventRepository.save(event);
+    } catch (err) {
+      console.error('Failed to save score event:', err);
+    }
     persistSnapshot(matchId, after);
   };
 
@@ -156,7 +164,11 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
         team1Score: after.team1Score,
         team2Score: after.team2Score,
       };
-      await scoreEventRepository.save(event);
+      try {
+        await scoreEventRepository.save(event);
+      } catch (err) {
+        console.error('Failed to save score event:', err);
+      }
       persistSnapshot(matchId, after);
     }
   };

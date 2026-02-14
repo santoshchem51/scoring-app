@@ -33,7 +33,11 @@ const [settings, setSettingsInternal] = createSignal<Settings>(loadSettings());
 function setSettings(update: Partial<Settings>) {
   setSettingsInternal((prev) => {
     const next = { ...prev, ...update };
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+    }
     return next;
   });
 }

@@ -16,6 +16,8 @@ const GameSetupPage: Component = () => {
   const [team1Name, setTeam1Name] = createSignal('Team 1');
   const [team2Name, setTeam2Name] = createSignal('Team 2');
 
+  const canStart = () => team1Name().trim() !== '' && team2Name().trim() !== '';
+
   const startGame = async () => {
     const config: MatchConfig = {
       gameType: gameType(),
@@ -29,8 +31,8 @@ const GameSetupPage: Component = () => {
       config,
       team1PlayerIds: [],
       team2PlayerIds: [],
-      team1Name: team1Name(),
-      team2Name: team2Name(),
+      team1Name: team1Name().trim(),
+      team2Name: team2Name().trim(),
       games: [],
       winningSide: null,
       status: 'in-progress',
@@ -38,8 +40,13 @@ const GameSetupPage: Component = () => {
       completedAt: null,
     };
 
-    await matchRepository.save(match);
-    navigate(`/score/${match.id}`);
+    try {
+      await matchRepository.save(match);
+      navigate(`/score/${match.id}`);
+    } catch (err) {
+      console.error('Failed to save match:', err);
+      alert('Failed to start game. Please try again.');
+    }
   };
 
   return (
@@ -91,6 +98,7 @@ const GameSetupPage: Component = () => {
               type="text"
               value={team1Name()}
               onInput={(e) => setTeam1Name(e.currentTarget.value)}
+              maxLength={30}
               class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
               placeholder="Team 1 name"
             />
@@ -98,6 +106,7 @@ const GameSetupPage: Component = () => {
               type="text"
               value={team2Name()}
               onInput={(e) => setTeam2Name(e.currentTarget.value)}
+              maxLength={30}
               class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
               placeholder="Team 2 name"
             />
@@ -108,7 +117,8 @@ const GameSetupPage: Component = () => {
         <button
           type="button"
           onClick={startGame}
-          class="w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl active:scale-95 transition-transform"
+          disabled={!canStart()}
+          class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${canStart() ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}
         >
           Start Game
         </button>
