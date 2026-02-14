@@ -5,14 +5,15 @@ import PageLayout from '../../shared/components/PageLayout';
 import OptionCard from '../../shared/components/OptionCard';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { GameType, ScoringMode, MatchFormat, Match, MatchConfig } from '../../data/types';
+import { settings } from '../../stores/settingsStore';
 
 const GameSetupPage: Component = () => {
   const navigate = useNavigate();
 
   const [gameType, setGameType] = createSignal<GameType>('doubles');
-  const [scoringMode, setScoringMode] = createSignal<ScoringMode>('sideout');
-  const [matchFormat, setMatchFormat] = createSignal<MatchFormat>('single');
-  const [pointsToWin, setPointsToWin] = createSignal<11 | 15 | 21>(11);
+  const [scoringMode, setScoringMode] = createSignal<ScoringMode>(settings().defaultScoringMode);
+  const [matchFormat, setMatchFormat] = createSignal<MatchFormat>(settings().defaultMatchFormat);
+  const [pointsToWin, setPointsToWin] = createSignal<11 | 15 | 21>(settings().defaultPointsToWin);
   const [team1Name, setTeam1Name] = createSignal('Team 1');
   const [team2Name, setTeam2Name] = createSignal('Team 2');
 

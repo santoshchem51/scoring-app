@@ -6,12 +6,16 @@ interface Props {
   team1Name: string;
   team2Name: string;
   scoringMode: ScoringMode;
+  servingTeam: 1 | 2;
   onScorePoint: (team: 1 | 2) => void;
   onSideOut: () => void;
   onUndo: () => void;
 }
 
 const ScoreControls: Component<Props> = (props) => {
+  const team1Active = () => props.scoringMode === 'rally' || props.servingTeam === 1;
+  const team2Active = () => props.scoringMode === 'rally' || props.servingTeam === 2;
+
   return (
     <div class="flex flex-col gap-3 px-4">
       {/* Score buttons row */}
@@ -19,14 +23,18 @@ const ScoreControls: Component<Props> = (props) => {
         <button
           type="button"
           onClick={() => props.onScorePoint(1)}
-          class="bg-primary text-surface font-bold text-lg py-6 rounded-2xl active:scale-95 transition-transform"
+          class={`font-bold text-lg py-6 rounded-2xl transition-transform truncate px-3 ${
+            team1Active() ? 'bg-primary text-surface active:scale-95' : 'bg-primary/30 text-surface/50 cursor-not-allowed'
+          }`}
         >
           +1 {props.team1Name}
         </button>
         <button
           type="button"
           onClick={() => props.onScorePoint(2)}
-          class="bg-accent text-surface font-bold text-lg py-6 rounded-2xl active:scale-95 transition-transform"
+          class={`font-bold text-lg py-6 rounded-2xl transition-transform truncate px-3 ${
+            team2Active() ? 'bg-accent text-surface active:scale-95' : 'bg-accent/30 text-surface/50 cursor-not-allowed'
+          }`}
         >
           +1 {props.team2Name}
         </button>

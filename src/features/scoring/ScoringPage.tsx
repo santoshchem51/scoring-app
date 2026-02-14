@@ -30,6 +30,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
   }
 
   const ctx = () => state().context;
+  const scoringModeDisplay = () => props.match.config.scoringMode === 'sideout' ? 'Side-Out' : 'Rally';
   const stateName = () => {
     const value = state().value;
     return typeof value === 'string' ? value : '';
@@ -116,8 +117,8 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           <span class="text-xs text-on-surface-muted px-2 py-1 bg-surface-light rounded-full">
             {ctx().gamesWon[0]} - {ctx().gamesWon[1]}
           </span>
-          <span class="text-xs text-on-surface-muted capitalize">
-            {props.match.config.scoringMode}
+          <span class="text-xs text-on-surface-muted">
+            {scoringModeDisplay()}
           </span>
           <span class="text-xs text-on-surface-muted">
             to {props.match.config.pointsToWin}
@@ -143,6 +144,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
               team1Name={props.match.team1Name}
               team2Name={props.match.team2Name}
               scoringMode={props.match.config.scoringMode}
+              servingTeam={ctx().servingTeam}
               onScorePoint={scorePoint}
               onSideOut={sideOut}
               onUndo={undo}
