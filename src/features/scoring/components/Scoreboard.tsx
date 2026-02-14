@@ -19,7 +19,12 @@ const Scoreboard: Component<Props> = (props) => {
     props.scoringMode === 'sideout' && props.gameType === 'doubles';
 
   return (
-    <div class="grid grid-cols-2 gap-4 px-4">
+    <div class="grid grid-cols-2 gap-4 px-4" role="region" aria-label="Scoreboard">
+      {/* Screen reader live announcement */}
+      <div class="sr-only" aria-live="polite" aria-atomic="true">
+        {props.team1Name} {props.team1Score}, {props.team2Name} {props.team2Score}
+      </div>
+
       {/* Team 1 */}
       <div
         class="flex flex-col items-center py-6 rounded-2xl transition-all"
@@ -27,6 +32,7 @@ const Scoreboard: Component<Props> = (props) => {
           'bg-primary/15 ring-2 ring-primary': isServing(1),
           'bg-surface-light': !isServing(1),
         }}
+        aria-label={`${props.team1Name}: ${props.team1Score}${isServing(1) ? ', serving' : ''}`}
       >
         <span class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2">
           {props.team1Name}
@@ -46,6 +52,7 @@ const Scoreboard: Component<Props> = (props) => {
           'bg-primary/15 ring-2 ring-primary': isServing(2),
           'bg-surface-light': !isServing(2),
         }}
+        aria-label={`${props.team2Name}: ${props.team2Score}${isServing(2) ? ', serving' : ''}`}
       >
         <span class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2">
           {props.team2Name}

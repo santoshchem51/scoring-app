@@ -52,77 +52,90 @@ const GameSetupPage: Component = () => {
 
   return (
     <PageLayout title="New Game">
-      <div class="p-4 space-y-6">
+      <div class="p-4 space-y-6 pb-24">
         {/* Game Type */}
-        <section>
-          <h2 class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Game Type</h2>
+        <fieldset>
+          <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Game Type</legend>
           <div class="grid grid-cols-2 gap-3">
             <OptionCard label="Singles" description="1 vs 1" selected={gameType() === 'singles'} onClick={() => setGameType('singles')} />
             <OptionCard label="Doubles" description="2 vs 2" selected={gameType() === 'doubles'} onClick={() => setGameType('doubles')} />
           </div>
-        </section>
+        </fieldset>
 
         {/* Scoring Mode */}
-        <section>
-          <h2 class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Scoring</h2>
+        <fieldset>
+          <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Scoring</legend>
           <div class="grid grid-cols-2 gap-3">
             <OptionCard label="Side-Out" description="Serving team scores" selected={scoringMode() === 'sideout'} onClick={() => setScoringMode('sideout')} />
             <OptionCard label="Rally" description="Point every rally" selected={scoringMode() === 'rally'} onClick={() => setScoringMode('rally')} />
           </div>
-        </section>
+        </fieldset>
 
         {/* Points to Win */}
-        <section>
-          <h2 class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Points to Win</h2>
+        <fieldset>
+          <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Points to Win</legend>
           <div class="grid grid-cols-3 gap-3">
             <OptionCard label="11" selected={pointsToWin() === 11} onClick={() => setPointsToWin(11)} />
             <OptionCard label="15" selected={pointsToWin() === 15} onClick={() => setPointsToWin(15)} />
             <OptionCard label="21" selected={pointsToWin() === 21} onClick={() => setPointsToWin(21)} />
           </div>
-        </section>
+        </fieldset>
 
         {/* Match Format */}
-        <section>
-          <h2 class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Match Format</h2>
+        <fieldset>
+          <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Match Format</legend>
           <div class="grid grid-cols-3 gap-3">
             <OptionCard label="1 Game" selected={matchFormat() === 'single'} onClick={() => setMatchFormat('single')} />
             <OptionCard label="Best of 3" selected={matchFormat() === 'best-of-3'} onClick={() => setMatchFormat('best-of-3')} />
             <OptionCard label="Best of 5" selected={matchFormat() === 'best-of-5'} onClick={() => setMatchFormat('best-of-5')} />
           </div>
-        </section>
+        </fieldset>
 
         {/* Team Names */}
-        <section>
-          <h2 class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Teams</h2>
+        <fieldset>
+          <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Teams</legend>
           <div class="space-y-3">
-            <input
-              type="text"
-              value={team1Name()}
-              onInput={(e) => setTeam1Name(e.currentTarget.value)}
-              maxLength={30}
-              class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
-              placeholder="Team 1 name"
-            />
-            <input
-              type="text"
-              value={team2Name()}
-              onInput={(e) => setTeam2Name(e.currentTarget.value)}
-              maxLength={30}
-              class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
-              placeholder="Team 2 name"
-            />
+            <div>
+              <label for="team1-name" class="sr-only">Team 1 name</label>
+              <input
+                id="team1-name"
+                type="text"
+                value={team1Name()}
+                onInput={(e) => setTeam1Name(e.currentTarget.value)}
+                maxLength={30}
+                class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
+                placeholder="Team 1 name"
+              />
+            </div>
+            <div>
+              <label for="team2-name" class="sr-only">Team 2 name</label>
+              <input
+                id="team2-name"
+                type="text"
+                value={team2Name()}
+                onInput={(e) => setTeam2Name(e.currentTarget.value)}
+                maxLength={30}
+                class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
+                placeholder="Team 2 name"
+              />
+            </div>
           </div>
-        </section>
+        </fieldset>
+      </div>
 
-        {/* Start Button */}
-        <button
-          type="button"
-          onClick={startGame}
-          disabled={!canStart()}
-          class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${canStart() ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}
-        >
-          Start Game
-        </button>
+      {/* Sticky Start Button */}
+      <div class="fixed bottom-16 left-0 right-0 p-4 bg-surface/95 backdrop-blur-sm safe-bottom">
+        <div class="max-w-lg mx-auto md:max-w-xl">
+          <button
+            type="button"
+            onClick={startGame}
+            disabled={!canStart()}
+            aria-label="Start game"
+            class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${canStart() ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}
+          >
+            Start Game
+          </button>
+        </div>
       </div>
     </PageLayout>
   );
