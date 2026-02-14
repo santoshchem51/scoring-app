@@ -1,4 +1,4 @@
-import { Switch, Match, createResource, onCleanup, createSignal } from 'solid-js';
+import { Switch, Match, Show, createResource, onCleanup, onMount, createSignal } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, useNavigate, useBeforeLeave, A } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
@@ -59,6 +59,17 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
       pendingLeaveRetry = () => e.retry(true);
       setShowLeaveConfirm(true);
     }
+  });
+
+  // Landscape detection for side-by-side layout
+  const checkLandscape = () =>
+    window.innerHeight < 500 && window.innerWidth > window.innerHeight;
+  const [isLandscape, setIsLandscape] = createSignal(checkLandscape());
+
+  onMount(() => {
+    const handleResize = () => setIsLandscape(checkLandscape());
+    window.addEventListener('resize', handleResize);
+    onCleanup(() => window.removeEventListener('resize', handleResize));
   });
 
   const winnerName = () => {
@@ -141,15 +152,62 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
         {/* State-dependent controls */}
         <Switch>
           <Match when={stateName() === 'serving'}>
-            <ScoreControls
-              team1Name={props.match.team1Name}
-              team2Name={props.match.team2Name}
-              scoringMode={props.match.config.scoringMode}
-              servingTeam={ctx().servingTeam}
-              onScorePoint={scorePoint}
-              onSideOut={sideOut}
-              onUndo={undo}
-            />
+            <Show
+              when={isLandscape()}
+              fallback={
+                <ScoreControls
+                  team1Name={props.match.team1Name}
+                  team2Name={props.match.team2Name}
+                  scoringMode={props.match.config.scoringMode}
+                  servingTeam={ctx().servingTeam}
+                  onScorePoint={scorePoint}
+                  onSideOut={sideOut}
+                  onUndo={undo}
+                />
+              }
+            >
+              <div class="fixed inset-0 bg-surface z-40 flex">
+                {/* Left side: Scoreboard */}
+                <div class="flex-1 flex flex-col justify-center">
+                  <div class="flex items-center justify-center gap-4 px-4 mb-4">
+                    <span class="text-sm text-on-surface-muted">
+                      Game {ctx().gameNumber}
+                    </span>
+                    <span class="text-xs text-on-surface-muted px-2 py-1 bg-surface-light rounded-full">
+                      {ctx().gamesWon[0]} - {ctx().gamesWon[1]}
+                    </span>
+                    <span class="text-xs text-on-surface-muted">
+                      {scoringModeDisplay()}
+                    </span>
+                    <span class="text-xs text-on-surface-muted">
+                      to {props.match.config.pointsToWin}
+                    </span>
+                  </div>
+                  <Scoreboard
+                    team1Name={props.match.team1Name}
+                    team2Name={props.match.team2Name}
+                    team1Score={ctx().team1Score}
+                    team2Score={ctx().team2Score}
+                    servingTeam={ctx().servingTeam}
+                    serverNumber={ctx().serverNumber}
+                    scoringMode={props.match.config.scoringMode}
+                    gameType={props.match.config.gameType}
+                  />
+                </div>
+                {/* Right side: ScoreControls */}
+                <div class="flex-1 flex flex-col justify-center">
+                  <ScoreControls
+                    team1Name={props.match.team1Name}
+                    team2Name={props.match.team2Name}
+                    scoringMode={props.match.config.scoringMode}
+                    servingTeam={ctx().servingTeam}
+                    onScorePoint={scorePoint}
+                    onSideOut={sideOut}
+                    onUndo={undo}
+                  />
+                </div>
+              </div>
+            </Show>
           </Match>
 
           <Match when={stateName() === 'betweenGames'}>
