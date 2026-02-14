@@ -8,6 +8,8 @@ interface Settings {
   defaultMatchFormat: 'single' | 'best-of-3' | 'best-of-5';
   scoringUIMode: ScoringUIMode;
   keepScreenAwake: boolean;
+  soundEffects: 'off' | 'subtle' | 'full';
+  hapticFeedback: boolean;
 }
 
 const SETTINGS_KEY = 'pickle-score-settings';
@@ -25,6 +27,8 @@ function loadSettings(): Settings {
     defaultMatchFormat: 'single',
     scoringUIMode: 'simple',
     keepScreenAwake: true,
+    soundEffects: 'off',
+    hapticFeedback: false,
   };
 }
 

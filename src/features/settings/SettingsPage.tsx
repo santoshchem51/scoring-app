@@ -37,6 +37,60 @@ const SettingsPage: Component = () => {
           </button>
         </fieldset>
 
+        {/* Sound Effects */}
+        <fieldset>
+          <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+            Sound Effects
+          </legend>
+          <div class="grid grid-cols-3 gap-3">
+            <OptionCard
+              label="Off"
+              selected={settings().soundEffects === 'off'}
+              onClick={() => setSettings({ soundEffects: 'off' })}
+            />
+            <OptionCard
+              label="Subtle"
+              selected={settings().soundEffects === 'subtle'}
+              onClick={() => setSettings({ soundEffects: 'subtle' })}
+            />
+            <OptionCard
+              label="Full"
+              selected={settings().soundEffects === 'full'}
+              onClick={() => setSettings({ soundEffects: 'full' })}
+            />
+          </div>
+        </fieldset>
+
+        {/* Haptic Feedback */}
+        <fieldset>
+          <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+            Haptics
+          </legend>
+          <button
+            type="button"
+            onClick={() => setSettings({ hapticFeedback: !settings().hapticFeedback })}
+            class="w-full flex items-center justify-between bg-surface-light rounded-xl p-4"
+            role="switch"
+            aria-checked={settings().hapticFeedback}
+          >
+            <div>
+              <div class="font-semibold text-on-surface text-left">Haptic Feedback</div>
+              <div class="text-sm text-on-surface-muted text-left">Vibration on score (Android)</div>
+            </div>
+            <div
+              class={`w-12 h-7 rounded-full transition-colors relative ${
+                settings().hapticFeedback ? 'bg-primary' : 'bg-surface-lighter'
+              }`}
+            >
+              <div
+                class={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                  settings().hapticFeedback ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </div>
+          </button>
+        </fieldset>
+
         {/* Default Scoring Mode */}
         <fieldset>
           <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
