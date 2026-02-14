@@ -43,7 +43,7 @@ const MatchCard: Component<Props> = (props) => {
 
       <div class="text-xs text-on-surface-muted">
         {m().config.gameType === 'doubles' ? 'Doubles' : 'Singles'} · To {m().config.pointsToWin}
-        {m().config.matchFormat !== 'single' ? ` · ${m().config.matchFormat.replace('-', ' ')}` : ''}
+        {m().config.matchFormat !== 'single' ? ` · ${m().config.matchFormat.replaceAll('-', ' ')}` : ''}
       </div>
     </div>
   );

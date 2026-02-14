@@ -15,11 +15,11 @@ export const matchRepository = {
   },
 
   async getCompleted(): Promise<Match[]> {
-    return db.matches
+    const matches = await db.matches
       .where('status')
       .equals('completed')
-      .reverse()
       .sortBy('startedAt');
+    return matches.reverse();
   },
 
   async getByPlayerId(playerId: string): Promise<Match[]> {
