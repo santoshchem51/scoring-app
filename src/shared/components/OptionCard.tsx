@@ -12,6 +12,7 @@ const OptionCard: Component<Props> = (props) => {
     <button
       type="button"
       onClick={props.onClick}
+      aria-pressed={props.selected}
       class={`w-full p-4 rounded-xl text-left transition-all active:scale-95 ${
         props.selected
           ? 'bg-primary/20 border-2 border-primary text-on-surface'

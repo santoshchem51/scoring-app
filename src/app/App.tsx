@@ -9,7 +9,13 @@ interface Props {
 const App: Component<Props> = (props) => {
   return (
     <div class="min-h-screen bg-surface text-on-surface">
-      <Suspense fallback={<div class="flex items-center justify-center min-h-screen text-on-surface-muted">Loading...</div>}>
+      <a
+        href="#main-content"
+        class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-primary focus:text-surface focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-semibold"
+      >
+        Skip to main content
+      </a>
+      <Suspense fallback={<div role="status" aria-label="Loading page" class="flex items-center justify-center min-h-screen text-on-surface-muted">Loading...</div>}>
         {props.children}
       </Suspense>
       <BottomNav />
