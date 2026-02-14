@@ -1,16 +1,18 @@
-import { Show, Switch, Match, createResource } from 'solid-js';
+import { Show, Switch, Match, createResource, onCleanup } from 'solid-js';
 import type { Component } from 'solid-js';
-import { useParams, useNavigate } from '@solidjs/router';
+import { useParams, useNavigate, useBeforeLeave } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import Scoreboard from './components/Scoreboard';
 import ScoreControls from './components/ScoreControls';
 import { useScoringActor } from './hooks/useScoringActor';
+import type { ResumeState } from './hooks/useScoringActor';
 import { useWakeLock } from '../../shared/hooks/useWakeLock';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { Match as MatchData } from '../../data/types';
 
 interface ScoringViewProps {
   match: MatchData;
+  initialState?: ResumeState;
 }
 
 const ScoringView: Component<ScoringViewProps> = (props) => {
@@ -18,6 +20,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
   const { state, scorePoint, sideOut, undo, startNextGame } = useScoringActor(
     props.match.id,
     props.match.config,
+    props.initialState,
   );
 
   const { request: requestWakeLock } = useWakeLock();
@@ -28,6 +31,30 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
     const value = state().value;
     return typeof value === 'string' ? value : '';
   };
+
+  // Bug #2: Navigation guard - beforeunload for browser refresh/close
+  const beforeUnloadHandler = (event: BeforeUnloadEvent) => {
+    const name = stateName();
+    if (name === 'serving' || name === 'betweenGames') {
+      event.preventDefault();
+    }
+  };
+
+  window.addEventListener('beforeunload', beforeUnloadHandler);
+  onCleanup(() => window.removeEventListener('beforeunload', beforeUnloadHandler));
+
+  // Bug #2: Navigation guard - SPA navigation
+  useBeforeLeave((e) => {
+    const name = stateName();
+    if ((name === 'serving' || name === 'betweenGames') && !e.defaultPrevented) {
+      e.preventDefault();
+      setTimeout(() => {
+        if (window.confirm('You have an active game in progress. Are you sure you want to leave?')) {
+          e.retry(true);
+        }
+      }, 100);
+    }
+  });
 
   const winnerName = () => {
     const context = ctx();
@@ -44,20 +71,32 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
 
   const saveAndFinish = async () => {
     const context = ctx();
+    // Bug #3: Re-read match from DB to get previously saved games
+    const freshMatch = await matchRepository.getById(props.match.id);
+    const existingGames = freshMatch?.games ?? [];
+
+    // Only append the final game if not already saved
+    const finalGameAlreadySaved = existingGames.some((g) => g.gameNumber === context.gameNumber);
+    const games = finalGameAlreadySaved
+      ? existingGames
+      : [
+          ...existingGames,
+          {
+            gameNumber: context.gameNumber,
+            team1Score: context.team1Score,
+            team2Score: context.team2Score,
+            winningSide: winningSide(),
+          },
+        ];
+
     const updatedMatch: MatchData = {
       ...props.match,
+      ...(freshMatch ?? {}),
       status: 'completed',
       winningSide: winningSide(),
       completedAt: Date.now(),
-      games: [
-        ...props.match.games,
-        {
-          gameNumber: context.gameNumber,
-          team1Score: context.team1Score,
-          team2Score: context.team2Score,
-          winningSide: winningSide(),
-        },
-      ],
+      games,
+      lastSnapshot: null,
     };
     await matchRepository.save(updatedMatch);
     navigate('/history');
@@ -151,6 +190,18 @@ const ScoringPage: Component = () => {
   const params = useParams<{ matchId: string }>();
   const [match] = createResource(() => params.matchId, (id) => matchRepository.getById(id));
 
+  const initialState = (): ResumeState | undefined => {
+    const m = match();
+    if (m?.lastSnapshot) {
+      try {
+        return JSON.parse(m.lastSnapshot) as ResumeState;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  };
+
   return (
     <Show
       when={match()}
@@ -162,7 +213,7 @@ const ScoringPage: Component = () => {
         </PageLayout>
       }
     >
-      {(loadedMatch) => <ScoringView match={loadedMatch()} />}
+      {(loadedMatch) => <ScoringView match={loadedMatch()} initialState={initialState()} />}
     </Show>
   );
 };

@@ -33,4 +33,5 @@ export type ScoringEvent =
   | { type: 'SCORE_POINT'; team: 1 | 2 }
   | { type: 'SIDE_OUT' }
   | { type: 'UNDO' }
-  | { type: 'START_NEXT_GAME' };
+  | { type: 'START_NEXT_GAME' }
+  | { type: 'RESUME'; snapshot: ScoringSnapshot & { gamesWon: [number, number]; gameNumber: number; config: ScoringContext['config']; gamesToWin: number } };

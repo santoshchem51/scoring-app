@@ -3,9 +3,59 @@ import { createActor } from 'xstate';
 import type { SnapshotFrom } from 'xstate';
 import { pickleballMachine } from '../engine/pickleballMachine';
 import { scoreEventRepository } from '../../../data/repositories/scoreEventRepository';
-import type { MatchConfig, ScoreEvent } from '../../../data/types';
+import { matchRepository } from '../../../data/repositories/matchRepository';
+import type { MatchConfig, ScoreEvent, GameResult } from '../../../data/types';
 
-export function useScoringActor(matchId: string, config: MatchConfig) {
+export interface ResumeState {
+  team1Score: number;
+  team2Score: number;
+  servingTeam: 1 | 2;
+  serverNumber: 1 | 2;
+  gameNumber: number;
+  gamesWon: [number, number];
+}
+
+function persistSnapshot(matchId: string, context: { team1Score: number; team2Score: number; servingTeam: 1 | 2; serverNumber: 1 | 2; gameNumber: number; gamesWon: [number, number]; config: { gameType: string; scoringMode: string; matchFormat: string; pointsToWin: number }; gamesToWin: number }) {
+  const snapshot: ResumeState = {
+    team1Score: context.team1Score,
+    team2Score: context.team2Score,
+    servingTeam: context.servingTeam,
+    serverNumber: context.serverNumber,
+    gameNumber: context.gameNumber,
+    gamesWon: [context.gamesWon[0], context.gamesWon[1]],
+  };
+  // Fire and forget - don't block the UI on DB write
+  matchRepository.getById(matchId).then((match) => {
+    if (match) {
+      matchRepository.save({ ...match, lastSnapshot: JSON.stringify(snapshot) });
+    }
+  });
+}
+
+function hasWonGame(score: number, opponentScore: number, pointsToWin: number): boolean {
+  return score >= pointsToWin && score - opponentScore >= 2;
+}
+
+function saveCompletedGame(matchId: string, context: { team1Score: number; team2Score: number; gameNumber: number; config: { pointsToWin: number } }) {
+  const winningSide: 1 | 2 = hasWonGame(context.team1Score, context.team2Score, context.config.pointsToWin) ? 1 : 2;
+  const gameResult: GameResult = {
+    gameNumber: context.gameNumber,
+    team1Score: context.team1Score,
+    team2Score: context.team2Score,
+    winningSide,
+  };
+  matchRepository.getById(matchId).then((match) => {
+    if (match) {
+      // Only add if this game hasn't been saved yet
+      const alreadySaved = match.games.some((g) => g.gameNumber === gameResult.gameNumber);
+      if (!alreadySaved) {
+        matchRepository.save({ ...match, games: [...match.games, gameResult] });
+      }
+    }
+  });
+}
+
+export function useScoringActor(matchId: string, config: MatchConfig, initialState?: ResumeState) {
   const actor = createActor(pickleballMachine, {
     input: {
       gameType: config.gameType,
@@ -23,7 +73,24 @@ export function useScoringActor(matchId: string, config: MatchConfig) {
     setState(snapshot);
   });
   actor.start();
-  actor.send({ type: 'START_GAME' });
+
+  if (initialState) {
+    actor.send({
+      type: 'RESUME',
+      snapshot: {
+        ...initialState,
+        config: {
+          gameType: config.gameType,
+          scoringMode: config.scoringMode,
+          matchFormat: config.matchFormat,
+          pointsToWin: config.pointsToWin,
+        },
+        gamesToWin: config.matchFormat === 'single' ? 1 : config.matchFormat === 'best-of-3' ? 2 : 3,
+      },
+    });
+  } else {
+    actor.send({ type: 'START_GAME' });
+  }
 
   onCleanup(() => actor.stop());
 
@@ -45,6 +112,13 @@ export function useScoringActor(matchId: string, config: MatchConfig) {
         team2Score: after.team2Score,
       };
       await scoreEventRepository.save(event);
+      persistSnapshot(matchId, after);
+
+      // Bug #3: If a game was just won, save the completed game result
+      const stateValue = actor.getSnapshot().value;
+      if (stateValue === 'betweenGames' || stateValue === 'matchOver') {
+        saveCompletedGame(matchId, after);
+      }
     }
   };
 
@@ -62,14 +136,39 @@ export function useScoringActor(matchId: string, config: MatchConfig) {
       team2Score: after.team2Score,
     };
     await scoreEventRepository.save(event);
+    persistSnapshot(matchId, after);
   };
 
-  const undo = () => {
+  const undo = async () => {
+    const before = actor.getSnapshot().context;
     actor.send({ type: 'UNDO' });
+    const after = actor.getSnapshot().context;
+
+    // Bug #4: Persist UNDO event if state actually changed
+    if (before.team1Score !== after.team1Score || before.team2Score !== after.team2Score || before.servingTeam !== after.servingTeam) {
+      const event: ScoreEvent = {
+        id: crypto.randomUUID(),
+        matchId,
+        gameNumber: after.gameNumber,
+        timestamp: Date.now(),
+        type: 'UNDO',
+        team: after.servingTeam,
+        team1Score: after.team1Score,
+        team2Score: after.team2Score,
+      };
+      await scoreEventRepository.save(event);
+      persistSnapshot(matchId, after);
+    }
   };
 
-  const startNextGame = () => {
+  const startNextGame = async () => {
+    // Bug #3: Save the current completed game before starting next
+    const currentContext = actor.getSnapshot().context;
+    saveCompletedGame(matchId, currentContext);
+
     actor.send({ type: 'START_NEXT_GAME' });
+    const after = actor.getSnapshot().context;
+    persistSnapshot(matchId, after);
   };
 
   return { state, scorePoint, sideOut, undo, startNextGame };

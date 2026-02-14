@@ -68,6 +68,23 @@ export const pickleballMachine = setup({
     hasHistory: ({ context }) => {
       return context.history.length > 0;
     },
+    resumeToMatchOver: ({ event }) => {
+      if (event.type !== 'RESUME') return false;
+      const s = event.snapshot;
+      return s.gamesWon[0] >= s.gamesToWin || s.gamesWon[1] >= s.gamesToWin;
+    },
+    resumeToBetweenGames: ({ event }) => {
+      if (event.type !== 'RESUME') return false;
+      const s = event.snapshot;
+      const isMatchOver = s.gamesWon[0] >= s.gamesToWin || s.gamesWon[1] >= s.gamesToWin;
+      if (isMatchOver) return false;
+      // Between games: a game was just won (score meets win condition) but match isn't over
+      const ptw = s.config.pointsToWin;
+      const gameJustWon =
+        (s.team1Score >= ptw && s.team1Score - s.team2Score >= 2) ||
+        (s.team2Score >= ptw && s.team2Score - s.team1Score >= 2);
+      return gameJustWon;
+    },
   },
   actions: {
     pushHistory: assign({
@@ -186,6 +203,19 @@ export const pickleballMachine = setup({
         history: context.history.slice(0, -1),
       };
     }),
+    restoreSnapshot: assign(({ event }) => {
+      if (event.type !== 'RESUME') return {};
+      const s = event.snapshot;
+      return {
+        team1Score: s.team1Score,
+        team2Score: s.team2Score,
+        servingTeam: s.servingTeam,
+        serverNumber: s.serverNumber,
+        gameNumber: s.gameNumber,
+        gamesWon: [s.gamesWon[0], s.gamesWon[1]] as [number, number],
+        history: [] as ScoringSnapshot[],
+      };
+    }),
   },
 }).createMachine({
   id: 'pickleball',
@@ -216,6 +246,22 @@ export const pickleballMachine = setup({
         START_GAME: {
           target: 'serving',
         },
+        RESUME: [
+          {
+            guard: 'resumeToMatchOver',
+            target: 'matchOver',
+            actions: ['restoreSnapshot'],
+          },
+          {
+            guard: 'resumeToBetweenGames',
+            target: 'betweenGames',
+            actions: ['restoreSnapshot'],
+          },
+          {
+            target: 'serving',
+            actions: ['restoreSnapshot'],
+          },
+        ],
       },
     },
     serving: {

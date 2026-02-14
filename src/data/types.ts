@@ -36,6 +36,7 @@ export interface Match {
   status: MatchStatus;
   startedAt: number;
   completedAt: number | null;
+  lastSnapshot?: string | null;
 }
 
 export interface ScoreEvent {
