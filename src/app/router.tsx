@@ -6,13 +6,14 @@ const GameSetupPage = lazy(() => import('../features/scoring/GameSetupPage'));
 const ScoringPage = lazy(() => import('../features/scoring/ScoringPage'));
 const HistoryPage = lazy(() => import('../features/history/HistoryPage'));
 const PlayersPage = lazy(() => import('../features/players/PlayersPage'));
+const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
 
 function NotFoundPage() {
   return (
     <div class="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-4">
       <p class="text-2xl font-bold text-on-surface">Page Not Found</p>
       <p class="text-on-surface-muted">The page you're looking for doesn't exist.</p>
-      <a href="/" class="text-primary underline">Back to Home</a>
+      <a href="/" class="inline-block px-6 py-3 bg-primary text-surface font-semibold rounded-xl active:scale-95 transition-transform">Back to Home</a>
     </div>
   );
 }
@@ -24,6 +25,7 @@ export default function AppRouter() {
       <Route path="/score/:matchId" component={ScoringPage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/players" component={PlayersPage} />
+      <Route path="/settings" component={SettingsPage} />
       <Route path="*" component={NotFoundPage} />
     </Router>
   );
