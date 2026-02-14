@@ -5,6 +5,7 @@ import PageLayout from '../../shared/components/PageLayout';
 import Scoreboard from './components/Scoreboard';
 import ScoreControls from './components/ScoreControls';
 import { useScoringActor } from './hooks/useScoringActor';
+import { useWakeLock } from '../../shared/hooks/useWakeLock';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { Match as MatchData } from '../../data/types';
 
@@ -18,6 +19,9 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
     props.match.id,
     props.match.config,
   );
+
+  const { request: requestWakeLock } = useWakeLock();
+  requestWakeLock();
 
   const ctx = () => state().context;
   const stateName = () => {
