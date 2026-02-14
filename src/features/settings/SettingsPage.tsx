@@ -1,6 +1,7 @@
 import type { Component } from 'solid-js';
 import PageLayout from '../../shared/components/PageLayout';
 import OptionCard from '../../shared/components/OptionCard';
+import Logo from '../../shared/components/Logo';
 import { settings, setSettings } from '../../stores/settingsStore';
 
 const SettingsPage: Component = () => {
@@ -137,9 +138,9 @@ const SettingsPage: Component = () => {
         </fieldset>
 
         {/* App Info */}
-        <div class="text-center text-xs text-on-surface-muted pt-4">
-          <p>PickleScore v1.0</p>
-          <p class="mt-1">Offline-first pickleball scoring</p>
+        <div class="flex flex-col items-center gap-2 pt-4">
+          <Logo size="md" />
+          <p class="text-xs text-on-surface-muted">v1.0 — Offline-first pickleball scoring</p>
         </div>
       </div>
     </PageLayout>

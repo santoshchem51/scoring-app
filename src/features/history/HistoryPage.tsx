@@ -2,6 +2,7 @@ import type { Component } from 'solid-js';
 import { For, Show } from 'solid-js';
 import PageLayout from '../../shared/components/PageLayout';
 import MatchCard from './components/MatchCard';
+import EmptyState from '../../shared/components/EmptyState';
 import { useLiveQuery } from '../../data/useLiveQuery';
 import { matchRepository } from '../../data/repositories/matchRepository';
 
@@ -14,10 +15,17 @@ const HistoryPage: Component = () => {
         <Show
           when={matches() && matches()!.length > 0}
           fallback={
-            <div class="text-center text-on-surface-muted py-12">
-              <p class="text-lg">No matches yet</p>
-              <p class="text-sm mt-1">Start a game to see history here</p>
-            </div>
+            <EmptyState
+              icon={
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+              title="No Matches Yet"
+              description="Start your first game and your match history will appear here."
+              actionLabel="Start a Game"
+              actionHref="/"
+            />
           }
         >
           <For each={matches()}>
