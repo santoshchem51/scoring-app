@@ -1,4 +1,4 @@
-import { Switch, Match, createResource, onCleanup } from 'solid-js';
+import { Switch, Match, createResource, onCleanup, createSignal } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, useNavigate, useBeforeLeave, A } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
@@ -7,6 +7,7 @@ import ScoreControls from './components/ScoreControls';
 import { useScoringActor } from './hooks/useScoringActor';
 import type { ResumeState } from './hooks/useScoringActor';
 import { useWakeLock } from '../../shared/hooks/useWakeLock';
+import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { Match as MatchData } from '../../data/types';
 import { settings } from '../../stores/settingsStore';
@@ -47,16 +48,16 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
   window.addEventListener('beforeunload', beforeUnloadHandler);
   onCleanup(() => window.removeEventListener('beforeunload', beforeUnloadHandler));
 
-  // Bug #2: Navigation guard - SPA navigation
+  // Navigation guard - SPA navigation
+  const [showLeaveConfirm, setShowLeaveConfirm] = createSignal(false);
+  let pendingLeaveRetry: (() => void) | null = null;
+
   useBeforeLeave((e) => {
     const name = stateName();
     if ((name === 'serving' || name === 'betweenGames') && !e.defaultPrevented) {
       e.preventDefault();
-      setTimeout(() => {
-        if (window.confirm('You have an active game in progress. Are you sure you want to leave?')) {
-          e.retry(true);
-        }
-      }, 100);
+      pendingLeaveRetry = () => e.retry(true);
+      setShowLeaveConfirm(true);
     }
   });
 
@@ -187,6 +188,21 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           </Match>
         </Switch>
       </div>
+      <ConfirmDialog
+        open={showLeaveConfirm()}
+        title="Leave Game?"
+        message="You have an active game in progress. Are you sure you want to leave?"
+        confirmLabel="Leave"
+        onConfirm={() => {
+          setShowLeaveConfirm(false);
+          pendingLeaveRetry?.();
+          pendingLeaveRetry = null;
+        }}
+        onCancel={() => {
+          setShowLeaveConfirm(false);
+          pendingLeaveRetry = null;
+        }}
+      />
     </PageLayout>
   );
 };
