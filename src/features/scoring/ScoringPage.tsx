@@ -137,6 +137,18 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           </span>
         </div>
 
+        {/* Score Call */}
+        <Show when={props.match.config.scoringMode === 'sideout' && props.match.config.gameType === 'doubles' && stateName() === 'serving'}>
+          <div class="text-center">
+            <span class="text-2xl font-bold text-on-surface tabular-nums" style={{ "font-family": "var(--font-score)" }}>
+              {ctx().servingTeam === 1
+                ? `${ctx().team1Score}-${ctx().team2Score}-${ctx().serverNumber}`
+                : `${ctx().team2Score}-${ctx().team1Score}-${ctx().serverNumber}`}
+            </span>
+            <p class="text-xs text-on-surface-muted mt-1">Score Call</p>
+          </div>
+        </Show>
+
         {/* Scoreboard */}
         <Scoreboard
           team1Name={props.match.team1Name}
@@ -147,6 +159,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           serverNumber={ctx().serverNumber}
           scoringMode={props.match.config.scoringMode}
           gameType={props.match.config.gameType}
+          pointsToWin={props.match.config.pointsToWin}
         />
 
         {/* State-dependent controls */}
@@ -192,6 +205,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
                     serverNumber={ctx().serverNumber}
                     scoringMode={props.match.config.scoringMode}
                     gameType={props.match.config.gameType}
+                    pointsToWin={props.match.config.pointsToWin}
                   />
                 </div>
                 {/* Right side: ScoreControls */}
