@@ -1,6 +1,8 @@
 import { Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { ScoringMode } from '../../../data/types';
+import { useSoundEffects } from '../../../shared/hooks/useSoundEffects';
+import { useHaptics } from '../../../shared/hooks/useHaptics';
 
 interface Props {
   team1Name: string;
@@ -13,6 +15,8 @@ interface Props {
 }
 
 const ScoreControls: Component<Props> = (props) => {
+  const sounds = useSoundEffects();
+  const haptics = useHaptics();
   const team1Active = () => props.scoringMode === 'rally' || props.servingTeam === 1;
   const team2Active = () => props.scoringMode === 'rally' || props.servingTeam === 2;
 
@@ -22,7 +26,7 @@ const ScoreControls: Component<Props> = (props) => {
       <div class="grid grid-cols-2 gap-3">
         <button
           type="button"
-          onClick={() => props.onScorePoint(1)}
+          onClick={() => { props.onScorePoint(1); sounds.scorePoint(); haptics.medium(); }}
           disabled={!team1Active()}
           aria-label={`Score point for ${props.team1Name}`}
           aria-disabled={!team1Active()}
@@ -34,7 +38,7 @@ const ScoreControls: Component<Props> = (props) => {
         </button>
         <button
           type="button"
-          onClick={() => props.onScorePoint(2)}
+          onClick={() => { props.onScorePoint(2); sounds.scorePoint(); haptics.medium(); }}
           disabled={!team2Active()}
           aria-label={`Score point for ${props.team2Name}`}
           aria-disabled={!team2Active()}
@@ -50,7 +54,7 @@ const ScoreControls: Component<Props> = (props) => {
       <Show when={props.scoringMode === 'sideout'}>
         <button
           type="button"
-          onClick={() => props.onSideOut()}
+          onClick={() => { props.onSideOut(); sounds.sideOut(); haptics.double(); }}
           aria-label="Side out - change serving team"
           class="w-full bg-surface-lighter text-on-surface font-semibold text-base py-6 rounded-2xl active:scale-95 transition-transform"
         >
@@ -61,7 +65,7 @@ const ScoreControls: Component<Props> = (props) => {
       {/* Undo button */}
       <button
         type="button"
-        onClick={() => props.onUndo()}
+        onClick={() => { props.onUndo(); sounds.undo(); haptics.light(); }}
         aria-label="Undo last action"
         class="w-full bg-surface-light text-on-surface-muted font-medium text-sm py-3 rounded-xl active:scale-95 transition-transform"
       >
