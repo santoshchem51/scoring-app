@@ -149,10 +149,10 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
         const trailing = Math.min(team1Score, team2Score);
         const leadTeam = team1Score > team2Score ? props.match.team1Name : props.match.team2Name;
 
-        if (leading === ptw - 1 && trailing === ptw - 1) {
+        if (leading >= ptw - 1 && leading === trailing) {
           voice.announceDeuce();
           setTimeout(() => voice.announceScoreQueued(current), 1200);
-        } else if (leading === ptw - 1 && leading > trailing) {
+        } else if (leading >= ptw - 1 && leading - trailing === 1) {
           voice.announceGamePoint(leadTeam);
           setTimeout(() => voice.announceScoreQueued(current), 1500);
         } else {
