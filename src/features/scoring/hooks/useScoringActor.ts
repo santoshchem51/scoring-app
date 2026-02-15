@@ -5,6 +5,7 @@ import { pickleballMachine } from '../engine/pickleballMachine';
 import { scoreEventRepository } from '../../../data/repositories/scoreEventRepository';
 import { matchRepository } from '../../../data/repositories/matchRepository';
 import type { MatchConfig, ScoreEvent, GameResult } from '../../../data/types';
+import { cloudSync } from '../../../data/firebase/cloudSync';
 
 export interface ResumeState {
   team1Score: number;
@@ -27,7 +28,9 @@ function persistSnapshot(matchId: string, context: { team1Score: number; team2Sc
   // Fire and forget - don't block the UI on DB write
   matchRepository.getById(matchId).then((match) => {
     if (match) {
-      matchRepository.save({ ...match, lastSnapshot: JSON.stringify(snapshot) });
+      const updated = { ...match, lastSnapshot: JSON.stringify(snapshot) };
+      matchRepository.save(updated);
+      cloudSync.syncMatchToCloud(updated);
     }
   });
 }
@@ -49,7 +52,9 @@ function saveCompletedGame(matchId: string, context: { team1Score: number; team2
       // Only add if this game hasn't been saved yet
       const alreadySaved = match.games.some((g) => g.gameNumber === gameResult.gameNumber);
       if (!alreadySaved) {
-        matchRepository.save({ ...match, games: [...match.games, gameResult] });
+        const updated = { ...match, games: [...match.games, gameResult] };
+        matchRepository.save(updated);
+        cloudSync.syncMatchToCloud(updated);
       }
     }
   });
@@ -113,6 +118,7 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
       };
       try {
         await scoreEventRepository.save(event);
+        cloudSync.syncScoreEventToCloud(event);
       } catch (err) {
         console.error('Failed to save score event:', err);
       }
@@ -141,6 +147,7 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
     };
     try {
       await scoreEventRepository.save(event);
+      cloudSync.syncScoreEventToCloud(event);
     } catch (err) {
       console.error('Failed to save score event:', err);
     }
@@ -166,6 +173,7 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
       };
       try {
         await scoreEventRepository.save(event);
+        cloudSync.syncScoreEventToCloud(event);
       } catch (err) {
         console.error('Failed to save score event:', err);
       }
