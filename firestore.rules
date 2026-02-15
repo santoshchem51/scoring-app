@@ -201,7 +201,6 @@ service cloud.firestore {
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.paymentStatus == 'unpaid'
           && request.resource.data.paymentNote == ''
-          && request.resource.data.rulesAcknowledged == true
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.status == 'registration';
 
         // Organizer can update any registration (e.g., payment status)

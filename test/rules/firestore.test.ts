@@ -900,13 +900,6 @@ describe('Registrations (/tournaments/{tid}/registrations/{id})', () => {
     await assertFails(setDoc(doc(db, regPath), makeRegistration(playerId, 't1', { paymentNote: 'I already paid' })));
   });
 
-  // ── HIGH: rulesAcknowledged must be true on create (8.3) ──────────
-
-  it('denies create with rulesAcknowledged false', async () => {
-    const db = authedContext(playerId).firestore();
-    await assertFails(setDoc(doc(db, regPath), makeRegistration(playerId, 't1', { rulesAcknowledged: false })));
-  });
-
   // ── HIGH: tournament must be in registration status (8.8) ─────────
 
   it('denies create when tournament is in setup status', async () => {

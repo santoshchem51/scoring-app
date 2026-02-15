@@ -131,6 +131,7 @@ export function makeTournament(organizerId: string, overrides: Record<string, un
     scorekeeperIds: [],
     status: 'setup',
     maxPlayers: null,
+    teamFormation: 'byop',
     minPlayers: null,
     entryFee: null,
     rules: {
@@ -200,7 +201,10 @@ export function makeRegistration(userId: string, tournamentId: string, overrides
     paymentStatus: 'unpaid',
     paymentNote: '',
     lateEntry: false,
-    rulesAcknowledged: true,
+    skillRating: null,
+    partnerId: null,
+    partnerName: null,
+    profileComplete: false,
     registeredAt: Date.now(),
     ...overrides,
   };

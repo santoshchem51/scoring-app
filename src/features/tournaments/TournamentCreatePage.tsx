@@ -57,6 +57,7 @@ const TournamentCreatePage: Component = () => {
         scorekeeperIds: [],
         status: 'setup',
         maxPlayers: (() => { const n = parseInt(maxPlayers(), 10); return !isNaN(n) && n >= 4 ? n : null; })(),
+        teamFormation: gameType() === 'singles' ? null : 'byop',
         minPlayers: null,
         entryFee: null,
         rules: emptyRules,

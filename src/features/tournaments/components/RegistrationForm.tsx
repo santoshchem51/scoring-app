@@ -12,13 +12,11 @@ interface Props {
 
 const RegistrationForm: Component<Props> = (props) => {
   const { user, signIn } = useAuth();
-  const [rulesAcknowledged, setRulesAcknowledged] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
 
   const isRegistrationOpen = () => props.tournament.status === 'registration';
   const isAlreadyRegistered = () => !!props.existingRegistration;
-  const hasRules = () => !!props.tournament.rules.scoringRules || !!props.tournament.rules.conductRules;
 
   const handleRegister = async () => {
     const currentUser = user();
@@ -35,7 +33,10 @@ const RegistrationForm: Component<Props> = (props) => {
         paymentStatus: 'unpaid',
         paymentNote: '',
         lateEntry: false,
-        rulesAcknowledged: hasRules() ? rulesAcknowledged() : true,
+        skillRating: null,
+        partnerId: null,
+        partnerName: null,
+        profileComplete: false,
         registeredAt: Date.now(),
       };
       await firestoreRegistrationRepository.save(reg);
@@ -77,20 +78,13 @@ const RegistrationForm: Component<Props> = (props) => {
             when={isRegistrationOpen()}
             fallback={<p class="text-sm text-on-surface-muted text-center py-2">Registration is not open.</p>}
           >
-            <Show when={hasRules()}>
-              <label class="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={rulesAcknowledged()} onChange={(e) => setRulesAcknowledged(e.currentTarget.checked)} class="mt-1 accent-primary" />
-                <span class="text-sm text-on-surface">I've read and agree to the tournament rules</span>
-              </label>
-            </Show>
-
             <Show when={error()}>
               <p class="text-red-500 text-sm text-center mb-2">{error()}</p>
             </Show>
 
             <button type="button" onClick={handleRegister}
-              disabled={saving() || (hasRules() && !rulesAcknowledged())}
-              class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${!saving() && (!hasRules() || rulesAcknowledged()) ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}>
+              disabled={saving()}
+              class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${!saving() ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}>
               {saving() ? 'Registering...' : 'Join Tournament'}
             </button>
           </Show>
