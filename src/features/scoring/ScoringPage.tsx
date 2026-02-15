@@ -15,6 +15,7 @@ import { useCelebration } from '../../shared/hooks/useCelebration';
 import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants/teamColors';
 import { shareScoreCard } from '../../shared/utils/shareScoreCard';
 import { useVoiceAnnouncements } from '../../shared/hooks/useVoiceAnnouncements';
+import { cloudSync } from '../../data/firebase/cloudSync';
 
 interface ScoringViewProps {
   match: MatchData;
@@ -194,6 +195,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
       lastSnapshot: null,
     };
     await matchRepository.save(updatedMatch);
+    cloudSync.syncMatchToCloud(updatedMatch);
     navigate('/history');
   };
 
