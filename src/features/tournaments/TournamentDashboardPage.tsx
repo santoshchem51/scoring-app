@@ -256,7 +256,7 @@ const TournamentDashboardPage: Component = () => {
         for (const pool of currentPools) {
           // Calculate standings using the pool's team IDs and any completed matches
           // For now, use the existing standings from the pool (updated during match play)
-          const standings = calculateStandings(pool.teamIds, []);
+          const standings = calculateStandings(pool.teamIds, [], (m) => ({ team1: m.team1Name, team2: m.team2Name }));
           allPoolStandings.push(standings);
           await firestorePoolRepository.updateStandings(t.id, pool.id, standings);
         }
@@ -283,7 +283,7 @@ const TournamentDashboardPage: Component = () => {
         const currentPools = pools() ?? [];
 
         for (const pool of currentPools) {
-          const standings = calculateStandings(pool.teamIds, []);
+          const standings = calculateStandings(pool.teamIds, [], (m) => ({ team1: m.team1Name, team2: m.team2Name }));
           await firestorePoolRepository.updateStandings(t.id, pool.id, standings);
         }
 
