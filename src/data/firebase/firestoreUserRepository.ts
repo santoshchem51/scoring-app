@@ -19,7 +19,7 @@ export const firestoreUserRepository = {
         displayName: user.displayName ?? '',
         email: user.email ?? '',
         photoURL: user.photoURL,
-        createdAt: serverTimestamp(),
+        createdAt: Date.now(),
       });
     }
   },

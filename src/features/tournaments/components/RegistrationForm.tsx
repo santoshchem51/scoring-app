@@ -35,7 +35,7 @@ const RegistrationForm: Component<Props> = (props) => {
         paymentStatus: 'unpaid',
         paymentNote: '',
         lateEntry: false,
-        rulesAcknowledged: rulesAcknowledged(),
+        rulesAcknowledged: hasRules() ? rulesAcknowledged() : true,
         registeredAt: Date.now(),
       };
       await firestoreRegistrationRepository.save(reg);

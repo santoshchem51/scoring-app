@@ -3,106 +3,222 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can read/write their own profile
+    // ── Users (/users/{userId}) ───────────────────────────────────────
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.id == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.email is string
+        && request.resource.data.createdAt is number;
+
+      allow update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.displayName is string
+        && request.resource.data.email is string;
     }
 
-    // Match rules
+    // ── Matches (/matches/{matchId}) ──────────────────────────────────
     match /matches/{matchId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.ownerId;
-      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-      allow read, write: if request.auth != null && request.auth.uid in resource.data.sharedWith;
+      // Owner read
+      allow read: if request.auth != null && request.auth.uid == resource.data.ownerId;
+
+      // Owner create with field validation
+      allow create: if request.auth != null
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.visibility in ['private', 'shared', 'public']
+        && request.resource.data.status in ['in-progress', 'completed', 'abandoned']
+        && request.resource.data.config.gameType in ['singles', 'doubles']
+        && request.resource.data.config.scoringMode in ['sideout', 'rally']
+        && request.resource.data.config.matchFormat in ['single', 'best-of-3', 'best-of-5']
+        && request.resource.data.config.pointsToWin in [11, 15, 21]
+        && request.resource.data.team1Name is string
+        && request.resource.data.team1Name.size() > 0
+        && request.resource.data.team2Name is string
+        && request.resource.data.team2Name.size() > 0
+        && request.resource.data.sharedWith is list;
+
+      // Owner update — ownerId is immutable
+      allow update: if request.auth != null && request.auth.uid == resource.data.ownerId
+        && request.resource.data.ownerId == resource.data.ownerId;
+
+      // Owner delete
+      allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+
+      // Shared user read
+      allow read: if request.auth != null && request.auth.uid in resource.data.sharedWith;
+
+      // Shared user update only (NOT create/delete) — ownerId is immutable
+      allow update: if request.auth != null && request.auth.uid in resource.data.sharedWith
+        && request.resource.data.ownerId == resource.data.ownerId;
+
+      // Public read (no auth required)
       allow read: if resource.data.visibility == 'public';
 
+      // ── Score Events (/matches/{matchId}/scoreEvents/{eventId}) ───
       match /scoreEvents/{eventId} {
-        allow read, write: if request.auth != null && (
-          get(/databases/$(database)/documents/matches/$(matchId)).data.ownerId == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.sharedWith
-        );
-        allow read: if get(/databases/$(database)/documents/matches/$(matchId)).data.visibility == 'public';
+        function matchData() {
+          return get(/databases/$(database)/documents/matches/$(matchId)).data;
+        }
+        function isMatchOwnerOrShared() {
+          return request.auth != null && (
+            matchData().ownerId == request.auth.uid ||
+            request.auth.uid in matchData().sharedWith
+          );
+        }
+
+        allow read: if isMatchOwnerOrShared()
+          || matchData().visibility == 'public';
+
+        allow create: if isMatchOwnerOrShared()
+          && request.resource.data.matchId == matchId
+          && request.resource.data.type in ['POINT_SCORED', 'SIDE_OUT', 'FAULT', 'UNDO']
+          && request.resource.data.team in [1, 2]
+          && request.resource.data.team1Score is number
+          && request.resource.data.team1Score >= 0
+          && request.resource.data.team2Score is number
+          && request.resource.data.team2Score >= 0;
+
+        allow update: if isMatchOwnerOrShared()
+          && request.resource.data.matchId == resource.data.matchId;
+
+        allow delete: if isMatchOwnerOrShared();
       }
     }
 
-    // Tournament rules
+    // ── Tournaments (/tournaments/{tournamentId}) ─────────────────────
     match /tournaments/{tournamentId} {
 
       // Any authenticated user can read tournaments
       allow read: if request.auth != null;
 
-      // C2: Field validation on tournament creation — name must be non-empty string
-      // (max 100 chars), status must start as 'setup', format must be valid
+      // Create with full field validation
       allow create: if request.auth != null
         && request.resource.data.organizerId == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 100
         && request.resource.data.status == 'setup'
-        && request.resource.data.config.format in ['round-robin', 'single-elimination', 'pool-bracket'];
+        && request.resource.data.format in ['round-robin', 'single-elimination', 'pool-bracket']
+        && request.resource.data.date is number
+        && request.resource.data.location is string
+        && request.resource.data.config is map
+        && request.resource.data.config.gameType in ['singles', 'doubles']
+        && request.resource.data.config.scoringMode in ['sideout', 'rally']
+        && request.resource.data.config.matchFormat in ['single', 'best-of-3', 'best-of-5']
+        && request.resource.data.config.pointsToWin in [11, 15, 21]
+        && request.resource.data.scorekeeperIds is list;
 
-      // C3: Status transition validation for tournament updates
-      // C9: organizerId is immutable — must match existing value
+      // Update: status transitions + field validation + organizerId immutable
       allow update: if request.auth != null && request.auth.uid == resource.data.organizerId
         && request.resource.data.organizerId == resource.data.organizerId
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.format in ['round-robin', 'single-elimination', 'pool-bracket']
+        && request.resource.data.scorekeeperIds is list
         && (
           // Valid status transitions
           (resource.data.status == 'setup' && request.resource.data.status in ['registration', 'cancelled']) ||
           (resource.data.status == 'registration' && request.resource.data.status in ['pool-play', 'bracket', 'cancelled']) ||
           (resource.data.status == 'pool-play' && request.resource.data.status in ['bracket', 'paused', 'completed', 'cancelled']) ||
           (resource.data.status == 'bracket' && request.resource.data.status in ['completed', 'paused', 'cancelled']) ||
-          (resource.data.status == 'paused' && request.resource.data.status in ['pool-play', 'bracket', 'cancelled']) ||
-          // Allow updates that don't change status (e.g., updating config, adding scorekeepers)
+          (resource.data.status == 'paused' && request.resource.data.status in ['pool-play', 'bracket', 'completed', 'cancelled']) ||
+          // Allow updates that don't change status
           request.resource.data.status == resource.data.status
         );
 
       // Only the organizer can delete a tournament
       allow delete: if request.auth != null && request.auth.uid == resource.data.organizerId;
 
-      // C5: Teams — organizer has full control, scorekeepers can only update
+      // ── Teams (/tournaments/{tid}/teams/{teamId}) ─────────────────
       match /teams/{teamId} {
         allow read: if request.auth != null;
-        allow create, delete: if request.auth != null
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && request.resource.data.tournamentId == tournamentId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.playerIds is list;
+
         allow update: if request.auth != null
           && (get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
-              || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds);
+              || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds)
+          && request.resource.data.tournamentId == resource.data.tournamentId;
+
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
       }
 
-      // Pools — only the organizer can manage pools
+      // ── Pools (/tournaments/{tid}/pools/{poolId}) ─────────────────
       match /pools/{poolId} {
         allow read: if request.auth != null;
-        allow write: if request.auth != null &&
-          get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && request.resource.data.tournamentId == tournamentId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.teamIds is list;
+
+        allow update: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && request.resource.data.tournamentId == resource.data.tournamentId;
+
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
       }
 
-      // C5: Bracket — organizer has full control, scorekeepers can only update
+      // ── Bracket (/tournaments/{tid}/bracket/{slotId}) ─────────────
       match /bracket/{slotId} {
         allow read: if request.auth != null;
-        allow create, delete: if request.auth != null
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && request.resource.data.tournamentId == tournamentId
+          && request.resource.data.round is number
+          && request.resource.data.position is number;
+
         allow update: if request.auth != null
           && (get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
-              || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds);
+              || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds)
+          && request.resource.data.tournamentId == resource.data.tournamentId;
+
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
       }
 
-      // C6: TODO — use userId as doc ID to prevent duplicate registrations.
-      // This requires changing the registration save logic in the app layer.
+      // ── Registrations (/tournaments/{tid}/registrations/{regId}) ──
       match /registrations/{regId} {
         allow read: if request.auth != null;
 
-        // Players can register themselves
-        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        // Players can register themselves — only during registration phase
+        allow create: if request.auth != null
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.tournamentId == tournamentId
+          && request.resource.data.paymentStatus == 'unpaid'
+          && request.resource.data.paymentNote == ''
+          && request.resource.data.rulesAcknowledged == true
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.status == 'registration';
 
         // Organizer can update any registration (e.g., payment status)
-        allow update: if request.auth != null &&
-          get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+        allow update: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && request.resource.data.paymentStatus in ['unpaid', 'paid', 'waived']
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.tournamentId == resource.data.tournamentId;
 
-        // C1: Players can update their own registration, but NOT paymentStatus or paymentNote
+        // Players can update their own registration, but NOT paymentStatus or paymentNote
         allow update: if request.auth != null && resource.data.userId == request.auth.uid
           && request.resource.data.paymentStatus == resource.data.paymentStatus
-          && request.resource.data.paymentNote == resource.data.paymentNote;
+          && request.resource.data.paymentNote == resource.data.paymentNote
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.tournamentId == resource.data.tournamentId;
 
-        // C8: Players can delete their own registration; organizer can delete any
+        // Players can delete their own registration; organizer can delete any
         allow delete: if request.auth != null
           && (resource.data.userId == request.auth.uid
               || get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid);
