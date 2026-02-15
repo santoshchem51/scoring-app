@@ -8,6 +8,7 @@ import { matchRepository } from '../../data/repositories/matchRepository';
 import type { GameType, ScoringMode, MatchFormat, Match, MatchConfig } from '../../data/types';
 import { settings } from '../../stores/settingsStore';
 import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants/teamColors';
+import { cloudSync } from '../../data/firebase/cloudSync';
 
 const GameSetupPage: Component = () => {
   const navigate = useNavigate();
@@ -49,6 +50,7 @@ const GameSetupPage: Component = () => {
 
     try {
       await matchRepository.save(match);
+      cloudSync.syncMatchToCloud(match);
       navigate(`/score/${match.id}`);
     } catch (err) {
       console.error('Failed to save match:', err);
@@ -81,6 +83,7 @@ const GameSetupPage: Component = () => {
     };
     try {
       await matchRepository.save(match);
+      cloudSync.syncMatchToCloud(match);
       navigate(`/score/${match.id}`);
     } catch (err) {
       console.error('Failed to start quick game:', err);
