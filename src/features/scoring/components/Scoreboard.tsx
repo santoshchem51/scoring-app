@@ -2,6 +2,7 @@ import { Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { GameType, ScoringMode } from '../../../data/types';
 import { useScoreAnimation } from '../hooks/useScoreAnimation';
+import { useSwipeGesture } from '../../../shared/hooks/useSwipeGesture';
 
 interface Props {
   team1Name: string;
@@ -13,14 +14,28 @@ interface Props {
   scoringMode: ScoringMode;
   gameType: GameType;
   pointsToWin?: number;
+  onSwipeScoreTeam1?: () => void;
+  onSwipeScoreTeam2?: () => void;
+  onSwipeUndo?: () => void;
 }
 
 const Scoreboard: Component<Props> = (props) => {
   let team1ScoreRef: HTMLSpanElement | undefined;
   let team2ScoreRef: HTMLSpanElement | undefined;
+  let team1PanelRef: HTMLDivElement | undefined;
+  let team2PanelRef: HTMLDivElement | undefined;
 
   useScoreAnimation(() => props.team1Score, () => team1ScoreRef);
   useScoreAnimation(() => props.team2Score, () => team2ScoreRef);
+
+  useSwipeGesture(() => team1PanelRef, {
+    onSwipeRight: props.onSwipeScoreTeam1,
+    onSwipeLeft: props.onSwipeUndo,
+  });
+  useSwipeGesture(() => team2PanelRef, {
+    onSwipeRight: props.onSwipeScoreTeam2,
+    onSwipeLeft: props.onSwipeUndo,
+  });
 
   const isServing = (team: 1 | 2) => props.servingTeam === team;
   const showServerNumber = () =>
@@ -42,13 +57,14 @@ const Scoreboard: Component<Props> = (props) => {
 
       {/* Team 1 */}
       <div
+        ref={team1PanelRef}
         class="flex flex-col items-center py-6 rounded-2xl transition-all"
         classList={{
           'bg-primary/15 ring-2 ring-primary': isServing(1),
           'bg-score/10 ring-2 ring-score': team1GamePoint() && !isServing(1),
           'bg-surface-light': !isServing(1) && !team1GamePoint(),
         }}
-        style={isServing(1) ? { animation: 'pulse-glow 2s ease-in-out infinite' } : undefined}
+        style={isServing(1) ? { "touch-action": "pan-y", animation: 'pulse-glow 2s ease-in-out infinite' } : { "touch-action": "pan-y" }}
         aria-label={`${props.team1Name}: ${props.team1Score}${isServing(1) ? ', serving' : ''}`}
       >
         <span class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2">
@@ -73,13 +89,14 @@ const Scoreboard: Component<Props> = (props) => {
 
       {/* Team 2 */}
       <div
+        ref={team2PanelRef}
         class="flex flex-col items-center py-6 rounded-2xl transition-all"
         classList={{
           'bg-primary/15 ring-2 ring-primary': isServing(2),
           'bg-score/10 ring-2 ring-score': team2GamePoint() && !isServing(2),
           'bg-surface-light': !isServing(2) && !team2GamePoint(),
         }}
-        style={isServing(2) ? { animation: 'pulse-glow 2s ease-in-out infinite' } : undefined}
+        style={isServing(2) ? { "touch-action": "pan-y", animation: 'pulse-glow 2s ease-in-out infinite' } : { "touch-action": "pan-y" }}
         aria-label={`${props.team2Name}: ${props.team2Score}${isServing(2) ? ', serving' : ''}`}
       >
         <span class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2">

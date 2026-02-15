@@ -3,9 +3,11 @@ import { createSignal } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import OptionCard from '../../shared/components/OptionCard';
+import ColorPicker from '../../shared/components/ColorPicker';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { GameType, ScoringMode, MatchFormat, Match, MatchConfig } from '../../data/types';
 import { settings } from '../../stores/settingsStore';
+import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants/teamColors';
 
 const GameSetupPage: Component = () => {
   const navigate = useNavigate();
@@ -16,6 +18,8 @@ const GameSetupPage: Component = () => {
   const [pointsToWin, setPointsToWin] = createSignal<11 | 15 | 21>(settings().defaultPointsToWin);
   const [team1Name, setTeam1Name] = createSignal('Team 1');
   const [team2Name, setTeam2Name] = createSignal('Team 2');
+  const [team1Color, setTeam1Color] = createSignal(DEFAULT_TEAM1_COLOR);
+  const [team2Color, setTeam2Color] = createSignal(DEFAULT_TEAM2_COLOR);
 
   const canStart = () => team1Name().trim() !== '' && team2Name().trim() !== '';
 
@@ -34,6 +38,8 @@ const GameSetupPage: Component = () => {
       team2PlayerIds: [],
       team1Name: team1Name().trim(),
       team2Name: team2Name().trim(),
+      team1Color: team1Color(),
+      team2Color: team2Color(),
       games: [],
       winningSide: null,
       status: 'in-progress',
@@ -50,9 +56,60 @@ const GameSetupPage: Component = () => {
     }
   };
 
+  const quickStart = async () => {
+    const s = settings();
+    const config: MatchConfig = {
+      gameType: 'doubles',
+      scoringMode: s.defaultScoringMode,
+      matchFormat: s.defaultMatchFormat,
+      pointsToWin: s.defaultPointsToWin,
+    };
+    const match: Match = {
+      id: crypto.randomUUID(),
+      config,
+      team1PlayerIds: [],
+      team2PlayerIds: [],
+      team1Name: 'Team 1',
+      team2Name: 'Team 2',
+      team1Color: DEFAULT_TEAM1_COLOR,
+      team2Color: DEFAULT_TEAM2_COLOR,
+      games: [],
+      winningSide: null,
+      status: 'in-progress',
+      startedAt: Date.now(),
+      completedAt: null,
+    };
+    try {
+      await matchRepository.save(match);
+      navigate(`/score/${match.id}`);
+    } catch (err) {
+      console.error('Failed to start quick game:', err);
+    }
+  };
+
   return (
     <PageLayout title="New Game">
       <div class="p-4 space-y-6 pb-24">
+        {/* Quick Game */}
+        <button
+          type="button"
+          onClick={quickStart}
+          class="w-full bg-primary text-surface font-bold text-lg py-5 rounded-2xl active:scale-95 transition-transform flex items-center justify-center gap-3"
+          aria-label="Quick Game — start with defaults"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Quick Game
+        </button>
+
+        {/* Divider */}
+        <div class="flex items-center gap-3 text-on-surface-muted">
+          <div class="flex-1 border-t border-surface-lighter" />
+          <span class="text-xs uppercase tracking-wider">or customize</span>
+          <div class="flex-1 border-t border-surface-lighter" />
+        </div>
+
         {/* Game Type */}
         <fieldset>
           <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Game Type</legend>
@@ -106,6 +163,9 @@ const GameSetupPage: Component = () => {
                 class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
                 placeholder="Team 1 name"
               />
+              <div class="mt-2">
+                <ColorPicker selected={team1Color()} onSelect={setTeam1Color} label="Team 1 color" />
+              </div>
             </div>
             <div>
               <label for="team2-name" class="sr-only">Team 2 name</label>
@@ -118,6 +178,9 @@ const GameSetupPage: Component = () => {
                 class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
                 placeholder="Team 2 name"
               />
+              <div class="mt-2">
+                <ColorPicker selected={team2Color()} onSelect={setTeam2Color} label="Team 2 color" />
+              </div>
             </div>
           </div>
         </fieldset>
