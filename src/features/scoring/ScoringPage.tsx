@@ -14,6 +14,7 @@ import { settings } from '../../stores/settingsStore';
 import { useCelebration } from '../../shared/hooks/useCelebration';
 import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants/teamColors';
 import { shareScoreCard } from '../../shared/utils/shareScoreCard';
+import { useVoiceAnnouncements } from '../../shared/hooks/useVoiceAnnouncements';
 
 interface ScoringViewProps {
   match: MatchData;
@@ -103,6 +104,61 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
       celebration.matchWin(t1Color(), t2Color());
     }
   }));
+
+  // Voice announcements
+  const voice = useVoiceAnnouncements({
+    team1Name: props.match.team1Name,
+    team2Name: props.match.team2Name,
+    scoringMode: props.match.config.scoringMode,
+    gameType: props.match.config.gameType,
+    pointsToWin: props.match.config.pointsToWin,
+  });
+
+  createEffect(on(
+    () => ({ ...ctx(), state: stateName() }),
+    (current, prev) => {
+      if (!prev) return;
+      const { state, team1Score, team2Score, servingTeam, serverNumber, gameNumber, gamesWon } = current;
+
+      // Game over announcement
+      if (state === 'betweenGames' && prev.state === 'serving') {
+        const winner = gamesWon[0] > prev.gamesWon[0] ? props.match.team1Name : props.match.team2Name;
+        voice.announceGameOver(winner, prev.gameNumber, team1Score, team2Score);
+        return;
+      }
+
+      // Match over announcement
+      if (state === 'matchOver' && prev.state === 'serving') {
+        const winner = gamesWon[0] > gamesWon[1] ? props.match.team1Name : props.match.team2Name;
+        voice.announceMatchOver(winner, gamesWon[0], gamesWon[1]);
+        return;
+      }
+
+      // Side out announcement
+      if (servingTeam !== prev.servingTeam && state === 'serving') {
+        voice.announceSideOut();
+        // Announce score after a brief delay so side-out is heard first
+        setTimeout(() => voice.announceScore(current), 800);
+        return;
+      }
+
+      // Score change announcement
+      if ((team1Score !== prev.team1Score || team2Score !== prev.team2Score) && state === 'serving') {
+        const ptw = props.match.config.pointsToWin;
+        const leading = Math.max(team1Score, team2Score);
+        const trailing = Math.min(team1Score, team2Score);
+        const leadTeam = team1Score > team2Score ? props.match.team1Name : props.match.team2Name;
+
+        if (leading === ptw - 1 && trailing === ptw - 1) {
+          voice.announceDeuce();
+        } else if (leading === ptw - 1 && leading > trailing) {
+          voice.announceGamePoint(leadTeam);
+        }
+
+        voice.announceScore(current);
+      }
+    },
+  ));
 
   const [shareStatus, setShareStatus] = createSignal<string | null>(null);
 
