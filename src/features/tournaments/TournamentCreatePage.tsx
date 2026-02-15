@@ -31,6 +31,7 @@ const TournamentCreatePage: Component = () => {
   const [poolCount, _setPoolCount] = createSignal(2);
   const [teamsAdvancing, _setTeamsAdvancing] = createSignal(2);
   const [maxPlayers, setMaxPlayers] = createSignal('');
+  const [teamFormation, setTeamFormation] = createSignal<'byop' | 'auto-pair'>('byop');
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
   const [fieldErrors, setFieldErrors] = createSignal<TournamentFormErrors>({});
@@ -76,7 +77,7 @@ const TournamentCreatePage: Component = () => {
         scorekeeperIds: [],
         status: 'setup',
         maxPlayers: (() => { const n = parseInt(maxPlayers(), 10); return !isNaN(n) && n >= 4 ? n : null; })(),
-        teamFormation: gameType() === 'singles' ? null : 'byop',
+        teamFormation: gameType() === 'singles' ? null : teamFormation(),
         minPlayers: null,
         entryFee: null,
         rules: emptyRules,
@@ -143,6 +144,16 @@ const TournamentCreatePage: Component = () => {
             <OptionCard label="Doubles" description="2 vs 2" selected={gameType() === 'doubles'} onClick={() => setGameType('doubles')} />
           </div>
         </fieldset>
+
+        <Show when={gameType() === 'doubles'}>
+          <fieldset>
+            <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Team Formation</legend>
+            <div class="grid grid-cols-2 gap-3">
+              <OptionCard label="BYOP" description="Bring your own partner" selected={teamFormation() === 'byop'} onClick={() => setTeamFormation('byop')} />
+              <OptionCard label="Auto-Pair" description="Pair by skill level" selected={teamFormation() === 'auto-pair'} onClick={() => setTeamFormation('auto-pair')} />
+            </div>
+          </fieldset>
+        </Show>
 
         <fieldset>
           <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Scoring</legend>

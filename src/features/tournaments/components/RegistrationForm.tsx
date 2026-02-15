@@ -14,6 +14,8 @@ const RegistrationForm: Component<Props> = (props) => {
   const { user, signIn } = useAuth();
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
+  const [skillRating, setSkillRating] = createSignal<string>('');
+  const [partnerName, setPartnerName] = createSignal('');
 
   const isRegistrationOpen = () => props.tournament.status === 'registration';
   const isAlreadyRegistered = () => !!props.existingRegistration;
@@ -33,10 +35,10 @@ const RegistrationForm: Component<Props> = (props) => {
         paymentStatus: 'unpaid',
         paymentNote: '',
         lateEntry: false,
-        skillRating: null,
+        skillRating: skillRating() ? parseFloat(skillRating()) : null,
         partnerId: null,
-        partnerName: null,
-        profileComplete: false,
+        partnerName: partnerName().trim() || null,
+        profileComplete: !!(skillRating() && (props.tournament.teamFormation !== 'byop' || partnerName().trim())),
         registeredAt: Date.now(),
       };
       await firestoreRegistrationRepository.save(reg);
@@ -81,6 +83,30 @@ const RegistrationForm: Component<Props> = (props) => {
             <Show when={error()}>
               <p class="text-red-500 text-sm text-center mb-2">{error()}</p>
             </Show>
+
+            {/* Optional Fields */}
+            <div class="space-y-3">
+              <div>
+                <label for="skill-rating" class="text-xs text-on-surface-muted uppercase tracking-wider mb-1 block">Skill Level (optional)</label>
+                <select id="skill-rating" value={skillRating()} onChange={(e) => setSkillRating(e.currentTarget.value)}
+                  class="w-full bg-surface border border-surface-lighter rounded-lg px-3 py-2 text-sm text-on-surface">
+                  <option value="">Select rating...</option>
+                  <option value="2.5">2.5 - Beginner</option>
+                  <option value="3.0">3.0 - Intermediate</option>
+                  <option value="3.5">3.5 - Advanced Intermediate</option>
+                  <option value="4.0">4.0 - Advanced</option>
+                  <option value="4.5">4.5 - Expert</option>
+                  <option value="5.0">5.0 - Pro</option>
+                </select>
+              </div>
+              <Show when={props.tournament.teamFormation === 'byop'}>
+                <div>
+                  <label for="partner-name" class="text-xs text-on-surface-muted uppercase tracking-wider mb-1 block">Partner Name (optional)</label>
+                  <input id="partner-name" type="text" value={partnerName()} onInput={(e) => setPartnerName(e.currentTarget.value)}
+                    class="w-full bg-surface border border-surface-lighter rounded-lg px-3 py-2 text-sm text-on-surface" placeholder="Enter partner's name" />
+                </div>
+              </Show>
+            </div>
 
             <button type="button" onClick={handleRegister}
               disabled={saving()}
