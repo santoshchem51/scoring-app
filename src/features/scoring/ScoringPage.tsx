@@ -138,7 +138,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
       if (servingTeam !== prev.servingTeam && state === 'serving') {
         voice.announceSideOut();
         // Announce score after a brief delay so side-out is heard first
-        setTimeout(() => voice.announceScore(current), 800);
+        setTimeout(() => voice.announceScoreQueued(current), 800);
         return;
       }
 
@@ -151,11 +151,13 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
 
         if (leading === ptw - 1 && trailing === ptw - 1) {
           voice.announceDeuce();
+          setTimeout(() => voice.announceScoreQueued(current), 1200);
         } else if (leading === ptw - 1 && leading > trailing) {
           voice.announceGamePoint(leadTeam);
+          setTimeout(() => voice.announceScoreQueued(current), 1500);
+        } else {
+          voice.announceScore(current);
         }
-
-        voice.announceScore(current);
       }
     },
   ));

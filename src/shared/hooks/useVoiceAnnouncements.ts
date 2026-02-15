@@ -1,11 +1,9 @@
 import { settings } from '../../stores/settingsStore';
 
-function speak(text: string) {
+function createUtterance(text: string): SpeechSynthesisUtterance | null {
   const s = settings();
-  if (s.voiceAnnouncements === 'off') return;
-  if (!('speechSynthesis' in window)) return;
-
-  speechSynthesis.cancel();
+  if (s.voiceAnnouncements === 'off') return null;
+  if (!('speechSynthesis' in window)) return null;
 
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = s.voiceRate;
@@ -18,7 +16,18 @@ function speak(text: string) {
     if (match) utterance.voice = match;
   }
 
-  speechSynthesis.speak(utterance);
+  return utterance;
+}
+
+function speak(text: string) {
+  speechSynthesis.cancel();
+  const utt = createUtterance(text);
+  if (utt) speechSynthesis.speak(utt);
+}
+
+function speakQueued(text: string) {
+  const utt = createUtterance(text);
+  if (utt) speechSynthesis.speak(utt);
 }
 
 interface VoiceConfig {
@@ -41,15 +50,23 @@ interface ScoreState {
 export function useVoiceAnnouncements(config: VoiceConfig) {
   const level = () => settings().voiceAnnouncements;
 
-  const announceScore = (state: ScoreState) => {
-    if (level() === 'off') return;
+  const scoreText = (state: ScoreState) => {
     if (config.scoringMode === 'sideout' && config.gameType === 'doubles') {
       const serving = state.servingTeam === 1 ? state.team1Score : state.team2Score;
       const receiving = state.servingTeam === 1 ? state.team2Score : state.team1Score;
-      speak(`${serving} ${receiving} ${state.serverNumber}`);
-    } else {
-      speak(`${state.team1Score} ${state.team2Score}`);
+      return `${serving} ${receiving} ${state.serverNumber}`;
     }
+    return `${state.team1Score} ${state.team2Score}`;
+  };
+
+  const announceScore = (state: ScoreState) => {
+    if (level() === 'off') return;
+    speak(scoreText(state));
+  };
+
+  const announceScoreQueued = (state: ScoreState) => {
+    if (level() === 'off') return;
+    speakQueued(scoreText(state));
   };
 
   const announceSideOut = () => {
@@ -94,6 +111,7 @@ export function useVoiceAnnouncements(config: VoiceConfig) {
 
   return {
     announceScore,
+    announceScoreQueued,
     announceSideOut,
     announceGamePoint,
     announceMatchPoint,
