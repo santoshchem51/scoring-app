@@ -2,7 +2,7 @@ import { createSignal, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { firestoreTournamentRepository } from '../../../data/firebase/firestoreTournamentRepository';
-import type { Tournament, TournamentStatus } from '../../../data/types';
+import type { Tournament } from '../../../data/types';
 
 interface Props {
   tournament: Tournament;

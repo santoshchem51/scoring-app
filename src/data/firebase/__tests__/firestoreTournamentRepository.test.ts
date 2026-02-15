@@ -1,30 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Hoisted mock functions
-const mockDoc = vi.fn(() => 'mock-doc-ref');
-const mockSetDoc = vi.fn();
-const mockGetDoc = vi.fn();
-const mockGetDocs = vi.fn();
-const mockDeleteDoc = vi.fn();
-const mockUpdateDoc = vi.fn();
-const mockCollection = vi.fn(() => 'mock-collection-ref');
-const mockQuery = vi.fn(() => 'mock-query');
-const mockWhere = vi.fn(() => 'mock-where');
-const mockOrderBy = vi.fn(() => 'mock-orderby');
-const mockServerTimestamp = vi.fn(() => 'mock-timestamp');
+const { mockDoc, mockSetDoc, mockGetDoc, mockGetDocs, mockDeleteDoc, mockUpdateDoc, mockCollection, mockQuery, mockWhere, mockOrderBy, mockServerTimestamp } = vi.hoisted(() => ({
+  mockDoc: vi.fn(() => 'mock-doc-ref'),
+  mockSetDoc: vi.fn(),
+  mockGetDoc: vi.fn(),
+  mockGetDocs: vi.fn(),
+  mockDeleteDoc: vi.fn(),
+  mockUpdateDoc: vi.fn(),
+  mockCollection: vi.fn(() => 'mock-collection-ref'),
+  mockQuery: vi.fn(() => 'mock-query'),
+  mockWhere: vi.fn(() => 'mock-where'),
+  mockOrderBy: vi.fn(() => 'mock-orderby'),
+  mockServerTimestamp: vi.fn(() => 'mock-timestamp'),
+}));
 
 vi.mock('firebase/firestore', () => ({
-  doc: (...args: unknown[]) => mockDoc(...args),
-  setDoc: (...args: unknown[]) => mockSetDoc(...args),
-  getDoc: (...args: unknown[]) => mockGetDoc(...args),
-  getDocs: (...args: unknown[]) => mockGetDocs(...args),
-  deleteDoc: (...args: unknown[]) => mockDeleteDoc(...args),
-  updateDoc: (...args: unknown[]) => mockUpdateDoc(...args),
-  collection: (...args: unknown[]) => mockCollection(...args),
-  query: (...args: unknown[]) => mockQuery(...args),
-  where: (...args: unknown[]) => mockWhere(...args),
-  orderBy: (...args: unknown[]) => mockOrderBy(...args),
-  serverTimestamp: () => mockServerTimestamp(),
+  doc: mockDoc,
+  setDoc: mockSetDoc,
+  getDoc: mockGetDoc,
+  getDocs: mockGetDocs,
+  deleteDoc: mockDeleteDoc,
+  updateDoc: mockUpdateDoc,
+  collection: mockCollection,
+  query: mockQuery,
+  where: mockWhere,
+  orderBy: mockOrderBy,
+  serverTimestamp: mockServerTimestamp,
 }));
 
 vi.mock('../config', () => ({

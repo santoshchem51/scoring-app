@@ -1,22 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Hoisted mock functions
-const mockDoc = vi.fn(() => 'mock-doc-ref');
-const mockSetDoc = vi.fn();
-const mockGetDocs = vi.fn();
-const mockDeleteDoc = vi.fn();
-const mockUpdateDoc = vi.fn();
-const mockCollection = vi.fn(() => 'mock-collection-ref');
-const mockServerTimestamp = vi.fn(() => 'mock-timestamp');
+const { mockDoc, mockSetDoc, mockGetDocs, mockDeleteDoc, mockUpdateDoc, mockCollection, mockServerTimestamp } = vi.hoisted(() => ({
+  mockDoc: vi.fn(() => 'mock-doc-ref'),
+  mockSetDoc: vi.fn(),
+  mockGetDocs: vi.fn(),
+  mockDeleteDoc: vi.fn(),
+  mockUpdateDoc: vi.fn(),
+  mockCollection: vi.fn(() => 'mock-collection-ref'),
+  mockServerTimestamp: vi.fn(() => 'mock-timestamp'),
+}));
 
 vi.mock('firebase/firestore', () => ({
-  doc: (...args: unknown[]) => mockDoc(...args),
-  setDoc: (...args: unknown[]) => mockSetDoc(...args),
-  getDocs: (...args: unknown[]) => mockGetDocs(...args),
-  deleteDoc: (...args: unknown[]) => mockDeleteDoc(...args),
-  updateDoc: (...args: unknown[]) => mockUpdateDoc(...args),
-  collection: (...args: unknown[]) => mockCollection(...args),
-  serverTimestamp: () => mockServerTimestamp(),
+  doc: mockDoc,
+  setDoc: mockSetDoc,
+  getDocs: mockGetDocs,
+  deleteDoc: mockDeleteDoc,
+  updateDoc: mockUpdateDoc,
+  collection: mockCollection,
+  serverTimestamp: mockServerTimestamp,
 }));
 
 vi.mock('../config', () => ({
