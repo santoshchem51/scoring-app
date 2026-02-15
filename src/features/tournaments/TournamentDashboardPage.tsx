@@ -1,6 +1,6 @@
 import { createSignal, createResource, createMemo, Show, For } from 'solid-js';
 import type { Component } from 'solid-js';
-import { useParams } from '@solidjs/router';
+import { useParams, useNavigate } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
@@ -13,6 +13,7 @@ import { generateRoundRobinSchedule } from './engine/roundRobin';
 import { calculateStandings } from './engine/standings';
 import { seedBracketFromPools } from './engine/bracketSeeding';
 import { generateBracket } from './engine/bracketGenerator';
+import { createTeamsFromRegistrations } from './engine/teamFormation';
 import PoolTable from './components/PoolTable';
 import BracketView from './components/BracketView';
 import RegistrationForm from './components/RegistrationForm';
@@ -43,6 +44,7 @@ const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatu
 
 const TournamentDashboardPage: Component = () => {
   const params = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [error, setError] = createSignal('');
@@ -188,55 +190,60 @@ const TournamentDashboardPage: Component = () => {
       const currentStatus = t.status;
       const fmt = t.format;
 
-      // registration -> pool-play (for round-robin and pool-bracket)
-      if (currentStatus === 'registration' && next === 'pool-play') {
-        const teamList = teams() ?? [];
-        if (teamList.length < 2) {
-          setError('At least 2 teams are required to start pool play.');
+      // registration -> pool-play or bracket: create teams first
+      if (currentStatus === 'registration' && (next === 'pool-play' || next === 'bracket')) {
+        const regs = registrations() ?? [];
+        if (regs.length < 2) {
+          setError('At least 2 registrations are required.');
           setAdvancing(false);
           return;
         }
-        const teamIds = teamList.map((tm) => tm.id);
-        const poolCount = t.config.poolCount ?? 2;
-        const poolAssignments = generatePools(teamIds, poolCount);
 
-        for (let i = 0; i < poolAssignments.length; i++) {
-          const poolTeamIds = poolAssignments[i];
-          const schedule = generateRoundRobinSchedule(poolTeamIds);
-          const pool: TournamentPool = {
-            id: crypto.randomUUID(),
-            tournamentId: t.id,
-            name: `Pool ${String.fromCharCode(65 + i)}`,
-            teamIds: poolTeamIds,
-            schedule,
-            standings: poolTeamIds.map((tid) => ({
-              teamId: tid,
-              wins: 0,
-              losses: 0,
-              pointsFor: 0,
-              pointsAgainst: 0,
-              pointDiff: 0,
-            })),
-          };
-          await firestorePoolRepository.save(pool);
-        }
+        // Create teams from registrations
+        const mode = t.config.gameType === 'singles'
+          ? 'singles' as const
+          : (t.teamFormation ?? 'byop') as 'byop' | 'auto-pair';
+        const { teams: newTeams, unmatched } = createTeamsFromRegistrations(regs, t.id, mode);
 
-        await firestoreTournamentRepository.updateStatus(t.id, next);
-      }
-
-      // registration -> bracket (for single-elimination)
-      else if (currentStatus === 'registration' && next === 'bracket') {
-        const teamList = teams() ?? [];
-        if (teamList.length < 2) {
-          setError('At least 2 teams are required to start the bracket.');
+        if (newTeams.length < 2) {
+          setError(`Only ${newTeams.length} team(s) could be formed. ${unmatched.length} player(s) unmatched. Need at least 2 teams.`);
           setAdvancing(false);
           return;
         }
-        const teamIds = teamList.map((tm) => tm.id);
-        const slots = generateBracket(t.id, teamIds);
 
-        for (const slot of slots) {
-          await firestoreBracketRepository.save(slot);
+        // Save teams to Firestore
+        for (const team of newTeams) {
+          await firestoreTeamRepository.save(team);
+        }
+
+        const teamIds = newTeams.map((tm) => tm.id);
+
+        if (next === 'pool-play') {
+          // Generate pools
+          const poolCount = t.config.poolCount ?? (fmt === 'round-robin' ? 1 : 2);
+          const poolAssignments = generatePools(teamIds, poolCount);
+
+          for (let i = 0; i < poolAssignments.length; i++) {
+            const poolTeamIds = poolAssignments[i];
+            const schedule = generateRoundRobinSchedule(poolTeamIds);
+            const pool: TournamentPool = {
+              id: crypto.randomUUID(),
+              tournamentId: t.id,
+              name: `Pool ${String.fromCharCode(65 + i)}`,
+              teamIds: poolTeamIds,
+              schedule,
+              standings: poolTeamIds.map((tid) => ({
+                teamId: tid, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0,
+              })),
+            };
+            await firestorePoolRepository.save(pool);
+          }
+        } else {
+          // Generate bracket
+          const slots = generateBracket(t.id, teamIds);
+          for (const slot of slots) {
+            await firestoreBracketRepository.save(slot);
+          }
         }
 
         await firestoreTournamentRepository.updateStatus(t.id, next);
@@ -330,6 +337,22 @@ const TournamentDashboardPage: Component = () => {
     refetchRegistrations();
   };
 
+  const handleScorePoolMatch = (team1Id: string, team2Id: string) => {
+    const t = tournament();
+    if (!t) return;
+    const team1 = (teams() ?? []).find((tm) => tm.id === team1Id);
+    const team2 = (teams() ?? []).find((tm) => tm.id === team2Id);
+    navigate(`/score?t1=${encodeURIComponent(team1?.name ?? team1Id)}&t2=${encodeURIComponent(team2?.name ?? team2Id)}&tournamentId=${t.id}`);
+  };
+
+  const handleScoreBracketMatch = (slotId: string, team1Id: string, team2Id: string) => {
+    const t = tournament();
+    if (!t) return;
+    const team1 = (teams() ?? []).find((tm) => tm.id === team1Id);
+    const team2 = (teams() ?? []).find((tm) => tm.id === team2Id);
+    navigate(`/score?t1=${encodeURIComponent(team1?.name ?? team1Id)}&t2=${encodeURIComponent(team2?.name ?? team2Id)}&tournamentId=${t.id}&bracketSlotId=${slotId}`);
+  };
+
   // --- Render ---
 
   return (
@@ -418,6 +441,8 @@ const TournamentDashboardPage: Component = () => {
                         standings={pool.standings}
                         teamNames={teamNames()}
                         advancingCount={t().config.teamsPerPoolAdvancing ?? 2}
+                        schedule={pool.schedule}
+                        onScoreMatch={handleScorePoolMatch}
                       />
                     )}
                   </For>
@@ -431,6 +456,7 @@ const TournamentDashboardPage: Component = () => {
                   <BracketView
                     slots={bracketSlots()!}
                     teamNames={teamNames()}
+                    onScoreMatch={handleScoreBracketMatch}
                   />
                 </div>
               </Show>

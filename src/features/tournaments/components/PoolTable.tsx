@@ -1,12 +1,14 @@
-import { For } from 'solid-js';
+import { For, Show } from 'solid-js';
 import type { Component } from 'solid-js';
-import type { PoolStanding } from '../../../data/types';
+import type { PoolStanding, PoolScheduleEntry } from '../../../data/types';
 
 interface Props {
   poolName: string;
   standings: PoolStanding[];
   teamNames: Record<string, string>;
   advancingCount: number;
+  schedule?: PoolScheduleEntry[];
+  onScoreMatch?: (team1Id: string, team2Id: string) => void;
 }
 
 const PoolTable: Component<Props> = (props) => {
@@ -45,6 +47,34 @@ const PoolTable: Component<Props> = (props) => {
           </For>
         </tbody>
       </table>
+      <Show when={props.schedule && props.onScoreMatch}>
+        <div class="px-4 py-3 border-t border-surface-lighter">
+          <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-2">Schedule</div>
+          <div class="space-y-2">
+            <For each={props.schedule}>
+              {(entry) => (
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-on-surface">
+                    {props.teamNames[entry.team1Id] ?? entry.team1Id} vs {props.teamNames[entry.team2Id] ?? entry.team2Id}
+                  </span>
+                  <Show when={!entry.matchId && props.onScoreMatch}
+                    fallback={
+                      <Show when={entry.matchId}>
+                        <span class="text-xs text-green-400 font-semibold">Completed</span>
+                      </Show>
+                    }>
+                    <button type="button"
+                      onClick={() => props.onScoreMatch!(entry.team1Id, entry.team2Id)}
+                      class="text-xs font-semibold px-3 py-1 rounded-lg bg-primary/20 text-primary active:scale-95 transition-transform">
+                      Score
+                    </button>
+                  </Show>
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
+      </Show>
     </div>
   );
 };
