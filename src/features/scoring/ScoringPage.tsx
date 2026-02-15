@@ -16,6 +16,8 @@ import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants
 import { shareScoreCard } from '../../shared/utils/shareScoreCard';
 import { useVoiceAnnouncements } from '../../shared/hooks/useVoiceAnnouncements';
 import { cloudSync } from '../../data/firebase/cloudSync';
+import { firestorePoolRepository } from '../../data/firebase/firestorePoolRepository';
+import { calculateStandings } from '../tournaments/engine/standings';
 
 interface ScoringViewProps {
   match: MatchData;
@@ -196,7 +198,52 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
     };
     await matchRepository.save(updatedMatch);
     cloudSync.syncMatchToCloud(updatedMatch);
-    navigate('/history');
+
+    // Update tournament pool if this is a tournament match
+    if (updatedMatch.tournamentId && updatedMatch.poolId) {
+      try {
+        const pool = await firestorePoolRepository.getById(updatedMatch.tournamentId, updatedMatch.poolId);
+        if (pool) {
+          // Mark this schedule entry as completed using tournament team IDs
+          const t1Id = updatedMatch.tournamentTeam1Id;
+          const t2Id = updatedMatch.tournamentTeam2Id;
+          const updatedSchedule = pool.schedule.map((entry) => {
+            const isThisMatch = entry.team1Id === t1Id && entry.team2Id === t2Id;
+            if (isThisMatch && !entry.matchId) {
+              return { ...entry, matchId: updatedMatch.id };
+            }
+            return entry;
+          });
+
+          // Get all completed matches for this pool to recalculate standings
+          const allMatches = await matchRepository.getAll();
+          const poolMatches = allMatches.filter(
+            (m) => m.tournamentId === updatedMatch.tournamentId && m.poolId === updatedMatch.poolId && m.status === 'completed',
+          );
+
+          const standings = calculateStandings(
+            pool.teamIds,
+            poolMatches,
+            (m) => ({ team1: m.tournamentTeam1Id ?? '', team2: m.tournamentTeam2Id ?? '' }),
+          );
+
+          await firestorePoolRepository.updateScheduleAndStandings(
+            updatedMatch.tournamentId,
+            updatedMatch.poolId,
+            updatedSchedule,
+            standings,
+          );
+        }
+      } catch (err) {
+        console.error('Failed to update tournament pool:', err);
+      }
+    }
+
+    if (updatedMatch.tournamentId) {
+      navigate(`/tournaments/${updatedMatch.tournamentId}`);
+    } else {
+      navigate('/history');
+    }
   };
 
   return (

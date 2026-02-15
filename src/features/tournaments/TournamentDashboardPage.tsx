@@ -21,7 +21,8 @@ import FeeTracker from './components/FeeTracker';
 import OrganizerControls from './components/OrganizerControls';
 import OrganizerPlayerManager from './components/OrganizerPlayerManager';
 import { statusLabels, statusColors, formatLabels } from './constants';
-import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding } from '../../data/types';
+import { matchRepository } from '../../data/repositories/matchRepository';
+import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding, Match } from '../../data/types';
 
 // Format-aware status transitions (no pool-play for single-elimination, no bracket for round-robin)
 const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatus, TournamentStatus>>> = {
@@ -199,7 +200,7 @@ const TournamentDashboardPage: Component = () => {
         const mode = t.config.gameType === 'singles'
           ? 'singles' as const
           : (t.teamFormation ?? 'byop') as 'byop' | 'auto-pair';
-        const { teams: newTeams, unmatched } = createTeamsFromRegistrations(regs, t.id, mode);
+        const { teams: newTeams, unmatched } = createTeamsFromRegistrations(regs, t.id, mode, userNames());
 
         if (newTeams.length < 2) {
           setError(`Only ${newTeams.length} team(s) could be formed. ${unmatched.length} player(s) unmatched. Need at least 2 teams.`);
@@ -333,20 +334,51 @@ const TournamentDashboardPage: Component = () => {
     refetchRegistrations();
   };
 
-  const handleScorePoolMatch = (team1Id: string, team2Id: string) => {
+  const createAndNavigateToMatch = async (team1Id: string, team2Id: string, extra: { poolId?: string; bracketSlotId?: string }) => {
     const t = tournament();
     if (!t) return;
     const team1 = (teams() ?? []).find((tm) => tm.id === team1Id);
     const team2 = (teams() ?? []).find((tm) => tm.id === team2Id);
-    navigate(`/score?t1=${encodeURIComponent(team1?.name ?? team1Id)}&t2=${encodeURIComponent(team2?.name ?? team2Id)}&tournamentId=${t.id}`);
+
+    const match: Match = {
+      id: crypto.randomUUID(),
+      config: {
+        gameType: t.config.gameType,
+        scoringMode: t.config.scoringMode,
+        matchFormat: t.config.matchFormat,
+        pointsToWin: t.config.pointsToWin,
+      },
+      team1PlayerIds: team1?.playerIds ?? [],
+      team2PlayerIds: team2?.playerIds ?? [],
+      team1Name: team1?.name ?? team1Id,
+      team2Name: team2?.name ?? team2Id,
+      games: [],
+      winningSide: null,
+      status: 'in-progress',
+      startedAt: Date.now(),
+      completedAt: null,
+      tournamentId: t.id,
+      tournamentTeam1Id: team1Id,
+      tournamentTeam2Id: team2Id,
+      poolId: extra.poolId,
+      bracketSlotId: extra.bracketSlotId,
+    };
+
+    try {
+      await matchRepository.save(match);
+      navigate(`/score/${match.id}`);
+    } catch (err) {
+      console.error('Failed to create match:', err);
+      alert('Failed to start match. Please try again.');
+    }
+  };
+
+  const handleScorePoolMatch = (poolId: string, team1Id: string, team2Id: string) => {
+    createAndNavigateToMatch(team1Id, team2Id, { poolId });
   };
 
   const handleScoreBracketMatch = (slotId: string, team1Id: string, team2Id: string) => {
-    const t = tournament();
-    if (!t) return;
-    const team1 = (teams() ?? []).find((tm) => tm.id === team1Id);
-    const team2 = (teams() ?? []).find((tm) => tm.id === team2Id);
-    navigate(`/score?t1=${encodeURIComponent(team1?.name ?? team1Id)}&t2=${encodeURIComponent(team2?.name ?? team2Id)}&tournamentId=${t.id}&bracketSlotId=${slotId}`);
+    createAndNavigateToMatch(team1Id, team2Id, { bracketSlotId: slotId });
   };
 
   // --- Render ---
@@ -434,6 +466,7 @@ const TournamentDashboardPage: Component = () => {
                   <For each={pools()}>
                     {(pool) => (
                       <PoolTable
+                        poolId={pool.id}
                         poolName={pool.name}
                         standings={pool.standings}
                         teamNames={teamNames()}

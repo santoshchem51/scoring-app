@@ -39,6 +39,8 @@ export interface Match {
   startedAt: number;
   completedAt: number | null;
   tournamentId?: string;
+  tournamentTeam1Id?: string;
+  tournamentTeam2Id?: string;
   poolId?: string;
   bracketSlotId?: string;
   court?: string;

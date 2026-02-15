@@ -3,12 +3,13 @@ import type { Component } from 'solid-js';
 import type { PoolStanding, PoolScheduleEntry } from '../../../data/types';
 
 interface Props {
+  poolId: string;
   poolName: string;
   standings: PoolStanding[];
   teamNames: Record<string, string>;
   advancingCount: number;
   schedule?: PoolScheduleEntry[];
-  onScoreMatch?: (team1Id: string, team2Id: string) => void;
+  onScoreMatch?: (poolId: string, team1Id: string, team2Id: string) => void;
 }
 
 const PoolTable: Component<Props> = (props) => {
@@ -64,7 +65,7 @@ const PoolTable: Component<Props> = (props) => {
                       </Show>
                     }>
                     <button type="button"
-                      onClick={() => props.onScoreMatch!(entry.team1Id, entry.team2Id)}
+                      onClick={() => props.onScoreMatch!(props.poolId, entry.team1Id, entry.team2Id)}
                       class="text-xs font-semibold px-3 py-1 rounded-lg bg-primary/20 text-primary active:scale-95 transition-transform">
                       Score
                     </button>
