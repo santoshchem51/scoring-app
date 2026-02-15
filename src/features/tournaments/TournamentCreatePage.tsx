@@ -34,26 +34,21 @@ const TournamentCreatePage: Component = () => {
   const [teamFormation, setTeamFormation] = createSignal<'byop' | 'auto-pair'>('byop');
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
-  const [fieldErrors, setFieldErrors] = createSignal<TournamentFormErrors>({});
+  const [touched, setTouched] = createSignal<Record<string, boolean>>({});
 
-  const canCreate = () => {
-    const errors = validateTournamentForm({
-      name: name(), date: date(), location: location(),
-      maxPlayers: maxPlayers(), gameType: gameType(),
-    });
-    return Object.keys(errors).length === 0 && !!user();
-  };
+  const fieldErrors = (): TournamentFormErrors => validateTournamentForm({
+    name: name(), date: date(), location: location(),
+    maxPlayers: maxPlayers(), gameType: gameType(),
+  });
+
+  const canCreate = () => Object.keys(fieldErrors()).length === 0 && !!user();
+
+  const markTouched = (field: string) => setTouched((prev) => ({ ...prev, [field]: true }));
+  const showError = (field: keyof TournamentFormErrors) => touched()[field] ? fieldErrors()[field] : undefined;
 
   const handleCreate = async () => {
-    const errors = validateTournamentForm({
-      name: name(), date: date(), location: location(),
-      maxPlayers: maxPlayers(), gameType: gameType(),
-    });
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
-    setFieldErrors({});
+    setTouched({ name: true, date: true, location: true, maxPlayers: true, gameType: true });
+    if (Object.keys(fieldErrors()).length > 0) return;
 
     const currentUser = user();
     if (!currentUser || saving()) return;
@@ -102,28 +97,28 @@ const TournamentCreatePage: Component = () => {
       <div class="p-4 pb-24 space-y-6">
         <div>
           <label for="t-name" class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-2 block">Tournament Name</label>
-          <input id="t-name" type="text" value={name()} onInput={(e) => setName(e.currentTarget.value)} maxLength={60}
-            class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary" placeholder="e.g., Spring Classic 2026" />
-            <Show when={fieldErrors().name}>
-              <p class="text-red-500 text-xs mt-1">{fieldErrors().name}</p>
+          <input id="t-name" type="text" value={name()} onInput={(e) => setName(e.currentTarget.value)} onBlur={() => markTouched('name')} maxLength={60}
+            class={`w-full bg-surface-light border rounded-xl px-4 py-3 text-on-surface focus:border-primary ${showError('name') ? 'border-red-500' : 'border-surface-lighter'}`} placeholder="e.g., Spring Classic 2026" />
+            <Show when={showError('name')}>
+              <p class="text-red-500 text-xs mt-1">{showError('name')}</p>
             </Show>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label for="t-date" class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-2 block">Date</label>
-            <input id="t-date" type="date" value={date()} onInput={(e) => setDate(e.currentTarget.value)}
-              class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary" />
-            <Show when={fieldErrors().date}>
-              <p class="text-red-500 text-xs mt-1">{fieldErrors().date}</p>
+            <input id="t-date" type="date" value={date()} onInput={(e) => setDate(e.currentTarget.value)} onBlur={() => markTouched('date')}
+              class={`w-full bg-surface-light border rounded-xl px-4 py-3 text-on-surface focus:border-primary ${showError('date') ? 'border-red-500' : 'border-surface-lighter'}`} />
+            <Show when={showError('date')}>
+              <p class="text-red-500 text-xs mt-1">{showError('date')}</p>
             </Show>
           </div>
           <div>
             <label for="t-location" class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-2 block">Location</label>
-            <input id="t-location" type="text" value={location()} onInput={(e) => setLocation(e.currentTarget.value)} maxLength={60}
-              class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary" placeholder="e.g., City Park Courts" />
-            <Show when={fieldErrors().location}>
-              <p class="text-red-500 text-xs mt-1">{fieldErrors().location}</p>
+            <input id="t-location" type="text" value={location()} onInput={(e) => setLocation(e.currentTarget.value)} onBlur={() => markTouched('location')} maxLength={60}
+              class={`w-full bg-surface-light border rounded-xl px-4 py-3 text-on-surface focus:border-primary ${showError('location') ? 'border-red-500' : 'border-surface-lighter'}`} placeholder="e.g., City Park Courts" />
+            <Show when={showError('location')}>
+              <p class="text-red-500 text-xs mt-1">{showError('location')}</p>
             </Show>
           </div>
         </div>
@@ -183,10 +178,10 @@ const TournamentCreatePage: Component = () => {
 
         <div>
           <label for="t-max" class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-2 block">Max Players (optional)</label>
-          <input id="t-max" type="number" min="4" max="128" value={maxPlayers()} onInput={(e) => setMaxPlayers(e.currentTarget.value)}
-            class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary" placeholder="No limit" />
-            <Show when={fieldErrors().maxPlayers}>
-              <p class="text-red-500 text-xs mt-1">{fieldErrors().maxPlayers}</p>
+          <input id="t-max" type="number" min="4" max="128" value={maxPlayers()} onInput={(e) => setMaxPlayers(e.currentTarget.value)} onBlur={() => markTouched('maxPlayers')}
+            class={`w-full bg-surface-light border rounded-xl px-4 py-3 text-on-surface focus:border-primary ${showError('maxPlayers') ? 'border-red-500' : 'border-surface-lighter'}`} placeholder="No limit" />
+            <Show when={showError('maxPlayers')}>
+              <p class="text-red-500 text-xs mt-1">{showError('maxPlayers')}</p>
             </Show>
         </div>
       </div>
@@ -196,8 +191,13 @@ const TournamentCreatePage: Component = () => {
           <Show when={error()}>
             <p class="text-red-500 text-sm text-center mb-2">{error()}</p>
           </Show>
-          <button type="button" onClick={handleCreate} disabled={!canCreate() || saving()}
-            class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${canCreate() && !saving() ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}>
+          <Show when={!canCreate() && Object.keys(touched()).length > 0}>
+            <p class="text-amber-400 text-sm text-center mb-2">
+              Please fix the highlighted fields above
+            </p>
+          </Show>
+          <button type="button" onClick={handleCreate} disabled={saving()}
+            class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${!saving() ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}>
             {saving() ? 'Creating...' : 'Create Tournament'}
           </button>
         </div>

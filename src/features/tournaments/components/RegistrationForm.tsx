@@ -31,6 +31,7 @@ const RegistrationForm: Component<Props> = (props) => {
         id: crypto.randomUUID(),
         tournamentId: props.tournament.id,
         userId: currentUser.uid,
+        playerName: currentUser.displayName || null,
         teamId: null,
         paymentStatus: 'unpaid',
         paymentNote: '',

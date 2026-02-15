@@ -5,6 +5,7 @@ import type { TournamentRegistration } from '../../../../data/types';
 const makeReg = (overrides: Partial<TournamentRegistration> & { userId: string }): TournamentRegistration => ({
   id: `reg-${overrides.userId}`,
   tournamentId: 't1',
+  playerName: null,
   teamId: null,
   paymentStatus: 'unpaid',
   paymentNote: '',

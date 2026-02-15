@@ -189,6 +189,7 @@ export interface TournamentRegistration {
   id: string;
   tournamentId: string;
   userId: string;
+  playerName: string | null;        // display name (from Google profile or organizer entry)
   teamId: string | null;
   paymentStatus: PaymentStatus;
   paymentNote: string;

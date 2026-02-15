@@ -19,6 +19,7 @@ import BracketView from './components/BracketView';
 import RegistrationForm from './components/RegistrationForm';
 import FeeTracker from './components/FeeTracker';
 import OrganizerControls from './components/OrganizerControls';
+import OrganizerPlayerManager from './components/OrganizerPlayerManager';
 import { statusLabels, statusColors, formatLabels } from './constants';
 import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding } from '../../data/types';
 
@@ -131,17 +132,12 @@ const TournamentDashboardPage: Component = () => {
     return map;
   });
 
-  // userNames map for FeeTracker (userId -> display name from registrations)
-  // Since we don't have a batch user profile fetch, we use userId as fallback
   const userNames = createMemo<Record<string, string>>(() => {
-    // FeeTracker uses this to display user names next to payment status.
-    // Without batch profile loading we provide userId as the key/value.
-    // If user profiles are loaded in the future, this can be enriched.
     const regs = registrations();
     if (!regs) return {};
     const map: Record<string, string> = {};
     for (const reg of regs) {
-      map[reg.userId] = reg.userId;
+      map[reg.userId] = reg.playerName || `Player ${reg.userId.slice(0, 6)}`;
     }
     return map;
   });
@@ -416,17 +412,18 @@ const TournamentDashboardPage: Component = () => {
               {/* Registration Section */}
               <Show when={t().status === 'registration'}>
                 <div class="space-y-4">
-                  <div class="bg-surface-light rounded-xl p-4">
-                    <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-2">Registrations</div>
-                    <div class="font-semibold text-on-surface text-2xl">{registrations()?.length ?? 0}</div>
-                  </div>
-                  <Show when={!isOrganizer()}>
-                    <RegistrationForm
+                  <Show when={isOrganizer()}>
+                    <OrganizerPlayerManager
                       tournament={t()}
-                      existingRegistration={existingRegistration()}
-                      onRegistered={handleRegistered}
+                      registrations={registrations() ?? []}
+                      onUpdated={handleRegistered}
                     />
                   </Show>
+                  <RegistrationForm
+                    tournament={t()}
+                    existingRegistration={existingRegistration()}
+                    onRegistered={handleRegistered}
+                  />
                 </div>
               </Show>
 

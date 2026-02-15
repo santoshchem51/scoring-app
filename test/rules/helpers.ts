@@ -197,6 +197,7 @@ export function makeRegistration(userId: string, tournamentId: string, overrides
     id: 'reg-1',
     tournamentId,
     userId,
+    playerName: 'Test Player',
     teamId: null,
     paymentStatus: 'unpaid',
     paymentNote: '',

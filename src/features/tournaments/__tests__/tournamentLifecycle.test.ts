@@ -11,6 +11,7 @@ const makeReg = (userId: string, overrides?: Partial<TournamentRegistration>): T
   id: `reg-${userId}`,
   tournamentId: 't1',
   userId,
+  playerName: `Player ${userId}`,
   teamId: null,
   paymentStatus: 'unpaid',
   paymentNote: '',
