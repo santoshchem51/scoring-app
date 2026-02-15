@@ -8,6 +8,8 @@ import { firestoreTournamentRepository } from '../../data/firebase/firestoreTour
 import type {
   TournamentFormat, GameType, ScoringMode, MatchFormat, Tournament, TournamentRules,
 } from '../../data/types';
+import { validateTournamentForm } from './engine/validateTournament';
+import type { TournamentFormErrors } from './engine/validateTournament';
 
 const emptyRules: TournamentRules = {
   registrationDeadline: null, checkInRequired: false, checkInOpens: null, checkInCloses: null,
@@ -31,10 +33,27 @@ const TournamentCreatePage: Component = () => {
   const [maxPlayers, setMaxPlayers] = createSignal('');
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
+  const [fieldErrors, setFieldErrors] = createSignal<TournamentFormErrors>({});
 
-  const canCreate = () => name().trim() !== '' && date() !== '' && user();
+  const canCreate = () => {
+    const errors = validateTournamentForm({
+      name: name(), date: date(), location: location(),
+      maxPlayers: maxPlayers(), gameType: gameType(),
+    });
+    return Object.keys(errors).length === 0 && !!user();
+  };
 
   const handleCreate = async () => {
+    const errors = validateTournamentForm({
+      name: name(), date: date(), location: location(),
+      maxPlayers: maxPlayers(), gameType: gameType(),
+    });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+
     const currentUser = user();
     if (!currentUser || saving()) return;
 
@@ -84,6 +103,9 @@ const TournamentCreatePage: Component = () => {
           <label for="t-name" class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-2 block">Tournament Name</label>
           <input id="t-name" type="text" value={name()} onInput={(e) => setName(e.currentTarget.value)} maxLength={60}
             class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary" placeholder="e.g., Spring Classic 2026" />
+            <Show when={fieldErrors().name}>
+              <p class="text-red-500 text-xs mt-1">{fieldErrors().name}</p>
+            </Show>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -91,11 +113,17 @@ const TournamentCreatePage: Component = () => {
             <label for="t-date" class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-2 block">Date</label>
             <input id="t-date" type="date" value={date()} onInput={(e) => setDate(e.currentTarget.value)}
               class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary" />
+            <Show when={fieldErrors().date}>
+              <p class="text-red-500 text-xs mt-1">{fieldErrors().date}</p>
+            </Show>
           </div>
           <div>
             <label for="t-location" class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-2 block">Location</label>
             <input id="t-location" type="text" value={location()} onInput={(e) => setLocation(e.currentTarget.value)} maxLength={60}
               class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary" placeholder="e.g., City Park Courts" />
+            <Show when={fieldErrors().location}>
+              <p class="text-red-500 text-xs mt-1">{fieldErrors().location}</p>
+            </Show>
           </div>
         </div>
 
@@ -146,6 +174,9 @@ const TournamentCreatePage: Component = () => {
           <label for="t-max" class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-2 block">Max Players (optional)</label>
           <input id="t-max" type="number" min="4" max="128" value={maxPlayers()} onInput={(e) => setMaxPlayers(e.currentTarget.value)}
             class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary" placeholder="No limit" />
+            <Show when={fieldErrors().maxPlayers}>
+              <p class="text-red-500 text-xs mt-1">{fieldErrors().maxPlayers}</p>
+            </Show>
         </div>
       </div>
 
