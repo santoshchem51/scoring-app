@@ -53,3 +53,26 @@ export interface ScoreEvent {
   team2Score: number;
   metadata?: Record<string, unknown>;
 }
+
+// --- Cloud types (Layer 1) ---
+
+export type MatchVisibility = 'private' | 'shared' | 'public';
+
+export interface CloudMatch extends Match {
+  ownerId: string;
+  sharedWith: string[];
+  visibility: MatchVisibility;
+  syncedAt: number;
+}
+
+export interface CloudScoreEvent extends ScoreEvent {
+  recordedBy: string;
+}
+
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  email: string;
+  photoURL: string | null;
+  createdAt: number;
+}
