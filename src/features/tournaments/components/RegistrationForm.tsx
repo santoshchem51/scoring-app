@@ -14,6 +14,7 @@ const RegistrationForm: Component<Props> = (props) => {
   const { user, signIn } = useAuth();
   const [rulesAcknowledged, setRulesAcknowledged] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
+  const [error, setError] = createSignal('');
 
   const isRegistrationOpen = () => props.tournament.status === 'registration';
   const isAlreadyRegistered = () => !!props.existingRegistration;
@@ -23,6 +24,7 @@ const RegistrationForm: Component<Props> = (props) => {
     const currentUser = user();
     if (!currentUser || saving()) return;
 
+    setError('');
     setSaving(true);
     try {
       const reg: TournamentRegistration = {
@@ -40,7 +42,7 @@ const RegistrationForm: Component<Props> = (props) => {
       props.onRegistered();
     } catch (err) {
       console.error('Registration failed:', err);
-      alert('Registration failed. Please try again.');
+      setError('Registration failed. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -80,6 +82,10 @@ const RegistrationForm: Component<Props> = (props) => {
                 <input type="checkbox" checked={rulesAcknowledged()} onChange={(e) => setRulesAcknowledged(e.currentTarget.checked)} class="mt-1 accent-primary" />
                 <span class="text-sm text-on-surface">I've read and agree to the tournament rules</span>
               </label>
+            </Show>
+
+            <Show when={error()}>
+              <p class="text-red-500 text-sm text-center mb-2">{error()}</p>
             </Show>
 
             <button type="button" onClick={handleRegister}
