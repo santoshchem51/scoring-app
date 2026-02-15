@@ -38,6 +38,7 @@ const TournamentCreatePage: Component = () => {
     const currentUser = user();
     if (!currentUser || saving()) return;
 
+    setError('');
     setSaving(true);
     try {
       const tournament: Tournament = {
@@ -69,7 +70,7 @@ const TournamentCreatePage: Component = () => {
       navigate(`/tournaments/${tournament.id}`);
     } catch (err) {
       console.error('Failed to create tournament:', err);
-      alert('Failed to create tournament. Please try again.');
+      setError('Failed to create tournament. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -149,6 +150,9 @@ const TournamentCreatePage: Component = () => {
 
       <div class="fixed bottom-16 left-0 right-0 p-4 bg-surface/95 backdrop-blur-sm safe-bottom">
         <div class="max-w-lg mx-auto md:max-w-3xl">
+          <Show when={error()}>
+            <p class="text-red-500 text-sm text-center mb-2">{error()}</p>
+          </Show>
           <button type="button" onClick={handleCreate} disabled={!canCreate() || saving()}
             class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${canCreate() && !saving() ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}>
             {saving() ? 'Creating...' : 'Create Tournament'}

@@ -33,10 +33,11 @@ export const firestoreTournamentRepository = {
     return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
   },
 
-  async updateStatus(id: string, status: TournamentStatus, reason?: string): Promise<void> {
+  async updateStatus(id: string, status: TournamentStatus, options?: { reason?: string; pausedFrom?: TournamentStatus | null }): Promise<void> {
     const ref = doc(firestore, 'tournaments', id);
     const updates: Record<string, unknown> = { status, updatedAt: serverTimestamp() };
-    if (reason !== undefined) updates.cancellationReason = reason;
+    if (options?.reason !== undefined) updates.cancellationReason = options.reason;
+    if (options?.pausedFrom !== undefined) updates.pausedFrom = options.pausedFrom;
     await updateDoc(ref, updates);
   },
 

@@ -129,6 +129,7 @@ export interface Tournament {
   minPlayers: number | null;
   entryFee: EntryFee | null;
   rules: TournamentRules;
+  pausedFrom: TournamentStatus | null;
   cancellationReason: string | null;
   createdAt: number;
   updatedAt: number;
