@@ -1,36 +1,11 @@
 import type { Component } from 'solid-js';
 import { A } from '@solidjs/router';
 import type { Tournament } from '../../../data/types';
+import { statusColors, statusLabels, formatLabels } from '../constants';
 
 interface Props {
   tournament: Tournament;
 }
-
-const statusColors: Record<string, string> = {
-  setup: 'bg-yellow-500/20 text-yellow-400',
-  registration: 'bg-blue-500/20 text-blue-400',
-  'pool-play': 'bg-green-500/20 text-green-400',
-  bracket: 'bg-purple-500/20 text-purple-400',
-  completed: 'bg-on-surface-muted/20 text-on-surface-muted',
-  cancelled: 'bg-red-500/20 text-red-400',
-  paused: 'bg-orange-500/20 text-orange-400',
-};
-
-const statusLabels: Record<string, string> = {
-  setup: 'Setup',
-  registration: 'Registration Open',
-  'pool-play': 'Pool Play',
-  bracket: 'Bracket',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  paused: 'Paused',
-};
-
-const formatLabels: Record<string, string> = {
-  'round-robin': 'Round Robin',
-  'single-elimination': 'Single Elimination',
-  'pool-bracket': 'Pool Play + Bracket',
-};
 
 const TournamentCard: Component<Props> = (props) => {
   const dateStr = () => new Date(props.tournament.date).toLocaleDateString(undefined, {

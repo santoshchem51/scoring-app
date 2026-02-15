@@ -7,15 +7,7 @@ import { firestoreTournamentRepository } from '../../data/firebase/firestoreTour
 import { firestoreTeamRepository } from '../../data/firebase/firestoreTeamRepository';
 import { firestoreRegistrationRepository } from '../../data/firebase/firestoreRegistrationRepository';
 import type { TournamentStatus } from '../../data/types';
-
-const statusLabels: Record<string, string> = {
-  setup: 'Setup', registration: 'Registration Open', 'pool-play': 'Pool Play',
-  bracket: 'Bracket Play', completed: 'Completed', cancelled: 'Cancelled', paused: 'Paused',
-};
-
-const formatLabels: Record<string, string> = {
-  'round-robin': 'Round Robin', 'single-elimination': 'Single Elimination', 'pool-bracket': 'Pool Play + Bracket',
-};
+import { statusLabels, formatLabels } from './constants';
 
 const TournamentDashboardPage: Component = () => {
   const params = useParams();
