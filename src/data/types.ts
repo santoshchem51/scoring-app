@@ -38,6 +38,10 @@ export interface Match {
   status: MatchStatus;
   startedAt: number;
   completedAt: number | null;
+  tournamentId?: string;
+  poolId?: string;
+  bracketSlotId?: string;
+  court?: string;
   lastSnapshot?: string | null;
 }
 
@@ -75,4 +79,116 @@ export interface UserProfile {
   email: string;
   photoURL: string | null;
   createdAt: number;
+}
+
+// --- Tournament types (Layer 2) ---
+
+export type TournamentFormat = 'round-robin' | 'single-elimination' | 'pool-bracket';
+export type TournamentStatus = 'setup' | 'registration' | 'pool-play' | 'bracket' | 'completed' | 'cancelled' | 'paused';
+export type PaymentStatus = 'unpaid' | 'paid' | 'waived';
+
+export interface EntryFee {
+  amount: number;
+  currency: string;
+  paymentInstructions: string;
+  deadline: number | null;
+}
+
+export interface TournamentRules {
+  registrationDeadline: number | null;
+  checkInRequired: boolean;
+  checkInOpens: number | null;
+  checkInCloses: number | null;
+  scoringRules: string;
+  timeoutRules: string;
+  conductRules: string;
+  penalties: Array<{ offense: string; consequence: string }>;
+  additionalNotes: string;
+}
+
+export interface TournamentConfig {
+  gameType: GameType;
+  scoringMode: ScoringMode;
+  matchFormat: MatchFormat;
+  pointsToWin: 11 | 15 | 21;
+  poolCount: number;
+  teamsPerPoolAdvancing: number;
+}
+
+export interface Tournament {
+  id: string;
+  name: string;
+  date: number;
+  location: string;
+  format: TournamentFormat;
+  config: TournamentConfig;
+  organizerId: string;
+  scorekeeperIds: string[];
+  status: TournamentStatus;
+  maxPlayers: number | null;
+  minPlayers: number | null;
+  entryFee: EntryFee | null;
+  rules: TournamentRules;
+  cancellationReason: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TournamentTeam {
+  id: string;
+  tournamentId: string;
+  name: string;
+  playerIds: string[];
+  seed: number | null;
+  poolId: string | null;
+}
+
+export interface PoolStanding {
+  teamId: string;
+  wins: number;
+  losses: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  pointDiff: number;
+}
+
+export interface PoolScheduleEntry {
+  round: number;
+  team1Id: string;
+  team2Id: string;
+  matchId: string | null;
+  court: string | null;
+}
+
+export interface TournamentPool {
+  id: string;
+  tournamentId: string;
+  name: string;
+  teamIds: string[];
+  schedule: PoolScheduleEntry[];
+  standings: PoolStanding[];
+}
+
+export interface BracketSlot {
+  id: string;
+  tournamentId: string;
+  round: number;
+  position: number;
+  team1Id: string | null;
+  team2Id: string | null;
+  matchId: string | null;
+  winnerId: string | null;
+  nextSlotId: string | null;
+}
+
+export interface TournamentRegistration {
+  id: string;
+  tournamentId: string;
+  userId: string;
+  teamId: string | null;
+  paymentStatus: PaymentStatus;
+  paymentNote: string;
+  lateEntry: boolean;
+  rulesAcknowledged: boolean;
+  registeredAt: number;
 }
