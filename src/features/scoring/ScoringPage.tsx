@@ -17,7 +17,9 @@ import { shareScoreCard } from '../../shared/utils/shareScoreCard';
 import { useVoiceAnnouncements } from '../../shared/hooks/useVoiceAnnouncements';
 import { cloudSync } from '../../data/firebase/cloudSync';
 import { firestorePoolRepository } from '../../data/firebase/firestorePoolRepository';
+import { firestoreBracketRepository } from '../../data/firebase/firestoreBracketRepository';
 import { calculateStandings } from '../tournaments/engine/standings';
+import { advanceBracketWinner } from '../tournaments/engine/bracketAdvancement';
 
 interface ScoringViewProps {
   match: MatchData;
@@ -236,6 +238,38 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
         }
       } catch (err) {
         console.error('Failed to update tournament pool:', err);
+      }
+    }
+
+    // Update bracket slot if this is a bracket match
+    if (updatedMatch.tournamentId && updatedMatch.bracketSlotId) {
+      try {
+        const tournamentId = updatedMatch.tournamentId;
+        const slotId = updatedMatch.bracketSlotId;
+
+        // Determine winner team ID from match result
+        const winnerTeamId = updatedMatch.winningSide === 1
+          ? updatedMatch.tournamentTeam1Id
+          : updatedMatch.tournamentTeam2Id;
+
+        if (winnerTeamId) {
+          // 1. Update current slot with result
+          await firestoreBracketRepository.updateResult(tournamentId, slotId, winnerTeamId, updatedMatch.id);
+
+          // 2. Advance winner to next round
+          const allSlots = await firestoreBracketRepository.getByTournament(tournamentId);
+          const currentSlot = allSlots.find((s) => s.id === slotId);
+          if (currentSlot) {
+            const advance = advanceBracketWinner(currentSlot, winnerTeamId, allSlots);
+            if (advance) {
+              await firestoreBracketRepository.updateSlotTeam(
+                tournamentId, advance.slotId, advance.field, advance.teamId
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to update bracket:', err);
       }
     }
 
