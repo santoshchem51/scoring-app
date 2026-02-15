@@ -12,6 +12,16 @@ vi.mock('../../../data/firebase/config', () => ({
   auth: { currentUser: null },
 }));
 
+vi.mock('../../../data/firebase/cloudSync', () => ({
+  cloudSync: {
+    syncUserProfile: vi.fn(() => Promise.resolve()),
+    pushLocalMatchesToCloud: vi.fn(() => Promise.resolve(0)),
+    pullCloudMatchesToLocal: vi.fn(() => Promise.resolve(0)),
+    syncMatchToCloud: vi.fn(),
+    syncScoreEventToCloud: vi.fn(),
+  },
+}));
+
 describe('useAuth', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -52,5 +62,11 @@ describe('useAuth', () => {
     const authState = mod.useAuth();
     await authState.signOut();
     expect(firebaseAuth.signOut).toHaveBeenCalled();
+  });
+
+  it('should provide syncing signal', async () => {
+    const mod = await import('../useAuth');
+    const authState = mod.useAuth();
+    expect(typeof authState.syncing).toBe('function');
   });
 });
