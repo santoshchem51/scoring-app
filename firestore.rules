@@ -10,26 +10,55 @@ service cloud.firestore {
 
     // Match rules
     match /matches/{matchId} {
-      // Owner can read/write
       allow read, write: if request.auth != null && request.auth.uid == resource.data.ownerId;
-
-      // Create: any authenticated user
       allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
-
-      // Shared users can read and write
       allow read, write: if request.auth != null && request.auth.uid in resource.data.sharedWith;
-
-      // Public matches: anyone can read
       allow read: if resource.data.visibility == 'public';
 
-      // Score events sub-collection
       match /scoreEvents/{eventId} {
-        // Same permissions as parent match
         allow read, write: if request.auth != null && (
           get(/databases/$(database)/documents/matches/$(matchId)).data.ownerId == request.auth.uid ||
           request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.sharedWith
         );
         allow read: if get(/databases/$(database)/documents/matches/$(matchId)).data.visibility == 'public';
+      }
+    }
+
+    // Tournament rules
+    match /tournaments/{tournamentId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.organizerId;
+      allow create: if request.auth != null && request.resource.data.organizerId == request.auth.uid;
+      allow read: if request.auth != null && request.auth.uid in resource.data.scorekeeperIds;
+      allow read: if request.auth != null;
+
+      match /teams/{teamId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && (
+          get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds
+        );
+      }
+
+      match /pools/{poolId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null &&
+          get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+      }
+
+      match /bracket/{slotId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && (
+          get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds
+        );
+      }
+
+      match /registrations/{regId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+        allow update: if request.auth != null &&
+          get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+        allow update: if request.auth != null && resource.data.userId == request.auth.uid;
       }
     }
   }
