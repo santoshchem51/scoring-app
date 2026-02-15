@@ -1,4 +1,4 @@
-import { Switch, Match, Show, createResource, onCleanup, onMount, createSignal } from 'solid-js';
+import { Switch, Match, Show, createResource, onCleanup, onMount, createSignal, createEffect, on } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, useNavigate, useBeforeLeave, A } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
@@ -11,6 +11,8 @@ import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { Match as MatchData } from '../../data/types';
 import { settings } from '../../stores/settingsStore';
+import { useCelebration } from '../../shared/hooks/useCelebration';
+import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants/teamColors';
 
 interface ScoringViewProps {
   match: MatchData;
@@ -84,6 +86,22 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
     const context = ctx();
     return context.gamesWon[0] > context.gamesWon[1] ? 1 : 2;
   };
+
+  const celebration = useCelebration();
+  const t1Color = () => props.match.team1Color ?? DEFAULT_TEAM1_COLOR;
+  const t2Color = () => props.match.team2Color ?? DEFAULT_TEAM2_COLOR;
+
+  // Celebration trigger
+  createEffect(on(stateName, (name, prev) => {
+    if (prev === undefined) return;
+    if (name === 'betweenGames') {
+      const winnerColor = winningSide() === 1 ? t1Color() : t2Color();
+      celebration.gameWin(winnerColor);
+    }
+    if (name === 'matchOver') {
+      celebration.matchWin(t1Color(), t2Color());
+    }
+  }));
 
   const saveAndFinish = async () => {
     const context = ctx();
