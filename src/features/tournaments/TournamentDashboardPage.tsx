@@ -11,6 +11,7 @@ import { firestoreBracketRepository } from '../../data/firebase/firestoreBracket
 import { generatePools } from './engine/poolGenerator';
 import { generateRoundRobinSchedule } from './engine/roundRobin';
 import { calculateStandings } from './engine/standings';
+import { validatePoolCompletion, validateBracketCompletion } from './engine/completionValidation';
 import { seedBracketFromPools } from './engine/bracketSeeding';
 import { generateBracket } from './engine/bracketGenerator';
 import { createTeamsFromRegistrations } from './engine/teamFormation';
@@ -18,6 +19,7 @@ import PoolTable from './components/PoolTable';
 import BracketView from './components/BracketView';
 import RegistrationForm from './components/RegistrationForm';
 import FeeTracker from './components/FeeTracker';
+import TournamentResults from './components/TournamentResults';
 import OrganizerControls from './components/OrganizerControls';
 import OrganizerPlayerManager from './components/OrganizerPlayerManager';
 import { statusLabels, statusColors, formatLabels } from './constants';
@@ -186,6 +188,29 @@ const TournamentDashboardPage: Component = () => {
     try {
       const currentStatus = t.status;
       const fmt = t.format;
+
+      // Validate completion prerequisites before advancing to completed
+      if (next === 'completed') {
+        if (fmt === 'round-robin') {
+          const currentPools = pools() ?? [];
+          const poolResult = validatePoolCompletion(currentPools);
+          if (!poolResult.valid) {
+            setError(poolResult.message ?? 'Not all pool matches are completed.');
+            setAdvancing(false);
+            return;
+          }
+        }
+
+        if (fmt === 'single-elimination' || fmt === 'pool-bracket') {
+          const currentSlots = bracketSlots() ?? [];
+          const bracketResult = validateBracketCompletion(currentSlots);
+          if (!bracketResult.valid) {
+            setError(bracketResult.message ?? 'Bracket is not complete.');
+            setAdvancing(false);
+            return;
+          }
+        }
+      }
 
       // registration -> pool-play or bracket: create teams first
       if (currentStatus === 'registration' && (next === 'pool-play' || next === 'bracket')) {
@@ -457,6 +482,16 @@ const TournamentDashboardPage: Component = () => {
                     onRegistered={handleRegistered}
                   />
                 </div>
+              </Show>
+
+              {/* Tournament Results (completed) */}
+              <Show when={t().status === 'completed'}>
+                <TournamentResults
+                  format={t().format}
+                  poolStandings={pools()?.[0]?.standings}
+                  bracketSlots={bracketSlots() ?? undefined}
+                  teamNames={teamNames()}
+                />
               </Show>
 
               {/* Pool Tables */}
