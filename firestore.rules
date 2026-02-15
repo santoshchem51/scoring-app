@@ -133,11 +133,18 @@ service cloud.firestore {
       // Only the organizer can delete a tournament
       allow delete: if request.auth != null && request.auth.uid == resource.data.organizerId;
 
+      // Helper: check tournament is in an active state (not completed/cancelled)
+      function isTournamentActive() {
+        let status = get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.status;
+        return status != 'completed' && status != 'cancelled';
+      }
+
       // ── Teams (/tournaments/{tid}/teams/{teamId}) ─────────────────
       match /teams/{teamId} {
         allow read: if request.auth != null;
 
         allow create: if request.auth != null
+          && isTournamentActive()
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.name is string
@@ -145,9 +152,11 @@ service cloud.firestore {
           && request.resource.data.playerIds is list;
 
         allow update: if request.auth != null
+          && isTournamentActive()
+          && request.resource.data.tournamentId == resource.data.tournamentId
           && (get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
-              || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds)
-          && request.resource.data.tournamentId == resource.data.tournamentId;
+              || (request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds
+                  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seed', 'updatedAt'])));
 
         allow delete: if request.auth != null
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
@@ -158,6 +167,7 @@ service cloud.firestore {
         allow read: if request.auth != null;
 
         allow create: if request.auth != null
+          && isTournamentActive()
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.name is string
@@ -165,6 +175,7 @@ service cloud.firestore {
           && request.resource.data.teamIds is list;
 
         allow update: if request.auth != null
+          && isTournamentActive()
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
           && request.resource.data.tournamentId == resource.data.tournamentId;
 
@@ -177,15 +188,18 @@ service cloud.firestore {
         allow read: if request.auth != null;
 
         allow create: if request.auth != null
+          && isTournamentActive()
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.round is number
           && request.resource.data.position is number;
 
         allow update: if request.auth != null
+          && isTournamentActive()
+          && request.resource.data.tournamentId == resource.data.tournamentId
           && (get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
-              || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds)
-          && request.resource.data.tournamentId == resource.data.tournamentId;
+              || (request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds
+                  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['winnerId', 'matchId', 'updatedAt'])));
 
         allow delete: if request.auth != null
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
@@ -197,6 +211,7 @@ service cloud.firestore {
 
         // Players can register themselves — only during registration phase
         allow create: if request.auth != null
+          && isTournamentActive()
           && request.resource.data.userId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.paymentStatus == 'unpaid'
