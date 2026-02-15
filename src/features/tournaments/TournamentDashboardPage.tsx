@@ -1,0 +1,465 @@
+import { createSignal, createResource, createMemo, Show, For } from 'solid-js';
+import type { Component } from 'solid-js';
+import { useParams } from '@solidjs/router';
+import PageLayout from '../../shared/components/PageLayout';
+import { useAuth } from '../../shared/hooks/useAuth';
+import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
+import { firestoreTeamRepository } from '../../data/firebase/firestoreTeamRepository';
+import { firestoreRegistrationRepository } from '../../data/firebase/firestoreRegistrationRepository';
+import { firestorePoolRepository } from '../../data/firebase/firestorePoolRepository';
+import { firestoreBracketRepository } from '../../data/firebase/firestoreBracketRepository';
+import { generatePools } from './engine/poolGenerator';
+import { generateRoundRobinSchedule } from './engine/roundRobin';
+import { calculateStandings } from './engine/standings';
+import { seedBracketFromPools } from './engine/bracketSeeding';
+import { generateBracket } from './engine/bracketGenerator';
+import PoolTable from './components/PoolTable';
+import BracketView from './components/BracketView';
+import RegistrationForm from './components/RegistrationForm';
+import FeeTracker from './components/FeeTracker';
+import OrganizerControls from './components/OrganizerControls';
+import { statusLabels, statusColors, formatLabels } from './constants';
+import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding } from '../../data/types';
+
+// Format-aware status transitions (no pool-play for single-elimination, no bracket for round-robin)
+const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatus, TournamentStatus>>> = {
+  'round-robin': {
+    setup: 'registration',
+    registration: 'pool-play',
+    'pool-play': 'completed',
+  },
+  'single-elimination': {
+    setup: 'registration',
+    registration: 'bracket',
+    bracket: 'completed',
+  },
+  'pool-bracket': {
+    setup: 'registration',
+    registration: 'pool-play',
+    'pool-play': 'bracket',
+    bracket: 'completed',
+  },
+};
+
+const TournamentDashboardPage: Component = () => {
+  const params = useParams();
+  const { user } = useAuth();
+
+  const [error, setError] = createSignal('');
+  const [advancing, setAdvancing] = createSignal(false);
+
+  // --- Data Fetching ---
+
+  const [tournament, { refetch: refetchTournament }] = createResource(
+    () => params.id,
+    (id) => firestoreTournamentRepository.getById(id),
+  );
+
+  const [teams, { refetch: refetchTeams }] = createResource(
+    () => params.id,
+    (id) => firestoreTeamRepository.getByTournament(id),
+  );
+
+  const [registrations, { refetch: refetchRegistrations }] = createResource(
+    () => params.id,
+    (id) => firestoreRegistrationRepository.getByTournament(id),
+  );
+
+  // Fetch user's existing registration for RegistrationForm
+  const [existingRegistration, { refetch: refetchExistingReg }] = createResource(
+    () => {
+      const u = user();
+      const id = params.id;
+      if (!u || !id) return null;
+      return { tournamentId: id, userId: u.uid };
+    },
+    (source) => {
+      if (!source) return Promise.resolve(undefined);
+      return firestoreRegistrationRepository.getByUser(source.tournamentId, source.userId);
+    },
+  );
+
+  // Pools: only fetch when status is pool-play or later and format uses pools
+  const [pools, { refetch: refetchPools }] = createResource(
+    () => {
+      const t = tournament();
+      if (!t) return null;
+      const hasPoolPlay = t.format === 'round-robin' || t.format === 'pool-bracket';
+      const pastRegistration = ['pool-play', 'bracket', 'completed'].includes(t.status);
+      if (hasPoolPlay && pastRegistration) return t.id;
+      return null;
+    },
+    (id) => {
+      if (!id) return Promise.resolve([]);
+      return firestorePoolRepository.getByTournament(id);
+    },
+  );
+
+  // Bracket: only fetch when status is bracket or later and format uses bracket
+  const [bracketSlots, { refetch: refetchBracket }] = createResource(
+    () => {
+      const t = tournament();
+      if (!t) return null;
+      const hasBracket = t.format === 'single-elimination' || t.format === 'pool-bracket';
+      const inBracketPhase = ['bracket', 'completed'].includes(t.status);
+      if (hasBracket && inBracketPhase) return t.id;
+      return null;
+    },
+    (id) => {
+      if (!id) return Promise.resolve([]);
+      return firestoreBracketRepository.getByTournament(id);
+    },
+  );
+
+  // --- Derived State ---
+
+  const isOrganizer = () => {
+    const t = tournament();
+    const u = user();
+    return !!t && !!u && t.organizerId === u.uid;
+  };
+
+  const teamNames = createMemo<Record<string, string>>(() => {
+    const t = teams();
+    if (!t) return {};
+    const map: Record<string, string> = {};
+    for (const team of t) {
+      map[team.id] = team.name;
+    }
+    return map;
+  });
+
+  // userNames map for FeeTracker (userId -> display name from registrations)
+  // Since we don't have a batch user profile fetch, we use userId as fallback
+  const userNames = createMemo<Record<string, string>>(() => {
+    // FeeTracker uses this to display user names next to payment status.
+    // Without batch profile loading we provide userId as the key/value.
+    // If user profiles are loaded in the future, this can be enriched.
+    const regs = registrations();
+    if (!regs) return {};
+    const map: Record<string, string> = {};
+    for (const reg of regs) {
+      map[reg.userId] = reg.userId;
+    }
+    return map;
+  });
+
+  const nextStatus = createMemo<TournamentStatus | null>(() => {
+    const t = tournament();
+    if (!t) return null;
+    const transitions = statusTransitions[t.format];
+    if (!transitions) return null;
+    return transitions[t.status] ?? null;
+  });
+
+  const nextStatusLabel = createMemo(() => {
+    const next = nextStatus();
+    if (!next) return '';
+    return statusLabels[next] ?? next;
+  });
+
+  const showPoolTables = createMemo(() => {
+    const t = tournament();
+    if (!t) return false;
+    const inPhase = ['pool-play', 'bracket', 'completed'].includes(t.status);
+    const hasPoolFormat = t.format === 'round-robin' || t.format === 'pool-bracket';
+    return inPhase && hasPoolFormat;
+  });
+
+  const showBracketView = createMemo(() => {
+    const t = tournament();
+    if (!t) return false;
+    const inPhase = ['bracket', 'completed'].includes(t.status);
+    const hasBracketFormat = t.format === 'single-elimination' || t.format === 'pool-bracket';
+    return inPhase && hasBracketFormat;
+  });
+
+  // --- Status Advance with Side Effects ---
+
+  const handleStatusAdvance = async () => {
+    const t = tournament();
+    const next = nextStatus();
+    if (!t || !next || advancing()) return;
+
+    setError('');
+    setAdvancing(true);
+
+    try {
+      const currentStatus = t.status;
+      const fmt = t.format;
+
+      // registration -> pool-play (for round-robin and pool-bracket)
+      if (currentStatus === 'registration' && next === 'pool-play') {
+        const teamList = teams() ?? [];
+        if (teamList.length < 2) {
+          setError('At least 2 teams are required to start pool play.');
+          setAdvancing(false);
+          return;
+        }
+        const teamIds = teamList.map((tm) => tm.id);
+        const poolCount = t.config.poolCount ?? 2;
+        const poolAssignments = generatePools(teamIds, poolCount);
+
+        for (let i = 0; i < poolAssignments.length; i++) {
+          const poolTeamIds = poolAssignments[i];
+          const schedule = generateRoundRobinSchedule(poolTeamIds);
+          const pool: TournamentPool = {
+            id: crypto.randomUUID(),
+            tournamentId: t.id,
+            name: `Pool ${String.fromCharCode(65 + i)}`,
+            teamIds: poolTeamIds,
+            schedule,
+            standings: poolTeamIds.map((tid) => ({
+              teamId: tid,
+              wins: 0,
+              losses: 0,
+              pointsFor: 0,
+              pointsAgainst: 0,
+              pointDiff: 0,
+            })),
+          };
+          await firestorePoolRepository.save(pool);
+        }
+
+        await firestoreTournamentRepository.updateStatus(t.id, next);
+      }
+
+      // registration -> bracket (for single-elimination)
+      else if (currentStatus === 'registration' && next === 'bracket') {
+        const teamList = teams() ?? [];
+        if (teamList.length < 2) {
+          setError('At least 2 teams are required to start the bracket.');
+          setAdvancing(false);
+          return;
+        }
+        const teamIds = teamList.map((tm) => tm.id);
+        const slots = generateBracket(t.id, teamIds);
+
+        for (const slot of slots) {
+          await firestoreBracketRepository.save(slot);
+        }
+
+        await firestoreTournamentRepository.updateStatus(t.id, next);
+      }
+
+      // pool-play -> bracket (for pool-bracket)
+      else if (currentStatus === 'pool-play' && next === 'bracket' && fmt === 'pool-bracket') {
+        const currentPools = pools() ?? [];
+        if (currentPools.length === 0) {
+          setError('No pools found. Cannot advance to bracket.');
+          setAdvancing(false);
+          return;
+        }
+
+        const allPoolStandings: PoolStanding[][] = [];
+
+        for (const pool of currentPools) {
+          // Calculate standings using the pool's team IDs and any completed matches
+          // For now, use the existing standings from the pool (updated during match play)
+          const standings = calculateStandings(pool.teamIds, []);
+          allPoolStandings.push(standings);
+          await firestorePoolRepository.updateStandings(t.id, pool.id, standings);
+        }
+
+        const teamsPerPoolAdvancing = t.config.teamsPerPoolAdvancing ?? 2;
+        const seededTeamIds = seedBracketFromPools(allPoolStandings, teamsPerPoolAdvancing);
+
+        if (seededTeamIds.length < 2) {
+          setError('Not enough teams to seed a bracket.');
+          setAdvancing(false);
+          return;
+        }
+
+        const slots = generateBracket(t.id, seededTeamIds);
+        for (const slot of slots) {
+          await firestoreBracketRepository.save(slot);
+        }
+
+        await firestoreTournamentRepository.updateStatus(t.id, next);
+      }
+
+      // pool-play -> completed (for round-robin)
+      else if (currentStatus === 'pool-play' && next === 'completed' && fmt === 'round-robin') {
+        const currentPools = pools() ?? [];
+
+        for (const pool of currentPools) {
+          const standings = calculateStandings(pool.teamIds, []);
+          await firestorePoolRepository.updateStandings(t.id, pool.id, standings);
+        }
+
+        await firestoreTournamentRepository.updateStatus(t.id, next);
+      }
+
+      // bracket -> completed
+      else if (currentStatus === 'bracket' && next === 'completed') {
+        await firestoreTournamentRepository.updateStatus(t.id, next);
+      }
+
+      // Generic fallback (e.g., setup -> registration)
+      else {
+        await firestoreTournamentRepository.updateStatus(t.id, next);
+      }
+
+      // Refetch all relevant resources after status change
+      refetchTournament();
+      refetchTeams();
+      refetchRegistrations();
+      refetchPools();
+      refetchBracket();
+      refetchExistingReg();
+    } catch (err) {
+      console.error('Failed to advance tournament status:', err);
+      setError(err instanceof Error ? err.message : 'Failed to advance tournament status. Please try again.');
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
+  // --- Callbacks for child components ---
+
+  const handleRegistered = () => {
+    refetchRegistrations();
+    refetchExistingReg();
+  };
+
+  const handleOrganizerUpdated = () => {
+    refetchTournament();
+  };
+
+  const handleFeeUpdated = () => {
+    refetchRegistrations();
+  };
+
+  // --- Render ---
+
+  return (
+    <PageLayout title={tournament()?.name ?? 'Tournament'}>
+      <div class="p-4 space-y-6">
+        <Show when={tournament()} fallback={<p class="text-on-surface-muted">Loading...</p>}>
+          {(t) => (
+            <>
+              {/* Error Banner */}
+              <Show when={error()}>
+                <div class="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                  <p class="text-red-400 text-sm">{error()}</p>
+                  <button type="button" onClick={() => setError('')}
+                    class="text-red-400/60 text-xs mt-1 underline">
+                    Dismiss
+                  </button>
+                </div>
+              </Show>
+
+              {/* Status Card with Advance Button */}
+              <div class="bg-surface-light rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <div class="text-xs text-on-surface-muted uppercase tracking-wider">Status</div>
+                  <span class={`inline-block mt-1 text-sm font-bold px-3 py-1 rounded-full ${statusColors[t().status] ?? ''}`}>
+                    {statusLabels[t().status] ?? t().status}
+                  </span>
+                </div>
+                <Show when={isOrganizer() && nextStatus()}>
+                  <button type="button" onClick={handleStatusAdvance}
+                    disabled={advancing()}
+                    class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform ${advancing() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
+                    {advancing() ? 'Advancing...' : `Advance to ${nextStatusLabel()}`}
+                  </button>
+                </Show>
+              </div>
+
+              {/* Info Grid */}
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-surface-light rounded-xl p-4">
+                  <div class="text-xs text-on-surface-muted uppercase tracking-wider">Date</div>
+                  <div class="font-semibold text-on-surface">
+                    {new Date(t().date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                </div>
+                <div class="bg-surface-light rounded-xl p-4">
+                  <div class="text-xs text-on-surface-muted uppercase tracking-wider">Location</div>
+                  <div class="font-semibold text-on-surface">{t().location || 'TBD'}</div>
+                </div>
+                <div class="bg-surface-light rounded-xl p-4">
+                  <div class="text-xs text-on-surface-muted uppercase tracking-wider">Format</div>
+                  <div class="font-semibold text-on-surface">{formatLabels[t().format] ?? t().format}</div>
+                </div>
+                <div class="bg-surface-light rounded-xl p-4">
+                  <div class="text-xs text-on-surface-muted uppercase tracking-wider">Teams</div>
+                  <div class="font-semibold text-on-surface">
+                    {teams()?.length ?? 0}{t().maxPlayers ? ` / ${t().maxPlayers}` : ''}
+                  </div>
+                </div>
+              </div>
+
+              {/* Registration Section */}
+              <Show when={t().status === 'registration'}>
+                <div class="space-y-4">
+                  <div class="bg-surface-light rounded-xl p-4">
+                    <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-2">Registrations</div>
+                    <div class="font-semibold text-on-surface text-2xl">{registrations()?.length ?? 0}</div>
+                  </div>
+                  <Show when={!isOrganizer()}>
+                    <RegistrationForm
+                      tournament={t()}
+                      existingRegistration={existingRegistration()}
+                      onRegistered={handleRegistered}
+                    />
+                  </Show>
+                </div>
+              </Show>
+
+              {/* Pool Tables */}
+              <Show when={showPoolTables() && (pools()?.length ?? 0) > 0}>
+                <div class="space-y-4">
+                  <h2 class="font-bold text-on-surface text-lg">Pool Standings</h2>
+                  <For each={pools()}>
+                    {(pool) => (
+                      <PoolTable
+                        poolName={pool.name}
+                        standings={pool.standings}
+                        teamNames={teamNames()}
+                        advancingCount={t().config.teamsPerPoolAdvancing ?? 2}
+                      />
+                    )}
+                  </For>
+                </div>
+              </Show>
+
+              {/* Bracket View */}
+              <Show when={showBracketView() && (bracketSlots()?.length ?? 0) > 0}>
+                <div class="space-y-4">
+                  <h2 class="font-bold text-on-surface text-lg">Bracket</h2>
+                  <BracketView
+                    slots={bracketSlots()!}
+                    teamNames={teamNames()}
+                  />
+                </div>
+              </Show>
+
+              {/* Fee Tracker (organizer only, when entry fee exists) */}
+              <Show when={isOrganizer() && t().entryFee}>
+                <FeeTracker
+                  tournamentId={t().id}
+                  entryFee={t().entryFee!}
+                  registrations={registrations() ?? []}
+                  isOrganizer={true}
+                  userNames={userNames()}
+                  onUpdated={handleFeeUpdated}
+                />
+              </Show>
+
+              {/* Organizer Controls */}
+              <Show when={isOrganizer() && !['completed', 'cancelled'].includes(t().status)}>
+                <OrganizerControls
+                  tournament={t()}
+                  onUpdated={handleOrganizerUpdated}
+                />
+              </Show>
+            </>
+          )}
+        </Show>
+      </div>
+    </PageLayout>
+  );
+};
+
+export default TournamentDashboardPage;

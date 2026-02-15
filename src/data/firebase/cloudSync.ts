@@ -1,9 +1,10 @@
 import { auth } from './config';
 import { firestoreMatchRepository } from './firestoreMatchRepository';
 import { firestoreScoreEventRepository } from './firestoreScoreEventRepository';
+import { firestoreTournamentRepository } from './firestoreTournamentRepository';
 import { firestoreUserRepository } from './firestoreUserRepository';
 import { matchRepository } from '../repositories/matchRepository';
-import type { Match, ScoreEvent } from '../types';
+import type { Match, ScoreEvent, Tournament } from '../types';
 
 export const cloudSync = {
   /**
@@ -100,6 +101,31 @@ export const cloudSync = {
     } catch (err) {
       console.warn('Failed to push local matches:', err);
       return 0;
+    }
+  },
+
+  /**
+   * Save a tournament to Firestore. Fire-and-forget.
+   */
+  syncTournamentToCloud(tournament: Tournament): void {
+    const user = auth.currentUser;
+    if (!user) return;
+    firestoreTournamentRepository.save(tournament).catch((err) => {
+      console.warn('Cloud sync failed for tournament:', tournament.id, err);
+    });
+  },
+
+  /**
+   * Pull organizer's tournaments from Firestore.
+   */
+  async pullTournamentsFromCloud(): Promise<Tournament[]> {
+    const user = auth.currentUser;
+    if (!user) return [];
+    try {
+      return await firestoreTournamentRepository.getByOrganizer(user.uid);
+    } catch (err) {
+      console.warn('Failed to pull tournaments:', err);
+      return [];
     }
   },
 };
