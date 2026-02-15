@@ -119,7 +119,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
     () => ({ ...ctx(), state: stateName() }),
     (current, prev) => {
       if (!prev) return;
-      const { state, team1Score, team2Score, servingTeam, serverNumber, gameNumber, gamesWon } = current;
+      const { state, team1Score, team2Score, servingTeam, gamesWon } = current;
 
       // Game over announcement
       if (state === 'betweenGames' && prev.state === 'serving') {
