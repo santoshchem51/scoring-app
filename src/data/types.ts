@@ -115,6 +115,8 @@ export interface TournamentConfig {
   teamsPerPoolAdvancing: number;
 }
 
+export type TeamFormation = 'byop' | 'auto-pair';
+
 export interface Tournament {
   id: string;
   name: string;
@@ -126,6 +128,7 @@ export interface Tournament {
   scorekeeperIds: string[];
   status: TournamentStatus;
   maxPlayers: number | null;
+  teamFormation: TeamFormation | null;  // null for singles
   minPlayers: number | null;
   entryFee: EntryFee | null;
   rules: TournamentRules;
@@ -190,6 +193,9 @@ export interface TournamentRegistration {
   paymentStatus: PaymentStatus;
   paymentNote: string;
   lateEntry: boolean;
-  rulesAcknowledged: boolean;
+  skillRating: number | null;       // 2.5-5.0, optional
+  partnerId: string | null;         // BYOP: userId of desired partner
+  partnerName: string | null;       // BYOP: display name for lookup
+  profileComplete: boolean;         // true when rating + partner (if BYOP) filled
   registeredAt: number;
 }
