@@ -160,6 +160,8 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           scoringMode={props.match.config.scoringMode}
           gameType={props.match.config.gameType}
           pointsToWin={props.match.config.pointsToWin}
+          team1Color={props.match.team1Color}
+          team2Color={props.match.team2Color}
           onSwipeScoreTeam1={() => scorePoint(1)}
           onSwipeScoreTeam2={() => scorePoint(2)}
           onSwipeUndo={() => undo()}
@@ -209,6 +211,8 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
                     scoringMode={props.match.config.scoringMode}
                     gameType={props.match.config.gameType}
                     pointsToWin={props.match.config.pointsToWin}
+                    team1Color={props.match.team1Color}
+                    team2Color={props.match.team2Color}
                     onSwipeScoreTeam1={() => scorePoint(1)}
                     onSwipeScoreTeam2={() => scorePoint(2)}
                     onSwipeUndo={() => undo()}

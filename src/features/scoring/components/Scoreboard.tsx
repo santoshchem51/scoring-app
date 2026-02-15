@@ -14,6 +14,8 @@ interface Props {
   scoringMode: ScoringMode;
   gameType: GameType;
   pointsToWin?: number;
+  team1Color?: string;
+  team2Color?: string;
   onSwipeScoreTeam1?: () => void;
   onSwipeScoreTeam2?: () => void;
   onSwipeUndo?: () => void;
@@ -48,6 +50,9 @@ const Scoreboard: Component<Props> = (props) => {
   const team1GamePoint = () => isGamePoint(props.team1Score, props.team2Score);
   const team2GamePoint = () => isGamePoint(props.team2Score, props.team1Score);
 
+  const t1Color = () => props.team1Color ?? '#22c55e';
+  const t2Color = () => props.team2Color ?? '#f97316';
+
   return (
     <div class="grid grid-cols-2 gap-4 px-4" role="region" aria-label="Scoreboard">
       {/* Screen reader live announcement */}
@@ -60,11 +65,21 @@ const Scoreboard: Component<Props> = (props) => {
         ref={team1PanelRef}
         class="flex flex-col items-center py-6 rounded-2xl transition-all"
         classList={{
-          'bg-primary/15 ring-2 ring-primary': isServing(1),
-          'bg-score/10 ring-2 ring-score': team1GamePoint() && !isServing(1),
           'bg-surface-light': !isServing(1) && !team1GamePoint(),
         }}
-        style={isServing(1) ? { "touch-action": "pan-y", animation: 'pulse-glow 2s ease-in-out infinite' } : { "touch-action": "pan-y" }}
+        style={{
+          "touch-action": "pan-y",
+          ...(isServing(1) ? {
+            "background-color": `${t1Color()}20`,
+            border: `2px solid ${t1Color()}`,
+            "box-shadow": `0 0 20px 4px ${t1Color()}30`,
+          } : team1GamePoint() ? {
+            "background-color": `${t1Color()}15`,
+            border: `2px solid ${t1Color()}`,
+          } : {
+            border: '2px solid transparent',
+          }),
+        }}
         aria-label={`${props.team1Name}: ${props.team1Score}${isServing(1) ? ', serving' : ''}`}
       >
         <span class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2">
@@ -78,12 +93,12 @@ const Scoreboard: Component<Props> = (props) => {
           {props.team1Score}
         </span>
         <Show when={isServing(1)}>
-          <span class="mt-2 text-xs font-bold text-primary uppercase tracking-wider">
+          <span class="mt-2 text-xs font-bold uppercase tracking-wider" style={{ color: t1Color() }}>
             {showServerNumber() ? `Server ${props.serverNumber}` : 'Serving'}
           </span>
         </Show>
         <Show when={team1GamePoint()}>
-          <span class="mt-1 text-xs font-bold text-score uppercase tracking-wider animate-pulse">Game Point</span>
+          <span class="mt-1 text-xs font-bold uppercase tracking-wider animate-pulse" style={{ color: t1Color() }}>Game Point</span>
         </Show>
       </div>
 
@@ -92,11 +107,21 @@ const Scoreboard: Component<Props> = (props) => {
         ref={team2PanelRef}
         class="flex flex-col items-center py-6 rounded-2xl transition-all"
         classList={{
-          'bg-primary/15 ring-2 ring-primary': isServing(2),
-          'bg-score/10 ring-2 ring-score': team2GamePoint() && !isServing(2),
           'bg-surface-light': !isServing(2) && !team2GamePoint(),
         }}
-        style={isServing(2) ? { "touch-action": "pan-y", animation: 'pulse-glow 2s ease-in-out infinite' } : { "touch-action": "pan-y" }}
+        style={{
+          "touch-action": "pan-y",
+          ...(isServing(2) ? {
+            "background-color": `${t2Color()}20`,
+            border: `2px solid ${t2Color()}`,
+            "box-shadow": `0 0 20px 4px ${t2Color()}30`,
+          } : team2GamePoint() ? {
+            "background-color": `${t2Color()}15`,
+            border: `2px solid ${t2Color()}`,
+          } : {
+            border: '2px solid transparent',
+          }),
+        }}
         aria-label={`${props.team2Name}: ${props.team2Score}${isServing(2) ? ', serving' : ''}`}
       >
         <span class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2">
@@ -110,12 +135,12 @@ const Scoreboard: Component<Props> = (props) => {
           {props.team2Score}
         </span>
         <Show when={isServing(2)}>
-          <span class="mt-2 text-xs font-bold text-primary uppercase tracking-wider">
+          <span class="mt-2 text-xs font-bold uppercase tracking-wider" style={{ color: t2Color() }}>
             {showServerNumber() ? `Server ${props.serverNumber}` : 'Serving'}
           </span>
         </Show>
         <Show when={team2GamePoint()}>
-          <span class="mt-1 text-xs font-bold text-score uppercase tracking-wider animate-pulse">Game Point</span>
+          <span class="mt-1 text-xs font-bold uppercase tracking-wider animate-pulse" style={{ color: t2Color() }}>Game Point</span>
         </Show>
       </div>
     </div>
