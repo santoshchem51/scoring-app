@@ -94,4 +94,12 @@ describe('firestoreBracketRepository', () => {
       });
     });
   });
+
+  describe('error handling', () => {
+    it('propagates Firestore errors on updateResult', async () => {
+      mockUpdateDoc.mockRejectedValue(new Error('Not found'));
+
+      await expect(firestoreBracketRepository.updateResult('t1', 'slot1', 'team1', 'match1')).rejects.toThrow('Not found');
+    });
+  });
 });
