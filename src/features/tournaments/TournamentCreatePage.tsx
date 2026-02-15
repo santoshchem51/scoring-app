@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
@@ -30,6 +30,7 @@ const TournamentCreatePage: Component = () => {
   const [teamsAdvancing, _setTeamsAdvancing] = createSignal(2);
   const [maxPlayers, setMaxPlayers] = createSignal('');
   const [saving, setSaving] = createSignal(false);
+  const [error, setError] = createSignal('');
 
   const canCreate = () => name().trim() !== '' && date() !== '' && user();
 
@@ -54,10 +55,11 @@ const TournamentCreatePage: Component = () => {
         organizerId: currentUser.uid,
         scorekeeperIds: [],
         status: 'setup',
-        maxPlayers: maxPlayers() ? parseInt(maxPlayers(), 10) : null,
+        maxPlayers: (() => { const n = parseInt(maxPlayers(), 10); return !isNaN(n) && n >= 4 ? n : null; })(),
         minPlayers: null,
         entryFee: null,
         rules: emptyRules,
+        pausedFrom: null,
         cancellationReason: null,
         createdAt: Date.now(),
         updatedAt: Date.now(),

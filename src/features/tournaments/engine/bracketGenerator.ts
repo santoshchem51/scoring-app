@@ -7,11 +7,19 @@ function nextPowerOf2(n: number): number {
 }
 
 function standardSeeding(bracketSize: number): Array<[number, number]> {
-  const pairs: Array<[number, number]> = [];
-  for (let i = 0; i < bracketSize / 2; i++) {
-    pairs.push([i, bracketSize - 1 - i]);
+  // Build positions iteratively so top seeds land on opposite halves.
+  // For bracketSize=8: [0,3,1,2] -> pairs (0v7, 3v4, 1v6, 2v5) = 1v8, 4v5, 2v7, 3v6
+  let positions = [0];
+  while (positions.length < bracketSize / 2) {
+    const nextRoundSize = positions.length * 2;
+    const newPositions: number[] = [];
+    for (const pos of positions) {
+      newPositions.push(pos);
+      newPositions.push(nextRoundSize - 1 - pos);
+    }
+    positions = newPositions;
   }
-  return pairs;
+  return positions.map((pos) => [pos, bracketSize - 1 - pos] as [number, number]);
 }
 
 /**

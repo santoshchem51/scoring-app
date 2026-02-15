@@ -2,10 +2,16 @@ import type { Match, PoolStanding } from '../../../data/types';
 
 /**
  * Calculate pool standings from completed matches.
- * teamIds map to match.team1Name / match.team2Name.
+ * teamIds must match the values returned by getTeamIds (defaults to team1Name / team2Name).
  * Sorts by wins (desc), then point differential (desc).
  */
-export function calculateStandings(teamIds: string[], matches: Match[]): PoolStanding[] {
+export function calculateStandings(
+  teamIds: string[],
+  matches: Match[],
+  getTeamIds?: (match: Match) => { team1: string; team2: string },
+): PoolStanding[] {
+  const identify = getTeamIds ?? ((m: Match) => ({ team1: m.team1Name, team2: m.team2Name }));
+
   const standings: PoolStanding[] = teamIds.map((teamId) => {
     let wins = 0;
     let losses = 0;
@@ -15,8 +21,9 @@ export function calculateStandings(teamIds: string[], matches: Match[]): PoolSta
     const completedMatches = matches.filter((m) => m.status === 'completed');
 
     for (const match of completedMatches) {
-      const isTeam1 = match.team1Name === teamId;
-      const isTeam2 = match.team2Name === teamId;
+      const ids = identify(match);
+      const isTeam1 = ids.team1 === teamId;
+      const isTeam2 = ids.team2 === teamId;
 
       if (!isTeam1 && !isTeam2) continue;
 
