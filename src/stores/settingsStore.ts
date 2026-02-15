@@ -10,6 +10,8 @@ interface Settings {
   keepScreenAwake: boolean;
   soundEffects: 'off' | 'subtle' | 'full';
   hapticFeedback: boolean;
+  voiceAnnouncements: 'off' | 'scores' | 'full';
+  displayMode: 'dark' | 'outdoor';
 }
 
 const SETTINGS_KEY = 'pickle-score-settings';
@@ -29,6 +31,8 @@ function loadSettings(): Settings {
     keepScreenAwake: true,
     soundEffects: 'off',
     hapticFeedback: false,
+    voiceAnnouncements: 'off',
+    displayMode: 'dark',
   };
 }
 

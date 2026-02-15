@@ -31,6 +31,8 @@ export interface Match {
   team2PlayerIds: string[];
   team1Name: string;
   team2Name: string;
+  team1Color?: string;   // hex color, e.g., '#22c55e'
+  team2Color?: string;   // hex color, e.g., '#f97316'
   games: GameResult[];
   winningSide: 1 | 2 | null;
   status: MatchStatus;
