@@ -30,7 +30,7 @@ const AddPlayerForm: Component = () => {
             value={name()}
             onInput={(e) => { setName(e.currentTarget.value); setShowError(false); }}
             maxLength={30}
-            class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
+            class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary"
             placeholder="Player name"
             aria-describedby={showError() ? 'player-name-error' : undefined}
             aria-invalid={showError() ? 'true' : undefined}

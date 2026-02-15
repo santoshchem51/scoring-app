@@ -34,11 +34,11 @@ const PlayersPage: Component = () => {
             <div>
               <AddPlayerForm />
             </div>
-            <div class="space-y-2">
+            <ul role="list" class="space-y-2 list-none p-0 m-0">
               <For each={players()}>
-                {(player) => <PlayerCard player={player} />}
+                {(player) => <li><PlayerCard player={player} /></li>}
               </For>
-            </div>
+            </ul>
           </div>
         </Show>
       </div>

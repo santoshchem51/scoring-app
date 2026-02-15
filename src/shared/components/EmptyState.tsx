@@ -12,8 +12,8 @@ interface EmptyStateProps {
 
 const EmptyState: Component<EmptyStateProps> = (props) => {
   return (
-    <div class="flex flex-col items-center justify-center py-16 px-6 text-center">
-      <div class="w-16 h-16 rounded-2xl bg-surface-lighter flex items-center justify-center mb-4 text-on-surface-muted">
+    <div class="flex flex-col items-center justify-center py-8 md:py-16 px-6 text-center">
+      <div class="w-16 h-16 rounded-2xl bg-surface-lighter flex items-center justify-center mb-4 text-on-surface-muted" aria-hidden="true">
         {props.icon}
       </div>
       <h2 class="text-lg font-bold text-on-surface mb-2">{props.title}</h2>

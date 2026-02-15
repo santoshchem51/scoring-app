@@ -131,3 +131,20 @@ html.outdoor .skeleton {
 html.outdoor .text-7xl {
   font-size: 5.5rem;
 }
+
+/* Landscape: compact bottom nav to reclaim vertical space */
+@media (orientation: landscape) and (max-height: 500px) {
+  nav[aria-label="Main navigation"] {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  nav[aria-label="Main navigation"] a {
+    min-height: 40px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    gap: 0;
+  }
+  nav[aria-label="Main navigation"] a span {
+    font-size: 0.625rem;
+  }
+}

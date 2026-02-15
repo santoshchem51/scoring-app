@@ -1,4 +1,4 @@
-import { Show, onMount, onCleanup, createEffect } from 'solid-js';
+import { Show, onMount, onCleanup, createEffect, createUniqueId } from 'solid-js';
 import type { Component } from 'solid-js';
 
 interface ConfirmDialogProps {
@@ -15,6 +15,8 @@ interface ConfirmDialogProps {
 const ConfirmDialog: Component<ConfirmDialogProps> = (props) => {
   let dialogRef: HTMLDivElement | undefined;
   let confirmBtnRef: HTMLButtonElement | undefined;
+  const titleId = `confirm-title-${createUniqueId()}`;
+  const messageId = `confirm-message-${createUniqueId()}`;
 
   // Focus management: focus confirm button when opened
   createEffect(() => {
@@ -84,14 +86,14 @@ const ConfirmDialog: Component<ConfirmDialogProps> = (props) => {
           ref={dialogRef}
           role="alertdialog"
           aria-modal="true"
-          aria-labelledby="confirm-title"
-          aria-describedby="confirm-message"
+          aria-labelledby={titleId}
+          aria-describedby={messageId}
           class="relative z-10 w-full md:max-w-sm bg-surface-light rounded-t-2xl md:rounded-2xl p-6 space-y-4"
         >
-          <h2 id="confirm-title" class="text-lg font-bold text-on-surface">
+          <h2 id={titleId} class="text-lg font-bold text-on-surface">
             {props.title}
           </h2>
-          <p id="confirm-message" class="text-on-surface-muted">
+          <p id={messageId} class="text-on-surface-muted">
             {props.message}
           </p>
           <div class="flex gap-3 pt-2">

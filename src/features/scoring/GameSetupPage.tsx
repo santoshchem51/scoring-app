@@ -167,7 +167,7 @@ const GameSetupPage: Component = () => {
                     value={team1Name()}
                     onInput={(e) => setTeam1Name(e.currentTarget.value)}
                     maxLength={30}
-                    class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
+                    class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary"
                     placeholder="Team 1 name"
                   />
                   <div class="mt-2">
@@ -182,7 +182,7 @@ const GameSetupPage: Component = () => {
                     value={team2Name()}
                     onInput={(e) => setTeam2Name(e.currentTarget.value)}
                     maxLength={30}
-                    class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary"
+                    class="w-full bg-surface-light border border-surface-lighter rounded-xl px-4 py-3 text-on-surface focus:border-primary"
                     placeholder="Team 2 name"
                   />
                   <div class="mt-2">

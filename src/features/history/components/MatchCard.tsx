@@ -21,7 +21,7 @@ const MatchCard: Component<Props> = (props) => {
   };
 
   return (
-    <div class="bg-surface-light rounded-xl p-4 space-y-2">
+    <article class="bg-surface-light rounded-xl p-4 space-y-2" aria-label={`${m().team1Name} vs ${m().team2Name}`}>
       <div class="flex items-center justify-between">
         <span class="text-xs text-on-surface-muted">{date()} {time()}</span>
         <div class="flex items-center gap-2">
@@ -68,7 +68,7 @@ const MatchCard: Component<Props> = (props) => {
         {m().config.gameType === 'doubles' ? 'Doubles' : 'Singles'} · To {m().config.pointsToWin}
         {m().config.matchFormat !== 'single' ? ` · ${m().config.matchFormat.replaceAll('-', ' ')}` : ''}
       </div>
-    </div>
+    </article>
   );
 };
 

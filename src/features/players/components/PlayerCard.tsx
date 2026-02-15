@@ -42,7 +42,7 @@ const PlayerCard: Component<Props> = (props) => {
           type="button"
           onClick={() => setShowConfirm(true)}
           aria-label={`Delete ${props.player.name}`}
-          class="text-error text-sm px-4 py-3 rounded-lg hover:bg-error/10 active:scale-95 transition-all"
+          class="text-error text-sm px-4 py-3 min-h-[48px] rounded-lg hover:bg-error/10 active:scale-95 transition-all"
         >
           Delete
         </button>
