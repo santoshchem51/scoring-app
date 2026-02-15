@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@solidjs/router": "^0.15.4",
+    "canvas-confetti": "^1.9.4",
     "dexie": "^4.3.0",
     "solid-js": "^1.9.10",
     "solid-transition-group": "^0.3.0",
@@ -21,6 +22,7 @@
     "@solidjs/testing-library": "^0.8.10",
     "@tailwindcss/vite": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
+    "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^24.10.1",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^28.0.0",

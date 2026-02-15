@@ -92,6 +92,30 @@ const SettingsPage: Component = () => {
           </button>
         </fieldset>
 
+        {/* Voice Announcements */}
+        <fieldset>
+          <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+            Voice
+          </legend>
+          <div class="grid grid-cols-3 gap-3">
+            <OptionCard
+              label="Off"
+              selected={settings().voiceAnnouncements === 'off'}
+              onClick={() => setSettings({ voiceAnnouncements: 'off' })}
+            />
+            <OptionCard
+              label="Scores"
+              selected={settings().voiceAnnouncements === 'scores'}
+              onClick={() => setSettings({ voiceAnnouncements: 'scores' })}
+            />
+            <OptionCard
+              label="Full"
+              selected={settings().voiceAnnouncements === 'full'}
+              onClick={() => setSettings({ voiceAnnouncements: 'full' })}
+            />
+          </div>
+        </fieldset>
+
         {/* Default Scoring Mode */}
         <fieldset>
           <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
