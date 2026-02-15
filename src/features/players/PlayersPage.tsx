@@ -12,14 +12,12 @@ const PlayersPage: Component = () => {
 
   return (
     <PageLayout title="Players">
-      <div class="p-4 md:grid md:grid-cols-2 md:gap-6 space-y-4 md:space-y-0">
-        <div>
-          <AddPlayerForm />
-        </div>
-        <div>
-          <Show
-            when={players() && players()!.length > 0}
-            fallback={
+      <div class="p-4 space-y-4">
+        <Show
+          when={players() && players()!.length > 0}
+          fallback={
+            <>
+              <AddPlayerForm />
               <EmptyState
                 icon={
                   <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,15 +27,20 @@ const PlayersPage: Component = () => {
                 title="No Players Yet"
                 description="Add players to track individual stats and win/loss records."
               />
-            }
-          >
+            </>
+          }
+        >
+          <div class="md:grid md:grid-cols-2 md:gap-6 space-y-4 md:space-y-0">
+            <div>
+              <AddPlayerForm />
+            </div>
             <div class="space-y-2">
               <For each={players()}>
                 {(player) => <PlayerCard player={player} />}
               </For>
             </div>
-          </Show>
-        </div>
+          </div>
+        </Show>
       </div>
     </PageLayout>
   );

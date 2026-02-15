@@ -110,6 +110,8 @@ select:focus-visible {
 
 /* Outdoor/High-Contrast Mode */
 html.outdoor {
+  --color-primary: #15803d;
+  --color-primary-dark: #166534;
   --color-surface: #ffffff;
   --color-surface-light: #f1f5f9;
   --color-surface-lighter: #e2e8f0;
@@ -117,7 +119,7 @@ html.outdoor {
   --color-on-surface: #0f172a;
   --color-on-surface-muted: #475569;
   --color-score: #ca8a04;
-  --color-primary-glow: rgba(34, 197, 94, 0.1);
+  --color-primary-glow: rgba(21, 128, 61, 0.1);
   --color-accent-glow: rgba(249, 115, 22, 0.1);
   --color-score-glow: rgba(202, 138, 4, 0.15);
 }
