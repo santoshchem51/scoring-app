@@ -117,7 +117,11 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 100
+        && request.resource.data.date is number
+        && request.resource.data.location is string
         && request.resource.data.format in ['round-robin', 'single-elimination', 'pool-bracket']
+        && request.resource.data.config is map
+        && request.resource.data.config.gameType in ['singles', 'doubles']
         && request.resource.data.scorekeeperIds is list
         && (
           // Valid status transitions
@@ -149,7 +153,8 @@ service cloud.firestore {
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
-          && request.resource.data.playerIds is list;
+          && request.resource.data.playerIds is list
+          && request.resource.data.playerIds.size() > 0;
 
         allow update: if request.auth != null
           && isTournamentActive()
@@ -223,6 +228,8 @@ service cloud.firestore {
           && isTournamentActive()
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
+          && request.resource.data.paymentStatus == 'unpaid'
+          && request.resource.data.paymentNote == ''
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.status == 'registration';
 
         // Organizer can update any registration (e.g., payment status)
