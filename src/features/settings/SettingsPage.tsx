@@ -1,3 +1,4 @@
+import { createSignal, onMount, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import PageLayout from '../../shared/components/PageLayout';
 import OptionCard from '../../shared/components/OptionCard';
@@ -5,6 +6,30 @@ import Logo from '../../shared/components/Logo';
 import { settings, setSettings } from '../../stores/settingsStore';
 
 const SettingsPage: Component = () => {
+  const [voices, setVoices] = createSignal<SpeechSynthesisVoice[]>([]);
+
+  onMount(() => {
+    if (!('speechSynthesis' in window)) return;
+    const load = () => setVoices(speechSynthesis.getVoices());
+    load();
+    speechSynthesis.addEventListener('voiceschanged', load);
+  });
+
+  const testVoice = () => {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance('3, 5, 2');
+    utt.rate = settings().voiceRate;
+    utt.pitch = settings().voicePitch;
+    utt.volume = 0.8;
+    const uri = settings().voiceUri;
+    if (uri) {
+      const match = voices().find((v) => v.voiceURI === uri);
+      if (match) utt.voice = match;
+    }
+    speechSynthesis.speak(utt);
+  };
+
   return (
     <PageLayout title="Settings">
       <div class="p-4">
@@ -138,6 +163,73 @@ const SettingsPage: Component = () => {
                   onClick={() => setSettings({ voiceAnnouncements: 'full' })}
                 />
               </div>
+
+              <Show when={settings().voiceAnnouncements !== 'off'}>
+                <div class="mt-4 space-y-4 bg-surface-light rounded-xl p-4">
+                  {/* Voice picker */}
+                  <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1" for="voice-select">Voice</label>
+                    <select
+                      id="voice-select"
+                      value={settings().voiceUri}
+                      onChange={(e) => setSettings({ voiceUri: e.currentTarget.value })}
+                      class="w-full bg-surface text-on-surface rounded-lg px-3 py-2 text-sm border border-surface-lighter"
+                    >
+                      <option value="">System Default</option>
+                      {voices().map((v) => (
+                        <option value={v.voiceURI}>
+                          {v.name} {v.lang ? `(${v.lang})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Speed slider */}
+                  <div>
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="text-sm font-medium text-on-surface" for="voice-rate">Speed</label>
+                      <span class="text-xs text-on-surface-muted tabular-nums">{settings().voiceRate.toFixed(1)}x</span>
+                    </div>
+                    <input
+                      id="voice-rate"
+                      type="range"
+                      min="0.5"
+                      max="2.0"
+                      step="0.1"
+                      value={settings().voiceRate}
+                      onInput={(e) => setSettings({ voiceRate: parseFloat(e.currentTarget.value) })}
+                      class="w-full accent-primary"
+                    />
+                  </div>
+
+                  {/* Pitch slider */}
+                  <div>
+                    <div class="flex items-center justify-between mb-1">
+                      <label class="text-sm font-medium text-on-surface" for="voice-pitch">Pitch</label>
+                      <span class="text-xs text-on-surface-muted tabular-nums">{settings().voicePitch.toFixed(1)}</span>
+                    </div>
+                    <input
+                      id="voice-pitch"
+                      type="range"
+                      min="0.5"
+                      max="2.0"
+                      step="0.1"
+                      value={settings().voicePitch}
+                      onInput={(e) => setSettings({ voicePitch: parseFloat(e.currentTarget.value) })}
+                      class="w-full accent-primary"
+                    />
+                  </div>
+
+                  {/* Test button */}
+                  <button
+                    type="button"
+                    onClick={testVoice}
+                    class="w-full bg-surface-lighter text-on-surface font-semibold text-sm py-2.5 rounded-lg active:scale-95 transition-transform"
+                  >
+                    Test Voice
+                  </button>
+                </div>
+              </Show>
             </fieldset>
           </div>
 

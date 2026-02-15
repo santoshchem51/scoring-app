@@ -1,15 +1,23 @@
 import { settings } from '../../stores/settingsStore';
 
 function speak(text: string) {
-  const level = settings().voiceAnnouncements;
-  if (level === 'off') return;
+  const s = settings();
+  if (s.voiceAnnouncements === 'off') return;
   if (!('speechSynthesis' in window)) return;
 
   speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.0;
+  utterance.rate = s.voiceRate;
+  utterance.pitch = s.voicePitch;
   utterance.volume = 0.8;
+
+  if (s.voiceUri) {
+    const voices = speechSynthesis.getVoices();
+    const match = voices.find((v) => v.voiceURI === s.voiceUri);
+    if (match) utterance.voice = match;
+  }
+
   speechSynthesis.speak(utterance);
 }
 

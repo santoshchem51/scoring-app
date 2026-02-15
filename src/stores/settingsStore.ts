@@ -11,29 +11,37 @@ interface Settings {
   soundEffects: 'off' | 'subtle' | 'full';
   hapticFeedback: boolean;
   voiceAnnouncements: 'off' | 'scores' | 'full';
+  voiceUri: string;
+  voicePitch: number;
+  voiceRate: number;
   displayMode: 'dark' | 'outdoor';
 }
 
 const SETTINGS_KEY = 'pickle-score-settings';
 
+const DEFAULTS: Settings = {
+  defaultScoringMode: 'sideout',
+  defaultPointsToWin: 11,
+  defaultMatchFormat: 'single',
+  scoringUIMode: 'simple',
+  keepScreenAwake: true,
+  soundEffects: 'off',
+  hapticFeedback: false,
+  voiceAnnouncements: 'off',
+  voiceUri: '',
+  voicePitch: 1.0,
+  voiceRate: 1.0,
+  displayMode: 'dark',
+};
+
 function loadSettings(): Settings {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
-    if (stored) return JSON.parse(stored);
+    if (stored) return { ...DEFAULTS, ...JSON.parse(stored) };
   } catch {
     // ignore parse errors
   }
-  return {
-    defaultScoringMode: 'sideout',
-    defaultPointsToWin: 11,
-    defaultMatchFormat: 'single',
-    scoringUIMode: 'simple',
-    keepScreenAwake: true,
-    soundEffects: 'off',
-    hapticFeedback: false,
-    voiceAnnouncements: 'off',
-    displayMode: 'dark',
-  };
+  return { ...DEFAULTS };
 }
 
 const [settings, setSettingsInternal] = createSignal<Settings>(loadSettings());
