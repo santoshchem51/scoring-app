@@ -1,15 +1,17 @@
 import { Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { A, useLocation } from '@solidjs/router';
+import { useAuth } from '../hooks/useAuth';
 
 const BottomNav: Component = () => {
   const location = useLocation();
+  const { user } = useAuth();
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
   const linkClass = (path: string) =>
-    `relative flex flex-col items-center justify-center gap-1 min-w-[48px] min-h-[48px] px-3 py-1 text-xs font-medium transition-colors ${
+    `relative flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[48px] px-2 py-1 text-xs font-medium transition-colors ${
       isActive(path) ? 'text-primary' : 'text-on-surface-muted'
     }`;
 
@@ -21,7 +23,7 @@ const BottomNav: Component = () => {
             <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
           </Show>
           <svg aria-hidden="true" class="relative w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-          <span class="relative">New Game</span>
+          <span class="relative">New</span>
         </A>
         <A href="/history" class={linkClass('/history')} aria-current={isActive('/history') ? 'page' : undefined} aria-label="Match History">
           <Show when={isActive('/history')}>
@@ -37,6 +39,15 @@ const BottomNav: Component = () => {
           <svg aria-hidden="true" class="relative w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           <span class="relative">Players</span>
         </A>
+        <Show when={user()}>
+          <A href="/tournaments" class={linkClass('/tournaments')} aria-current={isActive('/tournaments') ? 'page' : undefined} aria-label="Tournaments">
+            <Show when={isActive('/tournaments')}>
+              <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
+            </Show>
+            <svg aria-hidden="true" class="relative w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+            <span class="relative">Tourneys</span>
+          </A>
+        </Show>
         <A href="/settings" class={linkClass('/settings')} aria-current={isActive('/settings') ? 'page' : undefined} aria-label="Settings">
           <Show when={isActive('/settings')}>
             <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
