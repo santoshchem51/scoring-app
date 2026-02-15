@@ -49,4 +49,33 @@ describe('generateBracket', () => {
     const byes = firstRound.filter((s) => s.team1Id === null || s.team2Id === null);
     expect(byes).toHaveLength(2);
   });
+
+  it('generates 1 slot (the final) for 2 teams', () => {
+    const slots = generateBracket('t1', ['A', 'B']);
+    expect(slots).toHaveLength(1);
+    expect(slots[0].round).toBe(1);
+    expect(slots[0].team1Id).toBe('A');
+    expect(slots[0].team2Id).toBe('B');
+    expect(slots[0].nextSlotId).toBeNull();
+  });
+
+  it('pads 3 teams to 4, producing 3 slots with 1 bye', () => {
+    const slots = generateBracket('t1', ['A', 'B', 'C']);
+    expect(slots).toHaveLength(3);
+    const firstRound = slots.filter((s) => s.round === 1);
+    expect(firstRound).toHaveLength(2);
+    const byes = firstRound.filter((s) => s.team1Id === null || s.team2Id === null);
+    expect(byes).toHaveLength(1);
+    // All 3 real teams should appear in first round
+    const allTeams = firstRound.flatMap((s) => [s.team1Id, s.team2Id]).filter(Boolean);
+    expect(allTeams).toContain('A');
+    expect(allTeams).toContain('B');
+    expect(allTeams).toContain('C');
+  });
+
+  it('throws for 1 team (no valid bracket can be formed)', () => {
+    // nextPowerOf2(1) = 1, log2(1) = 0 rounds, slotsByRound is empty,
+    // so accessing slotsByRound[0] fails — callers should provide >= 2 teams
+    expect(() => generateBracket('t1', ['A'])).toThrow();
+  });
 });

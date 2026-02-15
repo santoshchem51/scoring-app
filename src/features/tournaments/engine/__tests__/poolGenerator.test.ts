@@ -43,4 +43,21 @@ describe('generatePools', () => {
     const allTeams = pools.flat();
     expect(allTeams.sort()).toEqual([...teams].sort());
   });
+
+  it('returns empty pools for 0 teams', () => {
+    const pools = generatePools([], 2);
+    expect(pools).toHaveLength(2);
+    expect(pools[0]).toEqual([]);
+    expect(pools[1]).toEqual([]);
+  });
+
+  it('handles poolCount greater than teamCount (some pools empty)', () => {
+    const pools = generatePools(['A'], 3);
+    expect(pools).toHaveLength(3);
+    const allTeams = pools.flat();
+    expect(allTeams).toEqual(['A']);
+    // At least some pools should be empty
+    const emptyPools = pools.filter((p) => p.length === 0);
+    expect(emptyPools.length).toBe(2);
+  });
 });

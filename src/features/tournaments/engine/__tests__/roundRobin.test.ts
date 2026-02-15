@@ -54,4 +54,14 @@ describe('generateRoundRobinSchedule', () => {
       teams.push(entry.team1Id, entry.team2Id);
     }
   });
+
+  it('returns empty schedule for 0 teams', () => {
+    const schedule = generateRoundRobinSchedule([]);
+    expect(schedule).toEqual([]);
+  });
+
+  it('returns empty schedule for 1 team (no opponents)', () => {
+    const schedule = generateRoundRobinSchedule(['A']);
+    expect(schedule).toEqual([]);
+  });
 });
