@@ -94,4 +94,13 @@ describe('firestorePoolRepository', () => {
       });
     });
   });
+
+  describe('error handling', () => {
+    it('propagates Firestore errors on save', async () => {
+      mockSetDoc.mockRejectedValue(new Error('Permission denied'));
+      const pool = { id: 'pool1', tournamentId: 't1', name: 'Pool A', teamIds: [], schedule: [], standings: [] };
+
+      await expect(firestorePoolRepository.save(pool as any)).rejects.toThrow('Permission denied');
+    });
+  });
 });

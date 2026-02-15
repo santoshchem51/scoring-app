@@ -78,4 +78,19 @@ describe('generateBracket', () => {
     // so accessing slotsByRound[0] fails — callers should provide >= 2 teams
     expect(() => generateBracket('t1', ['A'])).toThrow();
   });
+
+  it('places seed 1 and seed 2 on opposite halves of the bracket', () => {
+    const teamIds = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'];
+    const slots = generateBracket('t1', teamIds);
+
+    const firstRound = slots.filter((s) => s.round === 1);
+    // Top half: positions 0-1, Bottom half: positions 2-3
+    const topHalfTeams = firstRound.filter((s) => s.position < 2).flatMap((s) => [s.team1Id, s.team2Id]);
+    const bottomHalfTeams = firstRound.filter((s) => s.position >= 2).flatMap((s) => [s.team1Id, s.team2Id]);
+
+    // Seed 1 (s1) and seed 2 (s2) must be in DIFFERENT halves
+    const s1InTop = topHalfTeams.includes('s1');
+    const s2InTop = topHalfTeams.includes('s2');
+    expect(s1InTop).not.toBe(s2InTop);
+  });
 });

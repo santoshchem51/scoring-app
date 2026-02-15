@@ -55,7 +55,7 @@ const FeeTracker: Component<Props> = (props) => {
           <For each={props.registrations}>
             {(reg) => (
               <div class="flex items-center justify-between py-2 border-t border-surface-lighter">
-                <span class="text-sm text-on-surface">{props.userNames[reg.userId] ?? reg.userId}</span>
+                <span class="text-sm text-on-surface">{props.userNames[reg.userId] !== reg.userId ? props.userNames[reg.userId] : `Player ${reg.userId.slice(0, 6)}`}</span>
                 <select value={reg.paymentStatus}
                   onChange={(e) => handleUpdatePayment(reg.id, e.currentTarget.value as PaymentStatus)}
                   class="text-sm bg-surface border border-surface-lighter rounded-lg px-2 py-1 text-on-surface">

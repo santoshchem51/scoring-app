@@ -12,13 +12,13 @@ interface Props {
 
 const RegistrationForm: Component<Props> = (props) => {
   const { user, signIn } = useAuth();
-  const [rulesAcknowledged, setRulesAcknowledged] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
+  const [skillRating, setSkillRating] = createSignal<string>('');
+  const [partnerName, setPartnerName] = createSignal('');
 
   const isRegistrationOpen = () => props.tournament.status === 'registration';
   const isAlreadyRegistered = () => !!props.existingRegistration;
-  const hasRules = () => !!props.tournament.rules.scoringRules || !!props.tournament.rules.conductRules;
 
   const handleRegister = async () => {
     const currentUser = user();
@@ -31,11 +31,15 @@ const RegistrationForm: Component<Props> = (props) => {
         id: crypto.randomUUID(),
         tournamentId: props.tournament.id,
         userId: currentUser.uid,
+        playerName: currentUser.displayName || null,
         teamId: null,
         paymentStatus: 'unpaid',
         paymentNote: '',
         lateEntry: false,
-        rulesAcknowledged: hasRules() ? rulesAcknowledged() : true,
+        skillRating: skillRating() ? parseFloat(skillRating()) : null,
+        partnerId: null,
+        partnerName: partnerName().trim() || null,
+        profileComplete: !!(skillRating() && (props.tournament.teamFormation !== 'byop' || partnerName().trim())),
         registeredAt: Date.now(),
       };
       await firestoreRegistrationRepository.save(reg);
@@ -77,20 +81,37 @@ const RegistrationForm: Component<Props> = (props) => {
             when={isRegistrationOpen()}
             fallback={<p class="text-sm text-on-surface-muted text-center py-2">Registration is not open.</p>}
           >
-            <Show when={hasRules()}>
-              <label class="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={rulesAcknowledged()} onChange={(e) => setRulesAcknowledged(e.currentTarget.checked)} class="mt-1 accent-primary" />
-                <span class="text-sm text-on-surface">I've read and agree to the tournament rules</span>
-              </label>
-            </Show>
-
             <Show when={error()}>
               <p class="text-red-500 text-sm text-center mb-2">{error()}</p>
             </Show>
 
+            {/* Optional Fields */}
+            <div class="space-y-3">
+              <div>
+                <label for="skill-rating" class="text-xs text-on-surface-muted uppercase tracking-wider mb-1 block">Skill Level (optional)</label>
+                <select id="skill-rating" value={skillRating()} onChange={(e) => setSkillRating(e.currentTarget.value)}
+                  class="w-full bg-surface border border-surface-lighter rounded-lg px-3 py-2 text-sm text-on-surface">
+                  <option value="">Select rating...</option>
+                  <option value="2.5">2.5 - Beginner</option>
+                  <option value="3.0">3.0 - Intermediate</option>
+                  <option value="3.5">3.5 - Advanced Intermediate</option>
+                  <option value="4.0">4.0 - Advanced</option>
+                  <option value="4.5">4.5 - Expert</option>
+                  <option value="5.0">5.0 - Pro</option>
+                </select>
+              </div>
+              <Show when={props.tournament.teamFormation === 'byop'}>
+                <div>
+                  <label for="partner-name" class="text-xs text-on-surface-muted uppercase tracking-wider mb-1 block">Partner Name (optional)</label>
+                  <input id="partner-name" type="text" value={partnerName()} onInput={(e) => setPartnerName(e.currentTarget.value)}
+                    class="w-full bg-surface border border-surface-lighter rounded-lg px-3 py-2 text-sm text-on-surface" placeholder="Enter partner's name" />
+                </div>
+              </Show>
+            </div>
+
             <button type="button" onClick={handleRegister}
-              disabled={saving() || (hasRules() && !rulesAcknowledged())}
-              class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${!saving() && (!hasRules() || rulesAcknowledged()) ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}>
+              disabled={saving()}
+              class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${!saving() ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}>
               {saving() ? 'Registering...' : 'Join Tournament'}
             </button>
           </Show>

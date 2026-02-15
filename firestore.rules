@@ -117,7 +117,11 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 100
+        && request.resource.data.date is number
+        && request.resource.data.location is string
         && request.resource.data.format in ['round-robin', 'single-elimination', 'pool-bracket']
+        && request.resource.data.config is map
+        && request.resource.data.config.gameType in ['singles', 'doubles']
         && request.resource.data.scorekeeperIds is list
         && (
           // Valid status transitions
@@ -133,21 +137,31 @@ service cloud.firestore {
       // Only the organizer can delete a tournament
       allow delete: if request.auth != null && request.auth.uid == resource.data.organizerId;
 
+      // Helper: check tournament is in an active state (not completed/cancelled)
+      function isTournamentActive() {
+        let status = get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.status;
+        return status != 'completed' && status != 'cancelled';
+      }
+
       // ── Teams (/tournaments/{tid}/teams/{teamId}) ─────────────────
       match /teams/{teamId} {
         allow read: if request.auth != null;
 
         allow create: if request.auth != null
+          && isTournamentActive()
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
-          && request.resource.data.playerIds is list;
+          && request.resource.data.playerIds is list
+          && request.resource.data.playerIds.size() > 0;
 
         allow update: if request.auth != null
+          && isTournamentActive()
+          && request.resource.data.tournamentId == resource.data.tournamentId
           && (get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
-              || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds)
-          && request.resource.data.tournamentId == resource.data.tournamentId;
+              || (request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds
+                  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seed', 'updatedAt'])));
 
         allow delete: if request.auth != null
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
@@ -158,6 +172,7 @@ service cloud.firestore {
         allow read: if request.auth != null;
 
         allow create: if request.auth != null
+          && isTournamentActive()
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.name is string
@@ -165,6 +180,7 @@ service cloud.firestore {
           && request.resource.data.teamIds is list;
 
         allow update: if request.auth != null
+          && isTournamentActive()
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
           && request.resource.data.tournamentId == resource.data.tournamentId;
 
@@ -177,15 +193,18 @@ service cloud.firestore {
         allow read: if request.auth != null;
 
         allow create: if request.auth != null
+          && isTournamentActive()
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.round is number
           && request.resource.data.position is number;
 
         allow update: if request.auth != null
+          && isTournamentActive()
+          && request.resource.data.tournamentId == resource.data.tournamentId
           && (get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
-              || request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds)
-          && request.resource.data.tournamentId == resource.data.tournamentId;
+              || (request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds
+                  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['winnerId', 'matchId', 'updatedAt'])));
 
         allow delete: if request.auth != null
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
@@ -197,11 +216,20 @@ service cloud.firestore {
 
         // Players can register themselves — only during registration phase
         allow create: if request.auth != null
+          && isTournamentActive()
           && request.resource.data.userId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.paymentStatus == 'unpaid'
           && request.resource.data.paymentNote == ''
-          && request.resource.data.rulesAcknowledged == true
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.status == 'registration';
+
+        // Organizer can add players on their behalf
+        allow create: if request.auth != null
+          && isTournamentActive()
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && request.resource.data.tournamentId == tournamentId
+          && request.resource.data.paymentStatus == 'unpaid'
+          && request.resource.data.paymentNote == ''
           && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.status == 'registration';
 
         // Organizer can update any registration (e.g., payment status)

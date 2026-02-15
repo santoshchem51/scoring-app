@@ -1,6 +1,6 @@
 import { createSignal, createResource, createMemo, Show, For } from 'solid-js';
 import type { Component } from 'solid-js';
-import { useParams } from '@solidjs/router';
+import { useParams, useNavigate } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
@@ -13,13 +13,16 @@ import { generateRoundRobinSchedule } from './engine/roundRobin';
 import { calculateStandings } from './engine/standings';
 import { seedBracketFromPools } from './engine/bracketSeeding';
 import { generateBracket } from './engine/bracketGenerator';
+import { createTeamsFromRegistrations } from './engine/teamFormation';
 import PoolTable from './components/PoolTable';
 import BracketView from './components/BracketView';
 import RegistrationForm from './components/RegistrationForm';
 import FeeTracker from './components/FeeTracker';
 import OrganizerControls from './components/OrganizerControls';
+import OrganizerPlayerManager from './components/OrganizerPlayerManager';
 import { statusLabels, statusColors, formatLabels } from './constants';
-import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding } from '../../data/types';
+import { matchRepository } from '../../data/repositories/matchRepository';
+import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding, Match } from '../../data/types';
 
 // Format-aware status transitions (no pool-play for single-elimination, no bracket for round-robin)
 const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatus, TournamentStatus>>> = {
@@ -43,6 +46,7 @@ const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatu
 
 const TournamentDashboardPage: Component = () => {
   const params = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [error, setError] = createSignal('');
@@ -129,17 +133,12 @@ const TournamentDashboardPage: Component = () => {
     return map;
   });
 
-  // userNames map for FeeTracker (userId -> display name from registrations)
-  // Since we don't have a batch user profile fetch, we use userId as fallback
   const userNames = createMemo<Record<string, string>>(() => {
-    // FeeTracker uses this to display user names next to payment status.
-    // Without batch profile loading we provide userId as the key/value.
-    // If user profiles are loaded in the future, this can be enriched.
     const regs = registrations();
     if (!regs) return {};
     const map: Record<string, string> = {};
     for (const reg of regs) {
-      map[reg.userId] = reg.userId;
+      map[reg.userId] = reg.playerName || `Player ${reg.userId.slice(0, 6)}`;
     }
     return map;
   });
@@ -188,55 +187,60 @@ const TournamentDashboardPage: Component = () => {
       const currentStatus = t.status;
       const fmt = t.format;
 
-      // registration -> pool-play (for round-robin and pool-bracket)
-      if (currentStatus === 'registration' && next === 'pool-play') {
-        const teamList = teams() ?? [];
-        if (teamList.length < 2) {
-          setError('At least 2 teams are required to start pool play.');
+      // registration -> pool-play or bracket: create teams first
+      if (currentStatus === 'registration' && (next === 'pool-play' || next === 'bracket')) {
+        const regs = registrations() ?? [];
+        if (regs.length < 2) {
+          setError('At least 2 registrations are required.');
           setAdvancing(false);
           return;
         }
-        const teamIds = teamList.map((tm) => tm.id);
-        const poolCount = t.config.poolCount ?? 2;
-        const poolAssignments = generatePools(teamIds, poolCount);
 
-        for (let i = 0; i < poolAssignments.length; i++) {
-          const poolTeamIds = poolAssignments[i];
-          const schedule = generateRoundRobinSchedule(poolTeamIds);
-          const pool: TournamentPool = {
-            id: crypto.randomUUID(),
-            tournamentId: t.id,
-            name: `Pool ${String.fromCharCode(65 + i)}`,
-            teamIds: poolTeamIds,
-            schedule,
-            standings: poolTeamIds.map((tid) => ({
-              teamId: tid,
-              wins: 0,
-              losses: 0,
-              pointsFor: 0,
-              pointsAgainst: 0,
-              pointDiff: 0,
-            })),
-          };
-          await firestorePoolRepository.save(pool);
-        }
+        // Create teams from registrations
+        const mode = t.config.gameType === 'singles'
+          ? 'singles' as const
+          : (t.teamFormation ?? 'byop') as 'byop' | 'auto-pair';
+        const { teams: newTeams, unmatched } = createTeamsFromRegistrations(regs, t.id, mode, userNames());
 
-        await firestoreTournamentRepository.updateStatus(t.id, next);
-      }
-
-      // registration -> bracket (for single-elimination)
-      else if (currentStatus === 'registration' && next === 'bracket') {
-        const teamList = teams() ?? [];
-        if (teamList.length < 2) {
-          setError('At least 2 teams are required to start the bracket.');
+        if (newTeams.length < 2) {
+          setError(`Only ${newTeams.length} team(s) could be formed. ${unmatched.length} player(s) unmatched. Need at least 2 teams.`);
           setAdvancing(false);
           return;
         }
-        const teamIds = teamList.map((tm) => tm.id);
-        const slots = generateBracket(t.id, teamIds);
 
-        for (const slot of slots) {
-          await firestoreBracketRepository.save(slot);
+        // Save teams to Firestore
+        for (const team of newTeams) {
+          await firestoreTeamRepository.save(team);
+        }
+
+        const teamIds = newTeams.map((tm) => tm.id);
+
+        if (next === 'pool-play') {
+          // Generate pools
+          const poolCount = t.config.poolCount ?? (fmt === 'round-robin' ? 1 : 2);
+          const poolAssignments = generatePools(teamIds, poolCount);
+
+          for (let i = 0; i < poolAssignments.length; i++) {
+            const poolTeamIds = poolAssignments[i];
+            const schedule = generateRoundRobinSchedule(poolTeamIds);
+            const pool: TournamentPool = {
+              id: crypto.randomUUID(),
+              tournamentId: t.id,
+              name: `Pool ${String.fromCharCode(65 + i)}`,
+              teamIds: poolTeamIds,
+              schedule,
+              standings: poolTeamIds.map((tid) => ({
+                teamId: tid, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0,
+              })),
+            };
+            await firestorePoolRepository.save(pool);
+          }
+        } else {
+          // Generate bracket
+          const slots = generateBracket(t.id, teamIds);
+          for (const slot of slots) {
+            await firestoreBracketRepository.save(slot);
+          }
         }
 
         await firestoreTournamentRepository.updateStatus(t.id, next);
@@ -256,7 +260,7 @@ const TournamentDashboardPage: Component = () => {
         for (const pool of currentPools) {
           // Calculate standings using the pool's team IDs and any completed matches
           // For now, use the existing standings from the pool (updated during match play)
-          const standings = calculateStandings(pool.teamIds, []);
+          const standings = calculateStandings(pool.teamIds, [], (m) => ({ team1: m.team1Name, team2: m.team2Name }));
           allPoolStandings.push(standings);
           await firestorePoolRepository.updateStandings(t.id, pool.id, standings);
         }
@@ -283,7 +287,7 @@ const TournamentDashboardPage: Component = () => {
         const currentPools = pools() ?? [];
 
         for (const pool of currentPools) {
-          const standings = calculateStandings(pool.teamIds, []);
+          const standings = calculateStandings(pool.teamIds, [], (m) => ({ team1: m.team1Name, team2: m.team2Name }));
           await firestorePoolRepository.updateStandings(t.id, pool.id, standings);
         }
 
@@ -328,6 +332,53 @@ const TournamentDashboardPage: Component = () => {
 
   const handleFeeUpdated = () => {
     refetchRegistrations();
+  };
+
+  const createAndNavigateToMatch = async (team1Id: string, team2Id: string, extra: { poolId?: string; bracketSlotId?: string }) => {
+    const t = tournament();
+    if (!t) return;
+    const team1 = (teams() ?? []).find((tm) => tm.id === team1Id);
+    const team2 = (teams() ?? []).find((tm) => tm.id === team2Id);
+
+    const match: Match = {
+      id: crypto.randomUUID(),
+      config: {
+        gameType: t.config.gameType,
+        scoringMode: t.config.scoringMode,
+        matchFormat: t.config.matchFormat,
+        pointsToWin: t.config.pointsToWin,
+      },
+      team1PlayerIds: team1?.playerIds ?? [],
+      team2PlayerIds: team2?.playerIds ?? [],
+      team1Name: team1?.name ?? team1Id,
+      team2Name: team2?.name ?? team2Id,
+      games: [],
+      winningSide: null,
+      status: 'in-progress',
+      startedAt: Date.now(),
+      completedAt: null,
+      tournamentId: t.id,
+      tournamentTeam1Id: team1Id,
+      tournamentTeam2Id: team2Id,
+      poolId: extra.poolId,
+      bracketSlotId: extra.bracketSlotId,
+    };
+
+    try {
+      await matchRepository.save(match);
+      navigate(`/score/${match.id}`);
+    } catch (err) {
+      console.error('Failed to create match:', err);
+      alert('Failed to start match. Please try again.');
+    }
+  };
+
+  const handleScorePoolMatch = (poolId: string, team1Id: string, team2Id: string) => {
+    createAndNavigateToMatch(team1Id, team2Id, { poolId });
+  };
+
+  const handleScoreBracketMatch = (slotId: string, team1Id: string, team2Id: string) => {
+    createAndNavigateToMatch(team1Id, team2Id, { bracketSlotId: slotId });
   };
 
   // --- Render ---
@@ -393,17 +444,18 @@ const TournamentDashboardPage: Component = () => {
               {/* Registration Section */}
               <Show when={t().status === 'registration'}>
                 <div class="space-y-4">
-                  <div class="bg-surface-light rounded-xl p-4">
-                    <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-2">Registrations</div>
-                    <div class="font-semibold text-on-surface text-2xl">{registrations()?.length ?? 0}</div>
-                  </div>
-                  <Show when={!isOrganizer()}>
-                    <RegistrationForm
+                  <Show when={isOrganizer()}>
+                    <OrganizerPlayerManager
                       tournament={t()}
-                      existingRegistration={existingRegistration()}
-                      onRegistered={handleRegistered}
+                      registrations={registrations() ?? []}
+                      onUpdated={handleRegistered}
                     />
                   </Show>
+                  <RegistrationForm
+                    tournament={t()}
+                    existingRegistration={existingRegistration()}
+                    onRegistered={handleRegistered}
+                  />
                 </div>
               </Show>
 
@@ -414,10 +466,13 @@ const TournamentDashboardPage: Component = () => {
                   <For each={pools()}>
                     {(pool) => (
                       <PoolTable
+                        poolId={pool.id}
                         poolName={pool.name}
                         standings={pool.standings}
                         teamNames={teamNames()}
                         advancingCount={t().config.teamsPerPoolAdvancing ?? 2}
+                        schedule={pool.schedule}
+                        onScoreMatch={handleScorePoolMatch}
                       />
                     )}
                   </For>
@@ -431,6 +486,7 @@ const TournamentDashboardPage: Component = () => {
                   <BracketView
                     slots={bracketSlots()!}
                     teamNames={teamNames()}
+                    onScoreMatch={handleScoreBracketMatch}
                   />
                 </div>
               </Show>

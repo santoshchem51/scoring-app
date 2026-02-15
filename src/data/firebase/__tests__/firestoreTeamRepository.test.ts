@@ -96,4 +96,13 @@ describe('firestoreTeamRepository', () => {
       expect(mockDeleteDoc).toHaveBeenCalledWith('mock-doc-ref');
     });
   });
+
+  describe('error handling', () => {
+    it('propagates Firestore errors on save', async () => {
+      mockSetDoc.mockRejectedValue(new Error('Firestore unavailable'));
+      const team = { id: 'team1', tournamentId: 't1', name: 'Alpha', playerIds: ['p1'], seed: null, poolId: null };
+
+      await expect(firestoreTeamRepository.save(team as any)).rejects.toThrow('Firestore unavailable');
+    });
+  });
 });

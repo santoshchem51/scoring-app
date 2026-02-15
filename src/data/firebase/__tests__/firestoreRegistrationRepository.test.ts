@@ -43,7 +43,10 @@ describe('firestoreRegistrationRepository', () => {
         paymentStatus: 'unpaid' as const,
         paymentNote: '',
         lateEntry: false,
-        rulesAcknowledged: true,
+        skillRating: null,
+        partnerId: null,
+        partnerName: null,
+        profileComplete: false,
         registeredAt: 1000,
       };
 

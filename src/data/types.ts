@@ -39,6 +39,8 @@ export interface Match {
   startedAt: number;
   completedAt: number | null;
   tournamentId?: string;
+  tournamentTeam1Id?: string;
+  tournamentTeam2Id?: string;
   poolId?: string;
   bracketSlotId?: string;
   court?: string;
@@ -115,6 +117,8 @@ export interface TournamentConfig {
   teamsPerPoolAdvancing: number;
 }
 
+export type TeamFormation = 'byop' | 'auto-pair';
+
 export interface Tournament {
   id: string;
   name: string;
@@ -126,6 +130,7 @@ export interface Tournament {
   scorekeeperIds: string[];
   status: TournamentStatus;
   maxPlayers: number | null;
+  teamFormation: TeamFormation | null;  // null for singles
   minPlayers: number | null;
   entryFee: EntryFee | null;
   rules: TournamentRules;
@@ -186,10 +191,14 @@ export interface TournamentRegistration {
   id: string;
   tournamentId: string;
   userId: string;
+  playerName: string | null;        // display name (from Google profile or organizer entry)
   teamId: string | null;
   paymentStatus: PaymentStatus;
   paymentNote: string;
   lateEntry: boolean;
-  rulesAcknowledged: boolean;
+  skillRating: number | null;       // 2.5-5.0, optional
+  partnerId: string | null;         // BYOP: userId of desired partner
+  partnerName: string | null;       // BYOP: display name for lookup
+  profileComplete: boolean;         // true when rating + partner (if BYOP) filled
   registeredAt: number;
 }
