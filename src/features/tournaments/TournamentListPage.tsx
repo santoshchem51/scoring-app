@@ -34,10 +34,18 @@ const TournamentListPage: Component = () => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <p class="text-sm text-red-400 font-semibold">Failed to load tournaments</p>
-              <p class="text-xs text-on-surface-muted max-w-xs">
-                {tournaments.error?.message?.includes('index')
-                  ? 'A Firestore index is required. Check the browser console for the link to create it.'
-                  : 'Please check your connection and try again.'}
+              <p class="text-xs text-on-surface-muted max-w-xs break-all">
+                {(() => {
+                  const msg = tournaments.error?.message || 'Please check your connection and try again.';
+                  const urlMatch = msg.match(/(https:\/\/\S+)/);
+                  if (urlMatch) {
+                    const before = msg.slice(0, urlMatch.index);
+                    const url = urlMatch[1];
+                    const after = msg.slice((urlMatch.index || 0) + url.length);
+                    return <>{before}<a href={url} target="_blank" rel="noopener noreferrer" class="text-primary underline break-all">{url}</a>{after}</>;
+                  }
+                  return msg;
+                })()}
               </p>
               <button
                 type="button"

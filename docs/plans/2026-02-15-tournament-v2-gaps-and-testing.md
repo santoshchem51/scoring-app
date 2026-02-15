@@ -1,7 +1,8 @@
 # Tournament v2 — Known Gaps & Future Test Scenarios
 
 **Created:** 2026-02-15
-**Context:** Post-merge of `feature/tournament-v2` into `main` (17 commits, 164 tests)
+**Updated:** 2026-02-15 (Wave 1 complete — bracket scoring + completion flow)
+**Context:** Post-merge of `feature/tournament-v2` into `main` (17 commits, 164 tests → 178 tests after Wave 1)
 
 ---
 
@@ -21,29 +22,24 @@
 
 **Files:** `TournamentDashboardPage.tsx`, new `OrganizerPairingUI.tsx` component
 
-### 2. Bracket Scoring Integration (MEDIUM priority)
+### ~~2. Bracket Scoring Integration~~ — RESOLVED (Wave 1)
 
-**Problem:** Bracket matches use the same `createAndNavigateToMatch` flow as pool matches, but the bracket slot update on match completion is not implemented. After scoring a bracket match, the bracket slot's `winnerId` and `matchId` won't be updated.
+**Fixed in:** commits `24b4df6`, `73770d0`, `19c711c`
 
-**Impact:** Single-elimination and pool-bracket formats don't advance winners through the bracket after matches are scored.
+- `advanceBracketWinner()` engine determines next-slot placement (even position → team1, odd → team2)
+- `ScoringPage.saveAndFinish()` now calls `firestoreBracketRepository.updateResult()` and advances winner to next round
+- `updateSlotTeam()` added to bracket repository
+- **E2E verified:** Singles (4 players, 3 matches) and Doubles auto-pair (8 players, 4 teams, 3 matches) both work end-to-end
 
-**Fix needed:**
-- In `ScoringPage.saveAndFinish()`, handle `bracketSlotId` case
-- Update bracket slot with `winnerId` and `matchId` after match completion
-- Auto-populate next round's bracket slot with the winner
+### ~~3. Tournament Completion Flow~~ — RESOLVED (Wave 1)
 
-**Files:** `ScoringPage.tsx`, `firestoreBracketRepository.ts`
+**Fixed in:** commits `b060807`, `e5d363b`
 
-### 3. Tournament Completion Flow (MEDIUM priority)
-
-**Problem:** The "Advance to Completed" button exists but the completion flow hasn't been end-to-end tested. Unknown if final standings are persisted, if all matches must be completed first, or if any summary view is shown.
-
-**Impact:** Organizers can't formally close a tournament and see final results.
-
-**Fix needed:**
-- Validate all pool matches are completed before allowing advancement
-- Show final standings summary on completed tournament
-- Prevent further match scoring after completion
+- `validatePoolCompletion()` — blocks completion if unplayed pool matches exist
+- `validateBracketCompletion()` — blocks completion if final has no winner (error: "The final match has not been completed yet.")
+- `TournamentResults` component shows "TOURNAMENT COMPLETE / Champion / [name]"
+- Works for both singles and doubles team names (e.g., "Champion: Eve & Anna")
+- **E2E verified:** Premature completion blocked, champion displayed correctly after all matches scored
 
 ### 4. Public vs Private Tournaments (LOW priority — future feature)
 
@@ -79,7 +75,7 @@
 
 ### Tournament Creation
 - [ ] Create tournament with max players limit — verify enforcement during registration
-- [ ] Create single-elimination format — verify no pool play phase
+- [x] Create single-elimination format — verify no pool play phase *(Wave 1 E2E)*
 - [ ] Create pool-bracket format — verify both pool and bracket phases
 - [ ] Edit tournament details after creation (name, date, location)
 - [ ] Cancel tournament at each status phase — verify state transition
@@ -94,7 +90,7 @@
 ### Doubles Team Formation
 - [ ] BYOP: Two users mutually name each other → paired successfully
 - [ ] BYOP: Unmatched players shown clearly
-- [ ] Auto-pair: Players paired by closest skill rating
+- [x] Auto-pair: Players paired by closest skill rating *(Wave 1 E2E — 8 players → 4 balanced teams)*
 - [ ] Auto-pair: Odd number of players → one left unmatched
 - [ ] Mixed: Some BYOP pairs + auto-pair remainder
 
@@ -103,17 +99,17 @@
 - [ ] Score all 6 matches in a 4-player pool — verify final standings
 - [ ] Win-by-2 match scoring in tournament context
 - [ ] Best-of-3 match format in tournament context
-- [ ] Rally scoring mode in tournament context
+- [x] Rally scoring mode in tournament context *(Wave 1 E2E)*
 - [ ] Standings tiebreaker: same W-L, different point differential
 - [ ] Pause tournament during pool play
 - [ ] End tournament early during pool play
 
 ### Bracket Play
 - [ ] Generate bracket from pool results (pool-bracket format)
-- [ ] Score bracket match — winner advances
-- [ ] Full single-elimination tournament (4 teams, 3 matches)
+- [x] Score bracket match — winner advances *(Wave 1 E2E — singles + doubles)*
+- [x] Full single-elimination tournament (4 teams, 3 matches) *(Wave 1 E2E — singles + doubles)*
 - [ ] Bracket with bye (odd number of teams)
-- [ ] Score bracket final — tournament completes
+- [x] Score bracket final — tournament completes *(Wave 1 E2E)*
 
 ### Organizer Controls
 - [ ] Pause and resume tournament
@@ -143,7 +139,7 @@
 
 ---
 
-## Test Coverage Summary (current)
+## Test Coverage Summary (current — post Wave 1)
 
 | Area | Tests | Files |
 |------|-------|-------|
@@ -152,13 +148,22 @@
 | Player repository | 4 | 1 |
 | Auth hook | 6 | 1 |
 | Pool generator | 8 | 1 |
-| Round robin | 8 | 1 |
+| Round robin | 9 | 1 |
 | Standings | 8 | 1 |
-| Bracket generator | 15 | 1 |
+| Bracket generator | 11 | 1 |
 | Bracket seeding | 6 | 1 |
+| Bracket advancement | 4 | 1 |
+| Completion validation | 8 | 1 |
 | Auto-pair | 6 | 1 |
 | Team formation | 5 | 1 |
 | Tournament validation | 16 | 1 |
-| Firestore repos | 33 | 4 |
+| Firestore repos | 35 | 4 |
 | Tournament lifecycle | 7 | 1 |
-| **Total** | **164** | **20** |
+| Cloud sync | 4 | 1 |
+| **Total** | **178** | **22** |
+
+### Wave 1 E2E Tests Performed (manual via Playwright)
+- Singles single-elimination: 4 players → bracket → 3 matches → champion (Diana)
+- Doubles single-elimination with auto-pair: 8 players → 4 teams → bracket → 3 matches → champion (Eve & Anna)
+- Completion validation: premature completion blocked with error message
+- Champion display: correct for both singles names and doubles team names
