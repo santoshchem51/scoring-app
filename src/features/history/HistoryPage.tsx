@@ -28,9 +28,11 @@ const HistoryPage: Component = () => {
             />
           }
         >
-          <For each={matches()}>
-            {(match) => <MatchCard match={match} />}
-          </For>
+          <div class="md:grid md:grid-cols-2 md:gap-3 space-y-3 md:space-y-0">
+            <For each={matches()}>
+              {(match) => <MatchCard match={match} />}
+            </For>
+          </div>
         </Show>
       </div>
     </PageLayout>

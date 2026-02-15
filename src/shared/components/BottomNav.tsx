@@ -15,7 +15,7 @@ const BottomNav: Component = () => {
 
   return (
     <nav aria-label="Main navigation" class="fixed bottom-0 left-0 right-0 bg-surface-light border-t border-surface-lighter safe-bottom">
-      <div class="max-w-lg mx-auto md:max-w-xl flex justify-around py-1">
+      <div class="max-w-lg mx-auto md:max-w-3xl flex justify-around py-1">
         <A href="/" class={linkClass('/')} aria-current={isActive('/') ? 'page' : undefined} aria-label="New Game">
           <Show when={isActive('/')}>
             <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />

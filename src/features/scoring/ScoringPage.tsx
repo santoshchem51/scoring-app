@@ -13,6 +13,7 @@ import type { Match as MatchData } from '../../data/types';
 import { settings } from '../../stores/settingsStore';
 import { useCelebration } from '../../shared/hooks/useCelebration';
 import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants/teamColors';
+import { shareScoreCard } from '../../shared/utils/shareScoreCard';
 
 interface ScoringViewProps {
   match: MatchData;
@@ -102,6 +103,8 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
       celebration.matchWin(t1Color(), t2Color());
     }
   }));
+
+  const [shareStatus, setShareStatus] = createSignal<string | null>(null);
 
   const saveAndFinish = async () => {
     const context = ctx();
@@ -283,6 +286,23 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
                 class="w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl active:scale-95 transition-transform"
               >
                 Save & Finish
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const freshMatch = await matchRepository.getById(props.match.id);
+                  if (!freshMatch) return;
+                  const completedMatch = { ...freshMatch, team1Color: props.match.team1Color, team2Color: props.match.team2Color };
+                  const result = await shareScoreCard(completedMatch);
+                  setShareStatus(result === 'shared' ? 'Shared!' : result === 'copied' ? 'Copied to clipboard!' : result === 'downloaded' ? 'Downloaded!' : 'Share failed');
+                  setTimeout(() => setShareStatus(null), 2000);
+                }}
+                class="w-full bg-surface-lighter text-on-surface font-semibold text-base py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                {shareStatus() ?? 'Share Score Card'}
               </button>
             </div>
           </Match>
