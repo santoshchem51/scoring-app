@@ -95,6 +95,26 @@ describe('firestoreBracketRepository', () => {
     });
   });
 
+  describe('updateSlotTeam', () => {
+    it('updates team1Id field on the slot', async () => {
+      mockUpdateDoc.mockResolvedValue(undefined);
+
+      await firestoreBracketRepository.updateSlotTeam('t1', 'slot-1', 'team1Id', 'team-a');
+
+      expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'tournaments', 't1', 'bracket', 'slot-1');
+      expect(mockUpdateDoc).toHaveBeenCalledWith('mock-doc-ref', { team1Id: 'team-a' });
+    });
+
+    it('updates team2Id field on the slot', async () => {
+      mockUpdateDoc.mockResolvedValue(undefined);
+
+      await firestoreBracketRepository.updateSlotTeam('t1', 'slot-2', 'team2Id', 'team-b');
+
+      expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'tournaments', 't1', 'bracket', 'slot-2');
+      expect(mockUpdateDoc).toHaveBeenCalledWith('mock-doc-ref', { team2Id: 'team-b' });
+    });
+  });
+
   describe('error handling', () => {
     it('propagates Firestore errors on updateResult', async () => {
       mockUpdateDoc.mockRejectedValue(new Error('Not found'));
