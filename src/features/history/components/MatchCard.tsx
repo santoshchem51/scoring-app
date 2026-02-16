@@ -1,6 +1,7 @@
 import { createSignal } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { Match } from '../../../data/types';
+import { Share2 } from 'lucide-solid';
 import { shareScoreCard } from '../../../shared/utils/shareScoreCard';
 
 interface Props {
@@ -21,7 +22,7 @@ const MatchCard: Component<Props> = (props) => {
   };
 
   return (
-    <article class="bg-surface-light rounded-xl p-4 space-y-2" aria-label={`${m().team1Name} vs ${m().team2Name}`}>
+    <article class="bg-surface-light rounded-xl p-4 space-y-2 hover-lift transition-all duration-200" aria-label={`${m().team1Name} vs ${m().team2Name}`}>
       <div class="flex items-center justify-between">
         <span class="text-xs text-on-surface-muted">{date()} {time()}</span>
         <div class="flex items-center gap-2">
@@ -32,9 +33,7 @@ const MatchCard: Component<Props> = (props) => {
             class="p-1.5 rounded-lg text-on-surface-muted hover:text-primary transition-colors"
             aria-label="Share score card"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
+            <Share2 size={16} aria-hidden="true" />
           </button>
           <span class="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
             {m().config.scoringMode === 'sideout' ? 'Side-Out' : 'Rally'}

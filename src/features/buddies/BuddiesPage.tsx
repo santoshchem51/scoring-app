@@ -1,6 +1,7 @@
 import { Show, For, onMount } from 'solid-js';
 import type { Component } from 'solid-js';
 import { A } from '@solidjs/router';
+import { Users, MapPin } from 'lucide-solid';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { useBuddyGroups } from './hooks/useBuddyGroups';
 import type { BuddyGroup } from '../../data/types';
@@ -14,13 +15,13 @@ function GroupCard(props: { group: BuddyGroup }) {
           <p class="text-on-surface-muted text-sm mt-0.5">{props.group.description}</p>
         </div>
         <div class="flex items-center gap-1 text-on-surface-muted text-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          <Users size={16} />
           <span>{props.group.memberCount}</span>
         </div>
       </div>
       <Show when={props.group.defaultLocation}>
         <p class="text-on-surface-muted text-xs mt-2 flex items-center gap-1">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          <MapPin size={12} />
           {props.group.defaultLocation}
         </p>
       </Show>

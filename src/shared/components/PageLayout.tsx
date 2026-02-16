@@ -29,7 +29,7 @@ const PageLayout: Component<Props> = (props) => {
     <div class="flex flex-col min-h-screen bg-surface">
       <TopNav pageTitle={props.title} />
       <main ref={mainRef} id="main-content" class="flex-1 overflow-y-auto pb-24" style={{ opacity: "0" }}>
-        <div class="max-w-lg mx-auto md:max-w-3xl">
+        <div class="max-w-lg mx-auto md:max-w-3xl lg:max-w-5xl">
           {props.children}
         </div>
       </main>
