@@ -8,23 +8,10 @@ import { firestoreBuddyNotificationRepository } from '../../data/firebase/firest
 import { firestoreGameSessionRepository } from '../../data/firebase/firestoreGameSessionRepository';
 import { generateShareCode } from '../tournaments/engine/shareCode';
 import { createSessionProposedNotification } from './engine/notificationHelpers';
+import { getNextOccurrence } from './engine/dateHelpers';
 import type { GameSession, TimeSlot, RsvpStyle } from '../../data/types';
 
 const MAX_TIME_SLOTS = 4;
-
-/** Given a day name (e.g. "Saturday"), return the next occurrence as YYYY-MM-DD. */
-function getNextOccurrence(dayName: string): string {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const targetIndex = days.indexOf(dayName);
-  if (targetIndex === -1) return '';
-  const today = new Date();
-  const todayIndex = today.getDay();
-  let daysUntil = targetIndex - todayIndex;
-  if (daysUntil <= 0) daysUntil += 7;
-  const next = new Date(today);
-  next.setDate(today.getDate() + daysUntil);
-  return next.toISOString().split('T')[0];
-}
 
 interface SlotInput {
   id: string;

@@ -1,6 +1,8 @@
 import { Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { RsvpResponse, DayOfStatus } from '../../../data/types';
+import { getRingColor, isGrayedOut, getIndicatorType } from '../engine/statusAvatarHelpers';
+import type { IndicatorType } from '../engine/statusAvatarHelpers';
 
 interface StatusAvatarProps {
   displayName: string;
@@ -8,17 +10,6 @@ interface StatusAvatarProps {
   response: RsvpResponse;
   dayOfStatus: DayOfStatus;
   size?: 'sm' | 'md' | 'lg';
-}
-
-function getRingColor(response: RsvpResponse, dayOfStatus: DayOfStatus): string {
-  // Day-of status takes priority
-  if (dayOfStatus === 'here') return 'ring-emerald-500';
-  if (dayOfStatus === 'on-my-way') return 'ring-blue-500';
-  if (dayOfStatus === 'cant-make-it') return 'ring-gray-500';
-  // Fall back to RSVP response
-  if (response === 'in') return 'ring-emerald-500/50';
-  if (response === 'maybe') return 'ring-amber-500';
-  return 'ring-gray-500';
 }
 
 function getSizeClasses(size: 'sm' | 'md' | 'lg'): string {
@@ -31,21 +22,6 @@ function getIndicatorSize(size: 'sm' | 'md' | 'lg'): string {
   if (size === 'sm') return 'w-3 h-3 -bottom-0.5 -right-0.5';
   if (size === 'lg') return 'w-5 h-5 -bottom-0.5 -right-0.5';
   return 'w-4 h-4 -bottom-0.5 -right-0.5';
-}
-
-function isGrayedOut(response: RsvpResponse, dayOfStatus: DayOfStatus): boolean {
-  return response === 'out' || dayOfStatus === 'cant-make-it';
-}
-
-type IndicatorType = 'here' | 'on-my-way' | 'cant-make-it' | 'maybe' | null;
-
-function getIndicatorType(response: RsvpResponse, dayOfStatus: DayOfStatus): IndicatorType {
-  if (dayOfStatus === 'here') return 'here';
-  if (dayOfStatus === 'on-my-way') return 'on-my-way';
-  if (dayOfStatus === 'cant-make-it') return 'cant-make-it';
-  if (response === 'maybe') return 'maybe';
-  // 'in' = no indicator, 'out' = no indicator (avatar is grayed out instead)
-  return null;
 }
 
 function StatusIndicator(props: { type: IndicatorType; sizeClass: string }) {
