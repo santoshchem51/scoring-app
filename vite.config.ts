@@ -4,9 +4,9 @@ import solid from 'vite-plugin-solid';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
-    solid(),
+    solid({ hot: mode !== 'test' }),
     tailwindcss(),
     VitePWA({
       registerType: 'prompt',
@@ -43,4 +43,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
