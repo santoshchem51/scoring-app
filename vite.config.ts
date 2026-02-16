@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Pickle Score',
+        name: 'PickleScore',
         short_name: 'PickleScore',
-        description: 'Live pickleball scoring and match tracking',
+        description: 'Pickleball scoring, tournament management, and live results',
         theme_color: '#1e1e2e',
         background_color: '#1e1e2e',
         display: 'standalone',
