@@ -58,16 +58,9 @@
 
 ---
 
-## Up Next
+## Up Next (Priority Order)
 
-### Layer 5: Notifications & Engagement
-> Keep players in the loop without them having to check the app.
-
-- [ ] Push notifications (FCM) — match starting, score updates, invitations received
-- [ ] In-app notification center (bell icon with unread count)
-- [ ] Email notifications (optional, for invitations and tournament updates)
-
-### Layer 6: Tournament Discovery
+### P1 — Layer 6: Tournament Discovery
 > Let players find tournaments without needing a share link.
 
 - [ ] Public tournament listing / browse page
@@ -75,7 +68,7 @@
 - [ ] Tournament categories / tags
 - [ ] "Nearby tournaments" (geolocation)
 
-### Layer 7: Player Profiles & History
+### P2 — Layer 7: Player Profiles & History
 > Cross-tournament identity and progression.
 
 - [ ] Player profile page (avatar, bio, skill rating)
@@ -84,15 +77,14 @@
 - [ ] Skill rating tracking (ELO or similar)
 - [ ] Leaderboards (per-venue, overall)
 
-### Layer 8: Spectator Experience
-> Make watching tournaments engaging.
+### P3 — Layer 5: Notifications & Engagement
+> Keep players in the loop without them having to check the app.
 
-- [ ] Live score updates on public page (already partially done via Wave B)
-- [ ] Tournament bracket/pool live view for spectators
-- [ ] Match timeline / play-by-play
-- [ ] Spectator count indicator
+- [ ] Push notifications (FCM) — match starting, score updates, invitations received
+- [ ] In-app notification center (bell icon with unread count)
+- [ ] Email notifications (optional, for invitations and tournament updates)
 
-### Layer 9: PWA & Offline Hardening
+### P4 — Layer 9: PWA & Offline Hardening
 > Make it feel like a native app.
 
 - [ ] Service worker caching strategy (offline-first for scoring)
@@ -101,7 +93,7 @@
 - [ ] Background sync for score uploads when reconnecting
 - [ ] App update notifications
 
-### Layer 10: Admin & Moderation
+### P5 — Layer 10: Admin & Moderation
 > Tools for organizers running larger events.
 
 - [ ] Bulk player management (import/export CSV)
@@ -110,17 +102,15 @@
 - [ ] Tournament templates (save & reuse settings)
 - [ ] Fee collection integration (Stripe/Venmo links)
 
-### Layer 11: App Store Distribution
-> Get PickleScore into users' hands via app stores.
+### P6 — Layer 8: Spectator Experience
+> Make watching tournaments engaging.
 
-- [ ] Wrap PWA for Android (TWA / Capacitor / similar)
-- [ ] Wrap PWA for iOS (Capacitor / similar)
-- [ ] App Store listing (screenshots, description, keywords)
-- [ ] Play Store listing (screenshots, description, keywords)
-- [ ] App review / approval process
-- [ ] CI/CD pipeline for app store builds
+- [ ] Live score updates on public page (already partially done via Wave B)
+- [ ] Tournament bracket/pool live view for spectators
+- [ ] Match timeline / play-by-play
+- [ ] Spectator count indicator
 
-### Layer 12: Monetization & Revenue
+### P7 — Layer 12: Monetization & Revenue
 > Sustainable business model to fund development and hosting.
 
 - [ ] Define pricing tiers (free vs premium features)
@@ -130,7 +120,17 @@
 - [ ] Cost analysis (Firebase usage, hosting, app store fees)
 - [ ] Usage analytics and conversion tracking
 
-### Layer 13: Multi-Sport Expansion
+### P8 — Layer 11: App Store Distribution
+> Get PickleScore into users' hands via app stores.
+
+- [ ] Wrap PWA for Android (TWA / Capacitor / similar)
+- [ ] Wrap PWA for iOS (Capacitor / similar)
+- [ ] App Store listing (screenshots, description, keywords)
+- [ ] Play Store listing (screenshots, description, keywords)
+- [ ] App review / approval process
+- [ ] CI/CD pipeline for app store builds
+
+### P9 — Layer 13: Multi-Sport Expansion
 > Extend the scoring engine beyond pickleball to other sports.
 
 - [ ] Abstract scoring engine (pluggable rules per sport)
@@ -157,10 +157,12 @@
 
 ## Prioritization Notes
 
-Layers 5-13 are roughly ordered by user impact, but not strictly sequential. Some can run in parallel:
-- **Layer 5 (Notifications)** and **Layer 9 (PWA)** are high-value quality-of-life improvements
-- **Layer 6 (Discovery)** and **Layer 7 (Profiles)** are growth features
-- **Layer 8 (Spectator)** and **Layer 10 (Admin)** are nice-to-haves for larger events
-- **Layer 11 (App Store)** can start once PWA hardening (Layer 9) is solid
-- **Layer 12 (Monetization)** should be planned early but implemented after user base grows
-- **Layer 13 (Multi-Sport)** is a major architectural shift — plan carefully before starting
+Priority order: **Discovery → Profiles → Notifications → PWA → Admin → Spectator → Monetization → App Store → Multi-Sport**
+
+Rationale (growth funnel):
+1. **Discovery + Profiles** (P1-P2) — Acquire users and give them identity
+2. **Notifications** (P3) — Retain users with engagement loops
+3. **PWA + Admin** (P4-P5) — Polish the experience and empower organizers
+4. **Spectator** (P6) — Nice-to-have engagement for larger events
+5. **Monetization → App Store** (P7-P8) — Build business model, then distribute
+6. **Multi-Sport** (P9) — Major architectural expansion, do last
