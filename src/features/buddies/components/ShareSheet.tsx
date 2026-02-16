@@ -1,5 +1,6 @@
 import { Show, createSignal } from 'solid-js';
 import type { Component } from 'solid-js';
+import { ClipboardCopy, Share2 } from 'lucide-solid';
 
 interface ShareSheetProps {
   url: string;
@@ -45,7 +46,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
           {/* Copy link */}
           <button onClick={handleCopy} class="w-full flex items-center gap-3 p-3 bg-surface-light rounded-xl active:scale-[0.98] transition-transform">
             <div class="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
-              <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+              <ClipboardCopy size={20} class="text-primary" />
             </div>
             <span class="font-medium text-on-surface">{copied() ? 'Copied!' : 'Copy link'}</span>
           </button>
@@ -62,7 +63,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
           <Show when={canNativeShare()}>
             <button onClick={handleNativeShare} class="w-full flex items-center gap-3 p-3 bg-surface-light rounded-xl active:scale-[0.98] transition-transform">
               <div class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                <Share2 size={20} class="text-blue-500" />
               </div>
               <span class="font-medium text-on-surface">More options</span>
             </button>

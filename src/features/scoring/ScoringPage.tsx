@@ -6,6 +6,7 @@ import Scoreboard from './components/Scoreboard';
 import ScoreControls from './components/ScoreControls';
 import { useScoringActor } from './hooks/useScoringActor';
 import type { ResumeState } from './hooks/useScoringActor';
+import { Share2 } from 'lucide-solid';
 import { useWakeLock } from '../../shared/hooks/useWakeLock';
 import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import { matchRepository } from '../../data/repositories/matchRepository';
@@ -440,9 +441,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
                 }}
                 class="w-full bg-surface-lighter text-on-surface font-semibold text-base py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2"
               >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
+                <Share2 size={20} aria-hidden="true" />
                 {shareStatus() ?? 'Share Score Card'}
               </button>
             </div>

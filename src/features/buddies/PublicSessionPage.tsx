@@ -1,6 +1,7 @@
 import { Show, For, createResource, createMemo, onMount } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, useNavigate } from '@solidjs/router';
+import { Calendar, Clock, MapPin, AlignJustify, Check, X, CircleHelp } from 'lucide-solid';
 import { firestoreGameSessionRepository } from '../../data/firebase/firestoreGameSessionRepository';
 import { getSessionDisplayStatus } from './engine/sessionHelpers';
 import type { GameSession, SessionRsvp } from '../../data/types';
@@ -75,9 +76,7 @@ function PublicPlayerList(props: { rsvps: SessionRsvp[] }) {
       <For each={confirmedPlayers()}>
         {(rsvp) => (
           <div class="flex items-center gap-3 py-2">
-            <svg class="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
+            <Check size={20} class="text-emerald-400 shrink-0" />
             <span class="text-on-surface text-sm font-medium">{rsvp.displayName}</span>
             <span class={`ml-auto text-xs font-semibold ${rsvpResponseColor(rsvp)}`}>
               {rsvpResponseLabel(rsvp)}
@@ -89,13 +88,9 @@ function PublicPlayerList(props: { rsvps: SessionRsvp[] }) {
         {(rsvp) => (
           <div class="flex items-center gap-3 py-2">
             <Show when={rsvp.response === 'maybe'} fallback={
-              <svg class="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X size={20} class="text-gray-500 shrink-0" />
             }>
-              <svg class="w-5 h-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <CircleHelp size={20} class="text-amber-400 shrink-0" />
             </Show>
             <span class="text-on-surface-muted text-sm">{rsvp.displayName}</span>
             <span class={`ml-auto text-xs font-semibold ${rsvpResponseColor(rsvp)}`}>
@@ -229,35 +224,26 @@ const PublicSessionPage: Component = () => {
                 <div class="mt-4 space-y-2">
                   {/* Date */}
                   <div class="flex items-center gap-2 text-on-surface-muted text-sm">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <Calendar size={16} class="shrink-0" />
                     <span>{formattedDate()}</span>
                   </div>
 
                   {/* Time */}
                   <div class="flex items-center gap-2 text-on-surface-muted text-sm">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <Clock size={16} class="shrink-0" />
                     <span>{formattedTime()}</span>
                   </div>
 
                   {/* Location */}
                   <div class="flex items-center gap-2 text-on-surface-muted text-sm">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                    <MapPin size={16} class="shrink-0" />
                     <span>{s().location}</span>
                   </div>
 
                   {/* Courts */}
                   <Show when={s().courtsAvailable > 0}>
                     <div class="flex items-center gap-2 text-on-surface-muted text-sm">
-                      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
+                      <AlignJustify size={16} class="shrink-0" />
                       <span>{s().courtsAvailable} court{s().courtsAvailable > 1 ? 's' : ''} available</span>
                     </div>
                   </Show>
