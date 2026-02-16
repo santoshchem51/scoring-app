@@ -1,4 +1,4 @@
-import type { GameResult } from '../../../data/types';
+import type { GameResult, BracketSlot } from '../../../data/types';
 
 /**
  * Derive the match winner from game results.
@@ -35,4 +35,34 @@ export function deriveWinnerFromGames(games: GameResult[]): 1 | 2 | null {
   }
 
   return team1Wins > team2Wins ? 1 : 2;
+}
+
+export interface BracketSafetyResult {
+  safe: boolean;
+  message?: string;
+}
+
+export function checkBracketRescoreSafety(
+  currentSlot: BracketSlot,
+  newWinnerTeamId: string,
+  allSlots: BracketSlot[],
+): BracketSafetyResult {
+  if (currentSlot.winnerId === newWinnerTeamId) {
+    return { safe: true };
+  }
+
+  if (!currentSlot.nextSlotId) {
+    return { safe: true };
+  }
+
+  const nextSlot = allSlots.find((s) => s.id === currentSlot.nextSlotId);
+  if (!nextSlot) {
+    return { safe: true };
+  }
+
+  if (nextSlot.matchId) {
+    return { safe: false, message: 'Cannot change winner — the next round match has already started.' };
+  }
+
+  return { safe: true };
 }
