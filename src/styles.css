@@ -221,3 +221,10 @@ html.outdoor body::after {
 .stagger-in > *:nth-child(6) { animation-delay: 250ms; }
 .stagger-in > *:nth-child(7) { animation-delay: 300ms; }
 .stagger-in > *:nth-child(8) { animation-delay: 350ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in > * {
+    opacity: 1;
+    animation: none;
+  }
+}
