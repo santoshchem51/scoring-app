@@ -66,10 +66,10 @@ describe('Users (/users/{uid})', () => {
     await assertSucceeds(updateDoc(doc(db, `users/${uid}`), { displayName: 'New Name' }));
   });
 
-  it('denies reading another user profile', async () => {
+  it('allows any authenticated user to read another user profile', async () => {
     await seedDoc(`users/${uid}`, makeUserProfile(uid));
     const db = authedContext(otherUid).firestore();
-    await assertFails(getDoc(doc(db, `users/${uid}`)));
+    await assertSucceeds(getDoc(doc(db, `users/${uid}`)));
   });
 
   it('denies writing another user profile', async () => {
@@ -610,10 +610,16 @@ describe('Teams (/tournaments/{tid}/teams/{id})', () => {
     await assertSucceeds(updateDoc(doc(db, teamPath), { name: 'Updated Team' }));
   });
 
-  it('allows scorekeeper to update a team', async () => {
+  it('allows scorekeeper to update team seed', async () => {
     await seedDoc(teamPath, makeTeam('t1'));
     const db = authedContext(scorekeeperId).firestore();
-    await assertSucceeds(updateDoc(doc(db, teamPath), { name: 'Updated by SK' }));
+    await assertSucceeds(updateDoc(doc(db, teamPath), { seed: 1 }));
+  });
+
+  it('denies scorekeeper from updating team name', async () => {
+    await seedDoc(teamPath, makeTeam('t1'));
+    const db = authedContext(scorekeeperId).firestore();
+    await assertFails(updateDoc(doc(db, teamPath), { name: 'Hacked' }));
   });
 
   it('denies random user from updating a team', async () => {

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Players Management', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/new');
     await page.locator('nav').getByText('Players').click();
   });
 

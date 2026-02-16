@@ -2,20 +2,20 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Scoring Flow', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/new');
   });
 
   test('home page shows New Game setup', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'New Game' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'New Game' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Quick Game/ })).toBeVisible();
-    await expect(page.getByText('GAME TYPE')).toBeVisible();
-    await expect(page.getByText('SCORING')).toBeVisible();
-    await expect(page.getByText('POINTS TO WIN')).toBeVisible();
+    await expect(page.getByText('Game Type')).toBeVisible();
+    await expect(page.getByText('Scoring')).toBeVisible();
+    await expect(page.getByText('Points to Win')).toBeVisible();
   });
 
   test('quick game starts scoring screen', async ({ page }) => {
     await page.getByRole('button', { name: /Quick Game/ }).click();
-    await expect(page.getByRole('heading', { name: 'Live Score' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Live Score' })).toBeVisible();
     await expect(page.getByText('0-0-2')).toBeVisible();
     await expect(page.getByRole('button', { name: /Side out/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Undo/i })).toBeVisible();
@@ -88,7 +88,7 @@ test.describe('Scoring Flow', () => {
 
     await page.getByRole('button', { name: 'Save & Finish' }).click();
 
-    await expect(page.getByRole('heading', { name: 'Match History' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Match History' })).toBeVisible();
     await expect(page.getByText('11').first()).toBeVisible();
   });
 });
