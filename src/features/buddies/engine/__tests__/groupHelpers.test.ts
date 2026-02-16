@@ -71,6 +71,11 @@ describe('canJoinGroup', () => {
     const group = makeGroup({ visibility: 'private', shareCode: 'GRP123' });
     expect(canJoinGroup(group, false, 'WRONG')).toBe(false);
   });
+
+  it('returns false for private group with null shareCode and no code provided', () => {
+    const group = makeGroup({ visibility: 'private', shareCode: null });
+    expect(canJoinGroup(group, false)).toBe(false);
+  });
 });
 
 describe('createDefaultSession', () => {
@@ -90,6 +95,12 @@ describe('createDefaultSession', () => {
     const result = createDefaultSession(group);
     expect(result.location).toBe('');
   });
+
+  it('includes the correct groupId from the group', () => {
+    const group = makeGroup({ id: 'group-42' });
+    const result = createDefaultSession(group);
+    expect(result.groupId).toBe('group-42');
+  });
 });
 
 describe('validateGroupName', () => {
@@ -107,5 +118,13 @@ describe('validateGroupName', () => {
 
   it('returns error for name over 50 characters', () => {
     expect(validateGroupName('A'.repeat(51))).toBe('Group name must be 50 characters or less');
+  });
+
+  it('returns null for name at exactly 50 characters', () => {
+    expect(validateGroupName('A'.repeat(50))).toBeNull();
+  });
+
+  it('returns error for spaces-only name', () => {
+    expect(validateGroupName('     ')).toBe('Group name is required');
   });
 });

@@ -71,6 +71,16 @@ describe('canRsvp', () => {
     const session = makeSession({ rsvpDeadline: Date.now() - 1000 });
     expect(canRsvp(session)).toBe(false);
   });
+
+  it('returns true with null deadline', () => {
+    const session = makeSession({ status: 'proposed', rsvpDeadline: null });
+    expect(canRsvp(session)).toBe(true);
+  });
+
+  it('returns true with future deadline', () => {
+    const session = makeSession({ status: 'proposed', rsvpDeadline: Date.now() + 3600000 });
+    expect(canRsvp(session)).toBe(true);
+  });
 });
 
 describe('canUpdateDayOfStatus', () => {
@@ -91,6 +101,12 @@ describe('canUpdateDayOfStatus', () => {
     const rsvp = makeRsvp({ response: 'out' });
     expect(canUpdateDayOfStatus(session, rsvp)).toBe(false);
   });
+
+  it('returns false if RSVP is "maybe"', () => {
+    const session = makeSession({ status: 'confirmed' });
+    const rsvp = makeRsvp({ response: 'maybe' });
+    expect(canUpdateDayOfStatus(session, rsvp)).toBe(false);
+  });
 });
 
 describe('isSessionFull', () => {
@@ -100,6 +116,10 @@ describe('isSessionFull', () => {
 
   it('returns false when spots remain', () => {
     expect(isSessionFull(makeSession({ spotsConfirmed: 3, spotsTotal: 4 }))).toBe(false);
+  });
+
+  it('returns true when overbooked (confirmed > total)', () => {
+    expect(isSessionFull(makeSession({ spotsConfirmed: 5, spotsTotal: 4 }))).toBe(true);
   });
 });
 
@@ -143,6 +163,16 @@ describe('shouldAutoOpen', () => {
     });
     expect(shouldAutoOpen(session)).toBe(false);
   });
+
+  it('returns false when spotsConfirmed >= minPlayers (no need to open)', () => {
+    const session = makeSession({
+      autoOpenOnDropout: true,
+      visibility: 'group',
+      spotsConfirmed: 4,
+      minPlayers: 4,
+    });
+    expect(shouldAutoOpen(session)).toBe(false);
+  });
 });
 
 describe('getWinningSlot', () => {
@@ -165,6 +195,13 @@ describe('getWinningSlot', () => {
 
   it('returns null for empty slots', () => {
     expect(getWinningSlot([])).toBeNull();
+  });
+
+  it('returns that slot when only one slot exists', () => {
+    const slots: TimeSlot[] = [
+      { id: 'only', date: 1, startTime: '10:00', endTime: '12:00', voteCount: 1 },
+    ];
+    expect(getWinningSlot(slots)).toEqual(slots[0]);
   });
 });
 
@@ -192,5 +229,10 @@ describe('getSessionDisplayStatus', () => {
   it('returns "Completed" for completed session', () => {
     const session = makeSession({ status: 'completed' });
     expect(getSessionDisplayStatus(session)).toBe('Completed');
+  });
+
+  it('returns "X/Y confirmed" at exact minPlayers threshold (not full)', () => {
+    const session = makeSession({ spotsConfirmed: 4, spotsTotal: 8, minPlayers: 4 });
+    expect(getSessionDisplayStatus(session)).toBe('4/8 confirmed');
   });
 });

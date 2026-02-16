@@ -332,5 +332,50 @@ describe('firestoreGameSessionRepository', () => {
 
       vi.restoreAllMocks();
     });
+
+    it('updates RSVP response and decrements spots with negative increment (-1)', async () => {
+      mockUpdateDoc.mockResolvedValue(undefined);
+      const fakeNow = 1700500000000;
+      vi.spyOn(Date, 'now').mockReturnValue(fakeNow);
+
+      mockDoc
+        .mockReturnValueOnce('mock-rsvp-ref')
+        .mockReturnValueOnce('mock-session-ref');
+
+      await firestoreGameSessionRepository.updateRsvpResponse('session1', 'user1', 'out', -1);
+
+      expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'gameSessions', 'session1', 'rsvps', 'user1');
+      expect(mockUpdateDoc).toHaveBeenCalledWith('mock-rsvp-ref', {
+        response: 'out',
+        respondedAt: fakeNow,
+      });
+
+      expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'gameSessions', 'session1');
+      expect(mockUpdateDoc).toHaveBeenCalledWith('mock-session-ref', {
+        spotsConfirmed: { _increment: -1 },
+        updatedAt: 'mock-timestamp',
+      });
+
+      vi.restoreAllMocks();
+    });
+
+    it('skips session update when increment is zero (maybe response)', async () => {
+      mockUpdateDoc.mockResolvedValue(undefined);
+      const fakeNow = 1700600000000;
+      vi.spyOn(Date, 'now').mockReturnValue(fakeNow);
+
+      await firestoreGameSessionRepository.updateRsvpResponse('session1', 'user2', 'maybe', 0);
+
+      // RSVP doc is updated
+      expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+      expect(mockUpdateDoc).toHaveBeenCalledWith('mock-doc-ref', {
+        response: 'maybe',
+        respondedAt: fakeNow,
+      });
+      // Session doc should NOT have been referenced for update
+      expect(mockIncrement).not.toHaveBeenCalled();
+
+      vi.restoreAllMocks();
+    });
   });
 });
