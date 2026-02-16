@@ -1,13 +1,29 @@
-import { Show, For, createSignal, createMemo } from 'solid-js';
+import { Show, For, createSignal, createMemo, createEffect, on } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams } from '@solidjs/router';
+import confetti from 'canvas-confetti';
 import { useAuth } from '../../shared/hooks/useAuth';
+import { useHaptics } from '../../shared/hooks/useHaptics';
 import { useGameSession } from './hooks/useGameSession';
 import { firestoreGameSessionRepository } from '../../data/firebase/firestoreGameSessionRepository';
 import { firestoreBuddyNotificationRepository } from '../../data/firebase/firestoreBuddyNotificationRepository';
 import { canRsvp, canUpdateDayOfStatus, getSessionDisplayStatus } from './engine/sessionHelpers';
 import { createPlayerJoinedNotification, createSessionConfirmedNotification, createSpotOpenedNotification } from './engine/notificationHelpers';
 import type { SessionRsvp, RsvpResponse, DayOfStatus, TimeSlot } from '../../data/types';
+
+// --- Animation helper ---
+
+const animateButton = (el: HTMLElement) => {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.animate(
+    [
+      { transform: 'scale(0.95)' },
+      { transform: 'scale(1.08)' },
+      { transform: 'scale(1)' },
+    ],
+    { duration: 200, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
+  );
+};
 
 // --- Sub-components ---
 
@@ -38,6 +54,7 @@ function RsvpButtons(props: {
   currentResponse: RsvpResponse | undefined;
   disabled: boolean;
   onSelect: (response: RsvpResponse) => void;
+  onAnimate?: () => void;
 }) {
   const options: { value: RsvpResponse; label: string; active: string; inactive: string }[] = [
     {
@@ -64,14 +81,20 @@ function RsvpButtons(props: {
     <div class="flex gap-3">
       <For each={options}>
         {(option) => {
+          let btnRef!: HTMLButtonElement;
           const isActive = createMemo(() => props.currentResponse === option.value);
           return (
             <button
+              ref={btnRef}
               class={`flex-1 min-h-[48px] rounded-xl font-semibold border-2 transition-all active:scale-95 ${
                 isActive() ? option.active : option.inactive
               }`}
               disabled={props.disabled}
-              onClick={() => props.onSelect(option.value)}
+              onClick={() => {
+                animateButton(btnRef);
+                props.onAnimate?.();
+                props.onSelect(option.value);
+              }}
             >
               {option.label}
             </button>
@@ -138,6 +161,7 @@ function TimeSlotGrid(props: {
 function DayOfButtons(props: {
   currentStatus: DayOfStatus;
   onSelect: (status: DayOfStatus) => void;
+  onAnimate?: () => void;
 }) {
   const options: { value: DayOfStatus; label: string; active: string; inactive: string }[] = [
     {
@@ -164,13 +188,19 @@ function DayOfButtons(props: {
     <div class="flex gap-3">
       <For each={options}>
         {(option) => {
+          let btnRef!: HTMLButtonElement;
           const isActive = createMemo(() => props.currentStatus === option.value);
           return (
             <button
+              ref={btnRef}
               class={`flex-1 min-h-[48px] rounded-xl font-semibold border-2 text-sm transition-all active:scale-95 ${
                 isActive() ? option.active : option.inactive
               }`}
-              onClick={() => props.onSelect(option.value)}
+              onClick={() => {
+                animateButton(btnRef);
+                props.onAnimate?.();
+                props.onSelect(option.value);
+              }}
             >
               {option.label}
             </button>
@@ -242,9 +272,38 @@ function PlayerList(props: { rsvps: SessionRsvp[] }) {
 const SessionDetailPage: Component = () => {
   const params = useParams<{ sessionId: string }>();
   const { user } = useAuth();
+  const haptics = useHaptics();
   const { session, rsvps, loading } = useGameSession(() => params.sessionId);
 
   const [shareMessage, setShareMessage] = createSignal('');
+
+  // --- Celebration when all spots fill ---
+  const celebrateSpotsFilled = () => {
+    haptics.double();
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    confetti({
+      particleCount: 60,
+      spread: 70,
+      origin: { x: 0.5, y: 1 },
+      colors: ['#10b981', '#facc15', '#ffffff', '#3b82f6'],
+      disableForReducedMotion: true,
+    });
+  };
+
+  createEffect(
+    on(
+      () => session()?.spotsConfirmed,
+      (current, prev) => {
+        const s = session();
+        if (!s || prev === undefined || current === undefined) return;
+        if (current >= s.spotsTotal && prev < s.spotsTotal) {
+          celebrateSpotsFilled();
+        }
+      },
+    ),
+  );
 
   const currentUserRsvp = createMemo(() => {
     const uid = user()?.uid;
@@ -300,6 +359,8 @@ const SessionDetailPage: Component = () => {
   });
 
   const handleRsvp = async (response: RsvpResponse) => {
+    haptics.medium();
+
     const s = session();
     const u = user();
     if (!s || !u) return;
@@ -337,6 +398,8 @@ const SessionDetailPage: Component = () => {
   };
 
   const handleDayOfStatus = async (status: DayOfStatus) => {
+    haptics.light();
+
     const s = session();
     const u = user();
     if (!s || !u) return;
