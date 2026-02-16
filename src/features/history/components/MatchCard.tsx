@@ -22,7 +22,7 @@ const MatchCard: Component<Props> = (props) => {
   };
 
   return (
-    <article class="bg-surface-light rounded-xl p-4 space-y-2" aria-label={`${m().team1Name} vs ${m().team2Name}`}>
+    <article class="bg-surface-light rounded-xl p-4 space-y-2 hover-lift transition-all duration-200" aria-label={`${m().team1Name} vs ${m().team2Name}`}>
       <div class="flex items-center justify-between">
         <span class="text-xs text-on-surface-muted">{date()} {time()}</span>
         <div class="flex items-center gap-2">

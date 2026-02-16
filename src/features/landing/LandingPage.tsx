@@ -52,7 +52,7 @@ const LandingPage: Component = () => {
           </h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {FEATURES.map((f) => (
-              <div class="bg-surface rounded-xl p-5">
+              <div class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-200 hover-lift">
                 <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 text-primary">
                   <f.icon size={20} />
                 </div>

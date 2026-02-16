@@ -13,7 +13,7 @@ const OptionCard: Component<Props> = (props) => {
       type="button"
       onClick={props.onClick}
       aria-pressed={props.selected}
-      class={`w-full p-4 rounded-xl text-left transition-all active:scale-95 ${
+      class={`w-full p-4 rounded-xl text-left transition-all duration-200 active:scale-[0.97] hover-lift ${
         props.selected
           ? 'bg-primary/20 border-2 border-primary text-on-surface'
           : 'bg-surface-light border-2 border-surface-lighter text-on-surface-muted hover:border-on-surface-muted'

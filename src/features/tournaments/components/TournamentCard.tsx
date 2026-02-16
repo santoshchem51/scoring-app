@@ -15,7 +15,7 @@ const TournamentCard: Component<Props> = (props) => {
   return (
     <A
       href={`/tournaments/${props.tournament.id}`}
-      class="block bg-surface-light rounded-xl p-4 active:scale-[0.98] transition-transform"
+      class="block bg-surface-light rounded-xl p-4 active:scale-[0.98] hover-lift transition-all duration-200"
     >
       <div class="flex items-start justify-between gap-2 mb-2">
         <h3 class="font-bold text-on-surface truncate">{props.tournament.name}</h3>
