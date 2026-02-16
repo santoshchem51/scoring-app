@@ -10,13 +10,20 @@ const LandingPage: Component = () => {
       <TopNav variant="landing" />
 
       {/* Hero */}
-      <section class="px-4 pt-12 pb-16 md:pt-20 md:pb-24 text-center bg-gradient-to-b from-primary-glow to-transparent">
-        <div class="max-w-lg mx-auto md:max-w-2xl">
+      <section class="relative px-4 pt-12 pb-16 md:pt-20 md:pb-24 text-center overflow-hidden">
+        {/* Aurora gradient background */}
+        <div
+          class="absolute inset-0 -z-10"
+          style={{
+            background: "radial-gradient(ellipse at 30% 0%, rgba(34,197,94,0.12), transparent 50%), radial-gradient(ellipse at 70% 0%, rgba(249,115,22,0.08), transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(250,204,21,0.06), transparent 50%)"
+          }}
+        />
+        <div class="max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl">
           <div class="flex justify-center mb-6">
             <Logo size="xl" showIcon />
           </div>
           <p
-            class="text-2xl md:text-3xl font-bold text-on-surface mb-3"
+            class="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 text-gradient"
             style={{ "font-family": "var(--font-score)" }}
           >
             Score. Organize. Compete.
@@ -27,13 +34,13 @@ const LandingPage: Component = () => {
           <div class="flex flex-col sm:flex-row gap-3 justify-center">
             <A
               href="/new"
-              class="inline-block bg-primary text-surface font-semibold px-8 py-3.5 rounded-xl text-lg active:scale-95 transition-transform"
+              class="inline-block bg-primary text-surface font-semibold px-8 py-3.5 rounded-xl text-lg active:scale-[0.97] transition-all duration-200 hover-glow-primary"
             >
               Start Scoring
             </A>
             <A
               href="/tournaments"
-              class="inline-block border-2 border-primary text-primary font-semibold px-8 py-3.5 rounded-xl text-lg active:scale-95 transition-transform"
+              class="inline-block border-2 border-primary text-primary font-semibold px-8 py-3.5 rounded-xl text-lg active:scale-[0.97] transition-all duration-200 hover-glow-primary"
             >
               Manage Tournaments
             </A>
