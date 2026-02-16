@@ -1,8 +1,8 @@
 # Tournament v2 — Known Gaps & Future Test Scenarios
 
 **Created:** 2026-02-15
-**Updated:** 2026-02-15 (Wave 2 complete — BYOP manual pairing)
-**Context:** Post-merge of `feature/tournament-v2` into `main` (17 commits, 164 tests → 190 tests after Wave 2)
+**Updated:** 2026-02-15 (Wave 3 complete — match re-scoring)
+**Context:** Post-merge of `feature/tournament-v2` into `main` (17 commits, 164 tests → 190 tests after Wave 2 → 206 tests after Wave 3)
 
 ---
 
@@ -49,14 +49,16 @@
 
 **This is a separate feature layer** (estimated 2-3 weeks), not a bug fix.
 
-### 5. Match Re-scoring / Editing (LOW priority)
+### ~~5. Match Re-scoring / Editing~~ — RESOLVED (Wave 3)
 
-**Problem:** Once a pool match is marked "Completed" in the schedule, there's no way to re-score it or edit the result. If a score was entered incorrectly, there's no correction path.
+**Fixed in:** branch `feature/match-rescoring` (7 commits)
 
-**Fix needed:**
-- Add "Edit Score" option on completed matches
-- Allow re-opening a completed match for correction
-- Recalculate standings after edit
+- `rescoring.ts` engine: `deriveWinnerFromGames()`, `validateGameScores()`, `checkBracketRescoreSafety()` — 16 pure logic tests
+- `ScoreEditModal.tsx` component: direct number input editing, validation, error display
+- "Edit" button on completed pool schedule entries and bracket slots (organizer-only)
+- Pool re-scoring: match updated, standings recalculated from all completed matches
+- Bracket re-scoring: winner-same allowed, winner-change allowed if next match not started, blocked if next match started
+- **E2E verified:** Pool match re-scored (11-5 → 11-8, standings updated), bracket winner-same edit, bracket winner-change (Charlie→Delta, final slot updated), bracket winner-change blocked when final already played
 
 ### 6. Offline Support for Tournament Data (LOW priority)
 
@@ -159,7 +161,8 @@
 | Firestore repos | 35 | 4 |
 | Tournament lifecycle | 7 | 1 |
 | Cloud sync | 4 | 1 |
-| **Total** | **190** | **23** |
+| Rescoring | 16 | 1 |
+| **Total** | **206** | **24** |
 
 ### Wave 1 E2E Tests Performed (manual via Playwright)
 - Singles single-elimination: 4 players → bracket → 3 matches → champion (Diana)
@@ -176,3 +179,15 @@
 - Advance to bracket: 2 teams formed, bracket generated correctly
 - Score final: Bob & Alice 11-0 Charlie & Diana → champion displayed
 - Full flow: Registration → Bracket Play → Completed with BYOP pairing
+
+### Wave 3 E2E Tests Performed (manual via Playwright)
+- Pool re-scoring: Round-robin tournament, 4 players, scored Alice vs Diana 11-5
+- Edit button visible next to "Completed" in pool schedule (organizer only)
+- Score edit modal opens with pre-filled scores (11, 5)
+- Changed Diana's score to 8, saved → standings recalculated (Alice PF=11 PA=8 +3, Diana PF=8 PA=11 -3)
+- Bracket re-scoring: Single-elimination tournament, 4 players, both semifinals scored
+- Test 1 — Winner stays same: Edited semi 1 from 11-5 to 11-8 (Charlie still wins) → save succeeded
+- Test 2 — Winner changes, next not started: Flipped semi 1 to 5-11 (Delta wins) → save succeeded, final updated to Delta vs Alpha
+- Scored final: Delta 11 - Alpha 3
+- Test 3 — Winner changes, next started: Tried flipping semi 1 back → blocked with "Cannot change winner — the next round match has already started."
+- Advanced to Completed: Champion = Delta (correct after re-scoring)
