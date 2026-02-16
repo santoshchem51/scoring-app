@@ -22,6 +22,7 @@ import FeeTracker from './components/FeeTracker';
 import TournamentResults from './components/TournamentResults';
 import OrganizerControls from './components/OrganizerControls';
 import OrganizerPlayerManager from './components/OrganizerPlayerManager';
+import OrganizerPairingPanel from './components/OrganizerPairingPanel';
 import { statusLabels, statusColors, formatLabels } from './constants';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding, Match } from '../../data/types';
@@ -475,6 +476,14 @@ const TournamentDashboardPage: Component = () => {
                       registrations={registrations() ?? []}
                       onUpdated={handleRegistered}
                     />
+                    <Show when={t().config.gameType === 'doubles' && t().teamFormation === 'byop'}>
+                      <OrganizerPairingPanel
+                        tournamentId={t().id}
+                        registrations={registrations() ?? []}
+                        userNames={userNames()}
+                        onUpdated={handleRegistered}
+                      />
+                    </Show>
                   </Show>
                   <RegistrationForm
                     tournament={t()}
