@@ -751,11 +751,14 @@ const TournamentDashboardPage: Component = () => {
                 {(t) => (
                   <ShareTournamentModal
                     open={showShareModal()}
+                    tournamentId={t().id}
                     tournamentName={t().name}
                     tournamentDate={new Date(t().date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                     tournamentLocation={t().location || 'TBD'}
                     visibility={t().visibility ?? 'private'}
                     shareCode={t().shareCode ?? null}
+                    organizerId={t().organizerId}
+                    registeredUserIds={live.registrations().map((r) => r.userId)}
                     onToggleVisibility={handleToggleVisibility}
                     onClose={() => setShowShareModal(false)}
                   />
