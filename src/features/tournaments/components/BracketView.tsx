@@ -6,6 +6,7 @@ interface Props {
   slots: BracketSlot[];
   teamNames: Record<string, string>;
   onScoreMatch?: (slotId: string, team1Id: string, team2Id: string) => void;
+  onEditMatch?: (slotId: string, matchId: string, team1Id: string, team2Id: string) => void;
 }
 
 const BracketView: Component<Props> = (props) => {
@@ -65,6 +66,13 @@ const BracketView: Component<Props> = (props) => {
                             onClick={() => props.onScoreMatch!(slot.id, slot.team1Id!, slot.team2Id!)}
                             class="w-full text-xs font-semibold py-1 bg-primary/20 text-primary text-center">
                             Score Match
+                          </button>
+                        </Show>
+                        <Show when={slot.winnerId && slot.matchId && props.onEditMatch}>
+                          <button type="button"
+                            onClick={() => props.onEditMatch!(slot.id, slot.matchId!, slot.team1Id!, slot.team2Id!)}
+                            class="w-full text-xs font-semibold py-1 bg-surface-lighter text-on-surface-muted text-center active:scale-95 transition-transform">
+                            Edit
                           </button>
                         </Show>
                       </div>
