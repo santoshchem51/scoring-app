@@ -149,6 +149,8 @@ export function makeTournament(organizerId: string, overrides: Record<string, un
     cancellationReason: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    visibility: 'private',
+    shareCode: null,
     ...overrides,
   };
 }
