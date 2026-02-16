@@ -11,6 +11,7 @@ const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
 const TournamentListPage = lazy(() => import('../features/tournaments/TournamentListPage'));
 const TournamentCreatePage = lazy(() => import('../features/tournaments/TournamentCreatePage'));
 const TournamentDashboardPage = lazy(() => import('../features/tournaments/TournamentDashboardPage'));
+const PublicTournamentPage = lazy(() => import('../features/tournaments/PublicTournamentPage'));
 
 function NotFoundPage() {
   return (
@@ -34,6 +35,7 @@ export default function AppRouter() {
         <Route path="/new" component={TournamentCreatePage} />
         <Route path="/:id" component={TournamentDashboardPage} />
       </Route>
+      <Route path="/t/:code" component={PublicTournamentPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="*" component={NotFoundPage} />
     </Router>
