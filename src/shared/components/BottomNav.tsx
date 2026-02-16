@@ -2,10 +2,12 @@ import { Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { A, useLocation } from '@solidjs/router';
 import { useAuth } from '../hooks/useAuth';
+import { useBuddyNotifications } from '../../features/buddies/hooks/useBuddyNotifications';
 
 const BottomNav: Component = () => {
   const location = useLocation();
   const { user } = useAuth();
+  const { unreadCount } = useBuddyNotifications(() => user()?.uid);
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
@@ -54,6 +56,11 @@ const BottomNav: Component = () => {
               <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
             </Show>
             <svg aria-hidden="true" class="relative w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+            <Show when={unreadCount() > 0}>
+              <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1" aria-label={`${unreadCount()} unread notifications`}>
+                {unreadCount() > 9 ? '9+' : unreadCount()}
+              </span>
+            </Show>
             <span class="relative">Buddies</span>
           </A>
         </Show>
