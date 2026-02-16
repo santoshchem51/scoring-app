@@ -220,3 +220,98 @@ export interface TournamentInvitation {
   createdAt: number;
   respondedAt: number | null;
 }
+
+// --- Player Buddies types ---
+
+export type BuddyGroupVisibility = 'private' | 'public';
+export type BuddyGroupMemberRole = 'admin' | 'member';
+export type GameSessionStatus = 'proposed' | 'confirmed' | 'cancelled' | 'completed';
+export type GameSessionVisibility = 'group' | 'open';
+export type RsvpStyle = 'simple' | 'voting';
+export type RsvpResponse = 'in' | 'out' | 'maybe';
+export type DayOfStatus = 'none' | 'on-my-way' | 'here' | 'cant-make-it';
+export type BuddyNotificationType =
+  | 'session_proposed'
+  | 'session_confirmed'
+  | 'session_cancelled'
+  | 'spot_opened'
+  | 'player_joined'
+  | 'group_invite'
+  | 'voting_reminder';
+
+export interface BuddyGroup {
+  id: string;
+  name: string;
+  description: string;
+  createdBy: string;
+  defaultLocation: string | null;
+  defaultDay: string | null;
+  defaultTime: string | null;
+  memberCount: number;
+  visibility: BuddyGroupVisibility;
+  shareCode: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BuddyGroupMember {
+  userId: string;
+  displayName: string;
+  photoURL: string | null;
+  role: BuddyGroupMemberRole;
+  joinedAt: number;
+}
+
+export interface TimeSlot {
+  id: string;
+  date: number;
+  startTime: string;
+  endTime: string;
+  voteCount: number;
+}
+
+export interface GameSession {
+  id: string;
+  groupId: string | null;
+  createdBy: string;
+  title: string;
+  location: string;
+  courtsAvailable: number;
+  spotsTotal: number;
+  spotsConfirmed: number;
+  scheduledDate: number | null;
+  timeSlots: TimeSlot[] | null;
+  confirmedSlot: TimeSlot | null;
+  rsvpStyle: RsvpStyle;
+  rsvpDeadline: number | null;
+  visibility: GameSessionVisibility;
+  shareCode: string;
+  autoOpenOnDropout: boolean;
+  minPlayers: number;
+  status: GameSessionStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SessionRsvp {
+  userId: string;
+  displayName: string;
+  photoURL: string | null;
+  response: RsvpResponse;
+  dayOfStatus: DayOfStatus;
+  selectedSlotIds: string[];
+  respondedAt: number;
+  statusUpdatedAt: number | null;
+}
+
+export interface BuddyNotification {
+  id: string;
+  userId: string;
+  type: BuddyNotificationType;
+  sessionId: string | null;
+  groupId: string | null;
+  actorName: string;
+  message: string;
+  read: boolean;
+  createdAt: number;
+}
