@@ -48,6 +48,15 @@ const BottomNav: Component = () => {
             <span class="relative">Tourneys</span>
           </A>
         </Show>
+        <Show when={user()}>
+          <A href="/buddies" class={linkClass('/buddies')} aria-current={isActive('/buddies') ? 'page' : undefined} aria-label="Buddies">
+            <Show when={isActive('/buddies')}>
+              <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
+            </Show>
+            <svg aria-hidden="true" class="relative w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+            <span class="relative">Buddies</span>
+          </A>
+        </Show>
         <A href="/settings" class={linkClass('/settings')} aria-current={isActive('/settings') ? 'page' : undefined} aria-label="Settings">
           <Show when={isActive('/settings')}>
             <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />

@@ -13,6 +13,14 @@ const TournamentCreatePage = lazy(() => import('../features/tournaments/Tourname
 const TournamentDashboardPage = lazy(() => import('../features/tournaments/TournamentDashboardPage'));
 const PublicTournamentPage = lazy(() => import('../features/tournaments/PublicTournamentPage'));
 const LandingPage = lazy(() => import('../features/landing/LandingPage'));
+const BuddiesPage = lazy(() => import('../features/buddies/BuddiesPage'));
+const CreateGroupPage = lazy(() => import('../features/buddies/CreateGroupPage'));
+const GroupDetailPage = lazy(() => import('../features/buddies/GroupDetailPage'));
+const CreateSessionPage = lazy(() => import('../features/buddies/CreateSessionPage'));
+const SessionDetailPage = lazy(() => import('../features/buddies/SessionDetailPage'));
+const PublicSessionPage = lazy(() => import('../features/buddies/PublicSessionPage'));
+const GroupInvitePage = lazy(() => import('../features/buddies/GroupInvitePage'));
+const OpenPlayPage = lazy(() => import('../features/buddies/OpenPlayPage'));
 
 function NotFoundPage() {
   return (
@@ -38,6 +46,20 @@ export default function AppRouter() {
         <Route path="/:id" component={TournamentDashboardPage} />
       </Route>
       <Route path="/t/:code" component={PublicTournamentPage} />
+      <Route path="/buddies" component={RequireAuth}>
+        <Route path="/" component={BuddiesPage} />
+        <Route path="/new" component={CreateGroupPage} />
+        <Route path="/:groupId" component={GroupDetailPage} />
+        <Route path="/:groupId/session/new" component={CreateSessionPage} />
+      </Route>
+      <Route path="/session/:sessionId" component={RequireAuth}>
+        <Route path="/" component={SessionDetailPage} />
+      </Route>
+      <Route path="/play" component={RequireAuth}>
+        <Route path="/" component={OpenPlayPage} />
+      </Route>
+      <Route path="/s/:code" component={PublicSessionPage} />
+      <Route path="/g/:code" component={GroupInvitePage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="*" component={NotFoundPage} />
     </Router>
