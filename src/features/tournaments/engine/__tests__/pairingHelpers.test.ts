@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyRegistrations } from '../pairingHelpers';
+import { classifyRegistrations, preparePairUpdate, prepareUnpairUpdate, prepareAutoPairUpdates } from '../pairingHelpers';
 import type { TournamentRegistration } from '../../../../data/types';
 
 const makeReg = (overrides: Partial<TournamentRegistration> & { userId: string }): TournamentRegistration => ({
@@ -82,5 +82,75 @@ describe('classifyRegistrations', () => {
     const result = classifyRegistrations([], {});
     expect(result.paired).toHaveLength(0);
     expect(result.unmatched).toHaveLength(0);
+  });
+});
+
+describe('preparePairUpdate', () => {
+  it('returns mutual partnerName updates', () => {
+    const reg1 = makeReg({ userId: 'p1', playerName: 'Alice' });
+    const reg2 = makeReg({ userId: 'p2', playerName: 'Bob' });
+    const result = preparePairUpdate(reg1, reg2);
+
+    expect(result).toEqual([
+      { regId: 'reg-p1', partnerName: 'Bob' },
+      { regId: 'reg-p2', partnerName: 'Alice' },
+    ]);
+  });
+
+  it('uses playerName for partner name (not userId)', () => {
+    const reg1 = makeReg({ userId: 'manual-abc', playerName: 'Charlie' });
+    const reg2 = makeReg({ userId: 'manual-xyz', playerName: 'Diana' });
+    const result = preparePairUpdate(reg1, reg2);
+
+    expect(result[0].partnerName).toBe('Diana');
+    expect(result[1].partnerName).toBe('Charlie');
+  });
+});
+
+describe('prepareUnpairUpdate', () => {
+  it('returns null partnerName for both registrations', () => {
+    const reg1 = makeReg({ userId: 'p1', playerName: 'Alice', partnerName: 'Bob' });
+    const reg2 = makeReg({ userId: 'p2', playerName: 'Bob', partnerName: 'Alice' });
+    const result = prepareUnpairUpdate(reg1, reg2);
+
+    expect(result).toEqual([
+      { regId: 'reg-p1', partnerName: null },
+      { regId: 'reg-p2', partnerName: null },
+    ]);
+  });
+});
+
+describe('prepareAutoPairUpdates', () => {
+  it('pairs unmatched players by skill rating and returns updates', () => {
+    const unmatched = [
+      makeReg({ userId: 'p1', playerName: 'Alice', skillRating: 4.0 }),
+      makeReg({ userId: 'p2', playerName: 'Bob', skillRating: 4.0 }),
+      makeReg({ userId: 'p3', playerName: 'Charlie', skillRating: 3.0 }),
+      makeReg({ userId: 'p4', playerName: 'Diana', skillRating: 3.0 }),
+    ];
+    const result = prepareAutoPairUpdates(unmatched);
+
+    expect(result).toHaveLength(2);
+    expect(result[0]).toHaveLength(2);
+    expect(result[1]).toHaveLength(2);
+    for (const pair of result) {
+      expect(pair[0].partnerName).not.toBeNull();
+      expect(pair[1].partnerName).not.toBeNull();
+    }
+  });
+
+  it('leaves odd player out', () => {
+    const unmatched = [
+      makeReg({ userId: 'p1', playerName: 'Alice', skillRating: 4.0 }),
+      makeReg({ userId: 'p2', playerName: 'Bob', skillRating: 3.5 }),
+      makeReg({ userId: 'p3', playerName: 'Charlie', skillRating: 3.0 }),
+    ];
+    const result = prepareAutoPairUpdates(unmatched);
+    expect(result).toHaveLength(1);
+  });
+
+  it('returns empty for fewer than 2 players', () => {
+    const result = prepareAutoPairUpdates([makeReg({ userId: 'p1', playerName: 'Alice' })]);
+    expect(result).toHaveLength(0);
   });
 });
