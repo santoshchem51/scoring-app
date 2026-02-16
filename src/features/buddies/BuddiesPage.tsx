@@ -1,4 +1,4 @@
-import { Show, For } from 'solid-js';
+import { Show, For, onMount } from 'solid-js';
 import type { Component } from 'solid-js';
 import { A } from '@solidjs/router';
 import { useAuth } from '../../shared/hooks/useAuth';
@@ -32,8 +32,25 @@ const BuddiesPage: Component = () => {
   const { user } = useAuth();
   const { groups, loading } = useBuddyGroups(() => user()?.uid);
 
+  let containerRef: HTMLDivElement | undefined;
+
+  onMount(() => {
+    if (!containerRef) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      containerRef.style.opacity = '1';
+      return;
+    }
+    containerRef.animate(
+      [
+        { opacity: 0, transform: 'translateY(8px)' },
+        { opacity: 1, transform: 'translateY(0)' },
+      ],
+      { duration: 200, easing: 'ease-out', fill: 'forwards' },
+    );
+  });
+
   return (
-    <div class="max-w-lg mx-auto px-4 pt-4 pb-24">
+    <div ref={containerRef} style={{ opacity: '0' }} class="max-w-lg mx-auto px-4 pt-4 pb-24">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-on-surface font-display">Buddies</h1>
         <A href="/buddies/new" class="bg-primary text-surface px-4 py-2 rounded-xl font-semibold text-sm active:scale-95 transition-transform">

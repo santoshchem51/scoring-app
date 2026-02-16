@@ -1,4 +1,4 @@
-import { Show, createSignal, createResource, createEffect } from 'solid-js';
+import { Show, createSignal, createResource, createEffect, onMount } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, useNavigate, A } from '@solidjs/router';
 import { useAuth } from '../../shared/hooks/useAuth';
@@ -9,6 +9,23 @@ const GroupInvitePage: Component = () => {
   const params = useParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+
+  let containerRef: HTMLDivElement | undefined;
+
+  onMount(() => {
+    if (!containerRef) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      containerRef.style.opacity = '1';
+      return;
+    }
+    containerRef.animate(
+      [
+        { opacity: 0, transform: 'translateY(8px)' },
+        { opacity: 1, transform: 'translateY(0)' },
+      ],
+      { duration: 200, easing: 'ease-out', fill: 'forwards' },
+    );
+  });
 
   const [joining, setJoining] = createSignal(false);
   const [joinError, setJoinError] = createSignal<string | null>(null);
@@ -73,7 +90,7 @@ const GroupInvitePage: Component = () => {
   };
 
   return (
-    <div class="max-w-lg mx-auto px-4 pt-8 pb-24">
+    <div ref={containerRef} style={{ opacity: '0' }} class="max-w-lg mx-auto px-4 pt-8 pb-24">
       {/* Loading state */}
       <Show when={!group.loading} fallback={
         <div class="space-y-4 animate-pulse">

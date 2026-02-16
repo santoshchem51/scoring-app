@@ -1,4 +1,4 @@
-import { Show, For, createSignal, createEffect, onCleanup } from 'solid-js';
+import { Show, For, createSignal, createEffect, onCleanup, onMount } from 'solid-js';
 import type { Component } from 'solid-js';
 import { A } from '@solidjs/router';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
@@ -72,7 +72,23 @@ const OpenPlayPage: Component = () => {
   const [sessions, setSessions] = createSignal<GameSession[]>([]);
   const [loading, setLoading] = createSignal(true);
 
+  let containerRef: HTMLDivElement | undefined;
   let unsubscribe: (() => void) | null = null;
+
+  onMount(() => {
+    if (!containerRef) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      containerRef.style.opacity = '1';
+      return;
+    }
+    containerRef.animate(
+      [
+        { opacity: 0, transform: 'translateY(8px)' },
+        { opacity: 1, transform: 'translateY(0)' },
+      ],
+      { duration: 200, easing: 'ease-out', fill: 'forwards' },
+    );
+  });
 
   createEffect(() => {
     setLoading(true);
@@ -93,7 +109,7 @@ const OpenPlayPage: Component = () => {
   onCleanup(() => unsubscribe?.());
 
   return (
-    <div class="max-w-lg mx-auto px-4 pt-4 pb-24">
+    <div ref={containerRef} style={{ opacity: '0' }} class="max-w-lg mx-auto px-4 pt-4 pb-24">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-on-surface font-display">Open Play</h1>
         <button
