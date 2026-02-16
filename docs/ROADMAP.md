@@ -1,6 +1,6 @@
 # PickleScore Roadmap
 
-**Last updated:** 2026-02-16
+**Last updated:** 2026-02-17
 
 ---
 
@@ -48,18 +48,17 @@
 - [x] **Wave C — Role-based dashboards:** Viewer role detection, My Matches, My Stats, Scorekeeper match list
 - [x] **Wave D — In-App Invitations:** User search (typeahead), invitation model, player inbox, Accept/Decline flow, mailto fallback
 
+### Layer 4: Landing Page & Branding
+- [x] Landing page (hero, features, how-it-works, CTA, footer)
+- [x] TopNav with global auth (Sign In / avatar dropdown)
+- [x] App branding (pickleball logo favicon, LogoIcon component)
+- [x] PWA manifest polish (name → PickleScore, updated description)
+- [x] Open Graph / social meta tags for sharing
+- [x] Route changes (/ → LandingPage, /new → GameSetupPage)
+
 ---
 
 ## Up Next
-
-### Layer 4: Landing Page & Branding
-> First impression matters — a proper landing page, app identity, and marketing presence.
-
-- [ ] Landing page (hero, features showcase, screenshots, CTA)
-- [ ] App branding (logo, favicon, app icon, splash screen)
-- [ ] PWA manifest polish (name, description, theme color, icons)
-- [ ] Open Graph / social meta tags for sharing
-- [ ] App Store-ready screenshots
 
 ### Layer 5: Notifications & Engagement
 > Keep players in the loop without them having to check the app.
@@ -111,6 +110,36 @@
 - [ ] Tournament templates (save & reuse settings)
 - [ ] Fee collection integration (Stripe/Venmo links)
 
+### Layer 11: App Store Distribution
+> Get PickleScore into users' hands via app stores.
+
+- [ ] Wrap PWA for Android (TWA / Capacitor / similar)
+- [ ] Wrap PWA for iOS (Capacitor / similar)
+- [ ] App Store listing (screenshots, description, keywords)
+- [ ] Play Store listing (screenshots, description, keywords)
+- [ ] App review / approval process
+- [ ] CI/CD pipeline for app store builds
+
+### Layer 12: Monetization & Revenue
+> Sustainable business model to fund development and hosting.
+
+- [ ] Define pricing tiers (free vs premium features)
+- [ ] Payment integration (Stripe, in-app purchases)
+- [ ] Organizer subscription (advanced tournament features, analytics)
+- [ ] Fee collection for tournament entry (pass-through to organizers)
+- [ ] Cost analysis (Firebase usage, hosting, app store fees)
+- [ ] Usage analytics and conversion tracking
+
+### Layer 13: Multi-Sport Expansion
+> Extend the scoring engine beyond pickleball to other sports.
+
+- [ ] Abstract scoring engine (pluggable rules per sport)
+- [ ] Table Tennis support (11-point games, best of 5/7, serve rotation)
+- [ ] Box Cricket support (overs, wickets, run tracking)
+- [ ] Sport selector on game setup (choose sport before scoring)
+- [ ] Sport-specific tournament formats and rules
+- [ ] Rebrand/umbrella brand strategy (PickleScore → broader name?)
+
 ---
 
 ## Ideas (Unscoped)
@@ -128,8 +157,10 @@
 
 ## Prioritization Notes
 
-Layers 4-10 are roughly ordered by user impact, but not strictly sequential. Some can run in parallel:
-- **Layer 4 (Landing/Branding)** is next — it's the front door for new users
+Layers 5-13 are roughly ordered by user impact, but not strictly sequential. Some can run in parallel:
 - **Layer 5 (Notifications)** and **Layer 9 (PWA)** are high-value quality-of-life improvements
 - **Layer 6 (Discovery)** and **Layer 7 (Profiles)** are growth features
 - **Layer 8 (Spectator)** and **Layer 10 (Admin)** are nice-to-haves for larger events
+- **Layer 11 (App Store)** can start once PWA hardening (Layer 9) is solid
+- **Layer 12 (Monetization)** should be planned early but implemented after user base grows
+- **Layer 13 (Multi-Sport)** is a major architectural shift — plan carefully before starting
