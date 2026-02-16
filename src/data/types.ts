@@ -85,6 +85,7 @@ export interface UserProfile {
 
 // --- Tournament types (Layer 2) ---
 
+export type TournamentVisibility = 'private' | 'public';
 export type TournamentFormat = 'round-robin' | 'single-elimination' | 'pool-bracket';
 export type TournamentStatus = 'setup' | 'registration' | 'pool-play' | 'bracket' | 'completed' | 'cancelled' | 'paused';
 export type PaymentStatus = 'unpaid' | 'paid' | 'waived';
@@ -138,6 +139,8 @@ export interface Tournament {
   cancellationReason: string | null;
   createdAt: number;
   updatedAt: number;
+  visibility: TournamentVisibility;
+  shareCode: string | null;
 }
 
 export interface TournamentTeam {

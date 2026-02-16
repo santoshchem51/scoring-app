@@ -1,8 +1,8 @@
 # Tournament v2 — Known Gaps & Future Test Scenarios
 
 **Created:** 2026-02-15
-**Updated:** 2026-02-15 (Wave 3 complete — match re-scoring)
-**Context:** Post-merge of `feature/tournament-v2` into `main` (17 commits, 164 tests → 190 tests after Wave 2 → 206 tests after Wave 3)
+**Updated:** 2026-02-15 (Layer 3 Wave A complete — tournament sharing & public access)
+**Context:** Post-merge of `feature/tournament-v2` into `main` (17 commits, 164 tests → 190 tests after Wave 2 → 206 tests after Wave 3 → 210 tests after Layer 3 Wave A)
 
 ---
 
@@ -39,15 +39,16 @@
 - Works for both singles and doubles team names (e.g., "Champion: Eve & Anna")
 - **E2E verified:** Premature completion blocked, champion displayed correctly after all matches scored
 
-### 4. Public vs Private Tournaments (LOW priority — future feature)
+### ~~4. Public vs Private Tournaments~~ — RESOLVED (Layer 3 Wave A)
 
-**Problem:** All tournaments are only visible to the organizer. No sharing mechanism exists.
+**Fixed in:** branch `feature/layer3-wave-a` (8 commits)
 
-**User's vision:**
-- **Public tournaments:** Anyone can see and register; email verification for registrants
-- **Private tournaments:** Invite-only via link, QR code, or email invitation
-
-**This is a separate feature layer** (estimated 2-3 weeks), not a bug fix.
+- `visibility` field on Tournament: `'private' | 'public'` (default: private)
+- `shareCode`: 6-char alphanumeric code generated on first publish
+- `ShareTournamentModal`: visibility toggle, copy link, QR code (via `qrcode` lib), email invite (`mailto:`)
+- Public route `/t/:shareCode` — unauthenticated spectator access
+- Firestore rules updated: public tournaments + sub-collections readable without auth
+- **E2E verified:** Create tournament, share (private→public), spectator views read-only, toggle back to private → "Tournament Not Found"
 
 ### ~~5. Match Re-scoring / Editing~~ — RESOLVED (Wave 3)
 
@@ -139,7 +140,7 @@
 
 ---
 
-## Test Coverage Summary (current — post Wave 2)
+## Test Coverage Summary (current — post Layer 3 Wave A)
 
 | Area | Tests | Files |
 |------|-------|-------|
@@ -162,7 +163,8 @@
 | Tournament lifecycle | 7 | 1 |
 | Cloud sync | 4 | 1 |
 | Rescoring | 16 | 1 |
-| **Total** | **206** | **24** |
+| Share code | 4 | 1 |
+| **Total** | **210** | **25** |
 
 ### Wave 1 E2E Tests Performed (manual via Playwright)
 - Singles single-elimination: 4 players → bracket → 3 matches → champion (Diana)
@@ -191,3 +193,12 @@
 - Scored final: Delta 11 - Alpha 3
 - Test 3 — Winner changes, next started: Tried flipping semi 1 back → blocked with "Cannot change winner — the next round match has already started."
 - Advanced to Completed: Champion = Delta (correct after re-scoring)
+
+### Layer 3 Wave A E2E Tests Performed (manual via Playwright)
+- Created tournament "Public Test Tournament" (single-elimination, singles)
+- Share button visible on dashboard (organizer only)
+- Share modal opens: visibility toggle, shows "Private" / "Only you can see"
+- Toggled to Public: share link appears with `/t/NTJHES`, QR code generated, email invite section shown
+- Unauthenticated spectator navigated to `/t/NTJHES`: tournament loaded, read-only view (no Share/Advance/Edit buttons)
+- Toggled back to Private: share link hidden, spectator sees "Tournament Not Found"
+- All 22 verification steps passed

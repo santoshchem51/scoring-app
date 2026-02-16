@@ -80,6 +80,8 @@ const TournamentCreatePage: Component = () => {
         cancellationReason: null,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        visibility: 'private' as const,
+        shareCode: null,
       };
 
       await firestoreTournamentRepository.save(tournament);

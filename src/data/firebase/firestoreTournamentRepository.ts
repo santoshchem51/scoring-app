@@ -33,12 +33,29 @@ export const firestoreTournamentRepository = {
     return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
   },
 
+  async getByShareCode(shareCode: string): Promise<Tournament | undefined> {
+    const q = query(
+      collection(firestore, 'tournaments'),
+      where('shareCode', '==', shareCode),
+      where('visibility', '==', 'public'),
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return undefined;
+    const d = snapshot.docs[0];
+    return { id: d.id, ...d.data() } as Tournament;
+  },
+
   async updateStatus(id: string, status: TournamentStatus, options?: { reason?: string; pausedFrom?: TournamentStatus | null }): Promise<void> {
     const ref = doc(firestore, 'tournaments', id);
     const updates: Record<string, unknown> = { status, updatedAt: serverTimestamp() };
     if (options?.reason !== undefined) updates.cancellationReason = options.reason;
     if (options?.pausedFrom !== undefined) updates.pausedFrom = options.pausedFrom;
     await updateDoc(ref, updates);
+  },
+
+  async updateVisibility(id: string, visibility: 'private' | 'public', shareCode: string | null): Promise<void> {
+    const ref = doc(firestore, 'tournaments', id);
+    await updateDoc(ref, { visibility, shareCode, updatedAt: serverTimestamp() });
   },
 
   async delete(id: string): Promise<void> {

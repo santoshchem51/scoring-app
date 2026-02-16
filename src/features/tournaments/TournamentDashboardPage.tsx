@@ -31,6 +31,8 @@ import type { ScoreEditData } from './components/ScoreEditModal';
 import { checkBracketRescoreSafety } from './engine/rescoring';
 import { advanceBracketWinner } from './engine/bracketAdvancement';
 import { cloudSync } from '../../data/firebase/cloudSync';
+import ShareTournamentModal from './components/ShareTournamentModal';
+import { generateShareCode } from './engine/shareCode';
 
 // Format-aware status transitions (no pool-play for single-elimination, no bracket for round-robin)
 const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatus, TournamentStatus>>> = {
@@ -68,6 +70,7 @@ const TournamentDashboardPage: Component = () => {
     team2Id: string;
   } | null>(null);
   const [editModalError, setEditModalError] = createSignal('');
+  const [showShareModal, setShowShareModal] = createSignal(false);
 
   // --- Data Fetching ---
 
@@ -459,6 +462,19 @@ const TournamentDashboardPage: Component = () => {
     setEditModalError('');
   };
 
+  const handleToggleVisibility = async (newVisibility: 'private' | 'public') => {
+    const t = tournament();
+    if (!t) return;
+
+    let shareCode = t.shareCode;
+    if (newVisibility === 'public' && !shareCode) {
+      shareCode = generateShareCode();
+    }
+
+    await firestoreTournamentRepository.updateVisibility(t.id, newVisibility, shareCode);
+    refetchTournament();
+  };
+
   const handleSaveEditedScore = async (data: ScoreEditData) => {
     const match = editingMatch();
     const ctx = editingContext();
@@ -569,13 +585,24 @@ const TournamentDashboardPage: Component = () => {
                     {statusLabels[t().status] ?? t().status}
                   </span>
                 </div>
-                <Show when={isOrganizer() && nextStatus()}>
-                  <button type="button" onClick={handleStatusAdvance}
-                    disabled={advancing()}
-                    class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform ${advancing() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
-                    {advancing() ? 'Advancing...' : `Advance to ${nextStatusLabel()}`}
-                  </button>
-                </Show>
+                <div class="flex items-center gap-2">
+                  <Show when={isOrganizer()}>
+                    <button
+                      type="button"
+                      onClick={() => setShowShareModal(true)}
+                      class="text-sm font-semibold text-primary px-3 py-1 border border-primary/30 rounded-lg active:scale-95 transition-transform"
+                    >
+                      Share
+                    </button>
+                  </Show>
+                  <Show when={isOrganizer() && nextStatus()}>
+                    <button type="button" onClick={handleStatusAdvance}
+                      disabled={advancing()}
+                      class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform ${advancing() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
+                      {advancing() ? 'Advancing...' : `Advance to ${nextStatusLabel()}`}
+                    </button>
+                  </Show>
+                </div>
               </div>
 
               {/* Info Grid */}
@@ -703,6 +730,21 @@ const TournamentDashboardPage: Component = () => {
                     onSave={handleSaveEditedScore}
                     onCancel={handleCancelEdit}
                     externalError={editModalError()}
+                  />
+                )}
+              </Show>
+
+              <Show when={tournament()}>
+                {(t) => (
+                  <ShareTournamentModal
+                    open={showShareModal()}
+                    tournamentName={t().name}
+                    tournamentDate={new Date(t().date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    tournamentLocation={t().location || 'TBD'}
+                    visibility={t().visibility ?? 'private'}
+                    shareCode={t().shareCode ?? null}
+                    onToggleVisibility={handleToggleVisibility}
+                    onClose={() => setShowShareModal(false)}
                   />
                 )}
               </Show>
