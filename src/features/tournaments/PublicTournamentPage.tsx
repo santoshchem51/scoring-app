@@ -3,9 +3,7 @@ import type { Component } from 'solid-js';
 import { useParams } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
-import { firestoreTeamRepository } from '../../data/firebase/firestoreTeamRepository';
-import { firestorePoolRepository } from '../../data/firebase/firestorePoolRepository';
-import { firestoreBracketRepository } from '../../data/firebase/firestoreBracketRepository';
+import { useTournamentLive } from './hooks/useTournamentLive';
 import PoolTable from './components/PoolTable';
 import BracketView from './components/BracketView';
 import TournamentResults from './components/TournamentResults';
@@ -14,58 +12,22 @@ import { statusLabels, statusColors, formatLabels } from './constants';
 const PublicTournamentPage: Component = () => {
   const params = useParams();
 
-  // --- Data Fetching ---
-
-  const [tournament] = createResource(
+  // Step 1: Resolve share code to tournament ID (one-shot)
+  const [resolved] = createResource(
     () => params.code,
     (code) => firestoreTournamentRepository.getByShareCode(code),
   );
 
-  const [teams] = createResource(
-    () => tournament()?.id ?? null,
-    (id) => {
-      if (!id) return Promise.resolve([]);
-      return firestoreTeamRepository.getByTournament(id);
-    },
-  );
+  // Step 2: Subscribe to live updates once we have the tournament ID
+  const live = useTournamentLive(() => resolved()?.id);
 
-  // Pools: only fetch when status is pool-play or later and format uses pools
-  const [pools] = createResource(
-    () => {
-      const t = tournament();
-      if (!t) return null;
-      const hasPoolPlay = t.format === 'round-robin' || t.format === 'pool-bracket';
-      const pastRegistration = ['pool-play', 'bracket', 'completed'].includes(t.status);
-      if (hasPoolPlay && pastRegistration) return t.id;
-      return null;
-    },
-    (id) => {
-      if (!id) return Promise.resolve([]);
-      return firestorePoolRepository.getByTournament(id);
-    },
-  );
-
-  // Bracket: only fetch when status is bracket or later and format uses bracket
-  const [bracketSlots] = createResource(
-    () => {
-      const t = tournament();
-      if (!t) return null;
-      const hasBracket = t.format === 'single-elimination' || t.format === 'pool-bracket';
-      const inBracketPhase = ['bracket', 'completed'].includes(t.status);
-      if (hasBracket && inBracketPhase) return t.id;
-      return null;
-    },
-    (id) => {
-      if (!id) return Promise.resolve([]);
-      return firestoreBracketRepository.getByTournament(id);
-    },
-  );
+  // Use live data if available, fall back to resolved data during initial load
+  const tournament = () => live.tournament() ?? resolved();
 
   // --- Derived State ---
 
   const teamNames = createMemo<Record<string, string>>(() => {
-    const t = teams();
-    if (!t) return {};
+    const t = live.teams();
     const map: Record<string, string> = {};
     for (const team of t) {
       map[team.id] = team.name;
@@ -95,7 +57,7 @@ const PublicTournamentPage: Component = () => {
     <PageLayout title={tournament()?.name ?? 'Tournament'}>
       <div class="p-4 space-y-6">
         {/* Loading state */}
-        <Show when={!tournament.loading} fallback={
+        <Show when={!resolved.loading} fallback={
           <div class="flex items-center justify-center min-h-[40vh]">
             <p class="text-on-surface-muted">Loading tournament...</p>
           </div>
@@ -141,7 +103,7 @@ const PublicTournamentPage: Component = () => {
                   <div class="bg-surface-light rounded-xl p-4">
                     <div class="text-xs text-on-surface-muted uppercase tracking-wider">Teams</div>
                     <div class="font-semibold text-on-surface">
-                      {teams()?.length ?? 0}{t().maxPlayers ? ` / ${t().maxPlayers}` : ''}
+                      {live.teams().length}{t().maxPlayers ? ` / ${t().maxPlayers}` : ''}
                     </div>
                   </div>
                 </div>
@@ -158,17 +120,17 @@ const PublicTournamentPage: Component = () => {
                 <Show when={t().status === 'completed'}>
                   <TournamentResults
                     format={t().format}
-                    poolStandings={pools()?.[0]?.standings}
-                    bracketSlots={bracketSlots() ?? undefined}
+                    poolStandings={live.pools()[0]?.standings}
+                    bracketSlots={live.bracket().length > 0 ? live.bracket() : undefined}
                     teamNames={teamNames()}
                   />
                 </Show>
 
                 {/* Pool Tables (read-only — no onScoreMatch/onEditMatch) */}
-                <Show when={showPoolTables() && (pools()?.length ?? 0) > 0}>
+                <Show when={showPoolTables() && live.pools().length > 0}>
                   <div class="space-y-4">
                     <h2 class="font-bold text-on-surface text-lg">Pool Standings</h2>
-                    <For each={pools()}>
+                    <For each={live.pools()}>
                       {(pool) => (
                         <PoolTable
                           poolId={pool.id}
@@ -184,11 +146,11 @@ const PublicTournamentPage: Component = () => {
                 </Show>
 
                 {/* Bracket View (read-only — no onScoreMatch/onEditMatch) */}
-                <Show when={showBracketView() && (bracketSlots()?.length ?? 0) > 0}>
+                <Show when={showBracketView() && live.bracket().length > 0}>
                   <div class="space-y-4">
                     <h2 class="font-bold text-on-surface text-lg">Bracket</h2>
                     <BracketView
-                      slots={bracketSlots()!}
+                      slots={live.bracket()}
                       teamNames={teamNames()}
                     />
                   </div>
