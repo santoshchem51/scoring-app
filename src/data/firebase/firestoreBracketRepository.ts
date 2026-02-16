@@ -24,4 +24,8 @@ export const firestoreBracketRepository = {
     const ref = doc(firestore, 'tournaments', tournamentId, 'bracket', slotId);
     await updateDoc(ref, { [field]: teamId });
   },
+  async updateMatchId(tournamentId: string, slotId: string, matchId: string): Promise<void> {
+    const ref = doc(firestore, 'tournaments', tournamentId, 'bracket', slotId);
+    await updateDoc(ref, { matchId, updatedAt: serverTimestamp() });
+  },
 };
