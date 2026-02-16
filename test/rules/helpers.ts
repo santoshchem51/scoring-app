@@ -212,3 +212,76 @@ export function makeRegistration(userId: string, tournamentId: string, overrides
     ...overrides,
   };
 }
+
+// ── Buddy feature factories ─────────────────────────────────────────────
+
+export function makeBuddyGroup(createdBy: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'group-1',
+    name: 'Court Crew',
+    createdBy,
+    memberCount: 0,
+    visibility: 'private',
+    shareCode: 'ABC123',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export function makeBuddyMember(userId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    userId,
+    role: 'member',
+    joinedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export function makeGameSession(createdBy: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'session-1',
+    createdBy,
+    groupId: null,
+    title: 'Pickup Game',
+    date: Date.now(),
+    time: '18:00',
+    location: 'Main Court',
+    spotsTotal: 8,
+    spotsConfirmed: 0,
+    minPlayers: 4,
+    status: 'proposed',
+    visibility: 'open',
+    shareCode: 'XYZ789',
+    rsvpDeadline: null,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export function makeSessionRsvp(userId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    userId,
+    response: 'in',
+    respondedAt: Date.now(),
+    dayOfStatus: 'none',
+    statusUpdatedAt: null,
+    selectedSlotIds: [],
+    ...overrides,
+  };
+}
+
+export function makeBuddyNotification(userId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    userId,
+    type: 'session_proposed',
+    message: 'New game session proposed!',
+    read: false,
+    sessionId: 'session-1',
+    groupId: 'group-1',
+    actorName: 'Test User',
+    createdAt: Date.now(),
+    ...overrides,
+  };
+}
