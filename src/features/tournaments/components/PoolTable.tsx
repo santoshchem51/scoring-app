@@ -10,6 +10,7 @@ interface Props {
   advancingCount: number;
   schedule?: PoolScheduleEntry[];
   onScoreMatch?: (poolId: string, team1Id: string, team2Id: string) => void;
+  onEditMatch?: (poolId: string, matchId: string, team1Id: string, team2Id: string) => void;
 }
 
 const PoolTable: Component<Props> = (props) => {
@@ -61,7 +62,16 @@ const PoolTable: Component<Props> = (props) => {
                   <Show when={!entry.matchId && props.onScoreMatch}
                     fallback={
                       <Show when={entry.matchId}>
-                        <span class="text-xs text-green-400 font-semibold">Completed</span>
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs text-green-400 font-semibold">Completed</span>
+                          <Show when={props.onEditMatch}>
+                            <button type="button"
+                              onClick={() => props.onEditMatch!(props.poolId, entry.matchId!, entry.team1Id, entry.team2Id)}
+                              class="text-xs font-semibold px-2 py-0.5 rounded bg-surface-lighter text-on-surface-muted active:scale-95 transition-transform">
+                              Edit
+                            </button>
+                          </Show>
+                        </div>
                       </Show>
                     }>
                     <button type="button"
