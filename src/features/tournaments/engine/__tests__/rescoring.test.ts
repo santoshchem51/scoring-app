@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveWinnerFromGames } from '../rescoring';
+import { deriveWinnerFromGames, validateGameScores } from '../rescoring';
 import type { GameResult } from '../../../../data/types';
 
 function game(team1Score: number, team2Score: number, gameNumber: number): GameResult {
@@ -42,5 +42,33 @@ describe('deriveWinnerFromGames', () => {
 
   it('returns null for empty games array', () => {
     expect(deriveWinnerFromGames([])).toBeNull();
+  });
+});
+
+describe('validateGameScores', () => {
+  it('returns valid for correct single game scores', () => {
+    const result = validateGameScores([game(11, 5, 1)]);
+    expect(result).toEqual({ valid: true });
+  });
+
+  it('returns invalid when a game has a tie', () => {
+    const tiedGame: GameResult = { gameNumber: 1, team1Score: 8, team2Score: 8, winningSide: 1 };
+    const result = validateGameScores([tiedGame]);
+    expect(result).toEqual({ valid: false, message: 'Game 1: scores cannot be tied.' });
+  });
+
+  it('returns invalid for empty games array', () => {
+    const result = validateGameScores([]);
+    expect(result).toEqual({ valid: false, message: 'At least one game is required.' });
+  });
+
+  it('returns valid for best-of-3 with 2 games (sweep)', () => {
+    const result = validateGameScores([game(11, 5, 1), game(11, 7, 2)]);
+    expect(result).toEqual({ valid: true });
+  });
+
+  it('returns valid for best-of-3 with 3 games', () => {
+    const result = validateGameScores([game(11, 5, 1), game(5, 11, 2), game(11, 9, 3)]);
+    expect(result).toEqual({ valid: true });
   });
 });
