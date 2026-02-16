@@ -26,6 +26,11 @@ import OrganizerPairingPanel from './components/OrganizerPairingPanel';
 import { statusLabels, statusColors, formatLabels } from './constants';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding, Match } from '../../data/types';
+import ScoreEditModal from './components/ScoreEditModal';
+import type { ScoreEditData } from './components/ScoreEditModal';
+import { checkBracketRescoreSafety } from './engine/rescoring';
+import { advanceBracketWinner } from './engine/bracketAdvancement';
+import { cloudSync } from '../../data/firebase/cloudSync';
 
 // Format-aware status transitions (no pool-play for single-elimination, no bracket for round-robin)
 const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatus, TournamentStatus>>> = {
@@ -54,6 +59,15 @@ const TournamentDashboardPage: Component = () => {
 
   const [error, setError] = createSignal('');
   const [advancing, setAdvancing] = createSignal(false);
+  const [editingMatch, setEditingMatch] = createSignal<Match | null>(null);
+  const [editingContext, setEditingContext] = createSignal<{
+    type: 'pool' | 'bracket';
+    poolId?: string;
+    slotId?: string;
+    team1Id: string;
+    team2Id: string;
+  } | null>(null);
+  const [editModalError, setEditModalError] = createSignal('');
 
   // --- Data Fetching ---
 
@@ -407,6 +421,127 @@ const TournamentDashboardPage: Component = () => {
     createAndNavigateToMatch(team1Id, team2Id, { bracketSlotId: slotId });
   };
 
+  const handleEditPoolMatch = async (poolId: string, matchId: string, team1Id: string, team2Id: string) => {
+    try {
+      const match = await matchRepository.getById(matchId);
+      if (!match) {
+        setError('Match not found.');
+        return;
+      }
+      setEditingMatch(match);
+      setEditingContext({ type: 'pool', poolId, team1Id, team2Id });
+      setEditModalError('');
+    } catch (err) {
+      console.error('Failed to load match for editing:', err);
+      setError('Failed to load match data.');
+    }
+  };
+
+  const handleEditBracketMatch = async (slotId: string, matchId: string, team1Id: string, team2Id: string) => {
+    try {
+      const match = await matchRepository.getById(matchId);
+      if (!match) {
+        setError('Match not found.');
+        return;
+      }
+      setEditingMatch(match);
+      setEditingContext({ type: 'bracket', slotId, team1Id, team2Id });
+      setEditModalError('');
+    } catch (err) {
+      console.error('Failed to load match for editing:', err);
+      setError('Failed to load match data.');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMatch(null);
+    setEditingContext(null);
+    setEditModalError('');
+  };
+
+  const handleSaveEditedScore = async (data: ScoreEditData) => {
+    const match = editingMatch();
+    const ctx = editingContext();
+    const t = tournament();
+    if (!match || !ctx || !t) return;
+
+    try {
+      // For bracket matches, check safety before saving
+      if (ctx.type === 'bracket' && ctx.slotId) {
+        const slots = bracketSlots() ?? [];
+        const currentSlot = slots.find((s) => s.id === ctx.slotId);
+        if (currentSlot) {
+          const newWinnerTeamId = data.winningSide === 1 ? ctx.team1Id : ctx.team2Id;
+          const safety = checkBracketRescoreSafety(currentSlot, newWinnerTeamId, slots);
+          if (!safety.safe) {
+            setEditModalError(safety.message ?? 'Cannot change bracket winner.');
+            return;
+          }
+        }
+      }
+
+      // Update match record
+      const updatedMatch: Match = {
+        ...match,
+        games: data.games,
+        winningSide: data.winningSide,
+      };
+      await matchRepository.save(updatedMatch);
+      cloudSync.syncMatchToCloud(updatedMatch);
+
+      // Pool match: recalculate standings
+      if (ctx.type === 'pool' && ctx.poolId) {
+        const pool = await firestorePoolRepository.getById(t.id, ctx.poolId);
+        if (pool) {
+          const allMatches = await matchRepository.getAll();
+          const poolMatches = allMatches.filter(
+            (m) => m.tournamentId === t.id && m.poolId === ctx.poolId && m.status === 'completed',
+          );
+
+          const standings = calculateStandings(
+            pool.teamIds,
+            poolMatches,
+            (m) => ({ team1: m.tournamentTeam1Id ?? '', team2: m.tournamentTeam2Id ?? '' }),
+          );
+
+          await firestorePoolRepository.updateScheduleAndStandings(
+            t.id, ctx.poolId, pool.schedule, standings,
+          );
+        }
+      }
+
+      // Bracket match: update winner if changed
+      if (ctx.type === 'bracket' && ctx.slotId) {
+        const slots = bracketSlots() ?? [];
+        const currentSlot = slots.find((s) => s.id === ctx.slotId);
+        if (currentSlot) {
+          const newWinnerTeamId = data.winningSide === 1 ? ctx.team1Id : ctx.team2Id;
+
+          // Update current slot result
+          await firestoreBracketRepository.updateResult(t.id, ctx.slotId, newWinnerTeamId, match.id);
+
+          // If winner changed and there's a next slot, update next slot's team assignment
+          if (currentSlot.winnerId !== newWinnerTeamId && currentSlot.nextSlotId) {
+            const advance = advanceBracketWinner(currentSlot, newWinnerTeamId, slots);
+            if (advance) {
+              await firestoreBracketRepository.updateSlotTeam(t.id, advance.slotId, advance.field, advance.teamId);
+            }
+          }
+        }
+      }
+
+      // Close modal and refresh data
+      setEditingMatch(null);
+      setEditingContext(null);
+      setEditModalError('');
+      refetchPools();
+      refetchBracket();
+    } catch (err) {
+      console.error('Failed to save edited score:', err);
+      setEditModalError(err instanceof Error ? err.message : 'Failed to save score.');
+    }
+  };
+
   // --- Render ---
 
   return (
@@ -517,6 +652,7 @@ const TournamentDashboardPage: Component = () => {
                         advancingCount={t().config.teamsPerPoolAdvancing ?? 2}
                         schedule={pool.schedule}
                         onScoreMatch={handleScorePoolMatch}
+                        onEditMatch={isOrganizer() ? handleEditPoolMatch : undefined}
                       />
                     )}
                   </For>
@@ -531,6 +667,7 @@ const TournamentDashboardPage: Component = () => {
                     slots={bracketSlots()!}
                     teamNames={teamNames()}
                     onScoreMatch={handleScoreBracketMatch}
+                    onEditMatch={isOrganizer() ? handleEditBracketMatch : undefined}
                   />
                 </div>
               </Show>
@@ -553,6 +690,21 @@ const TournamentDashboardPage: Component = () => {
                   tournament={t()}
                   onUpdated={handleOrganizerUpdated}
                 />
+              </Show>
+
+              {/* Score Edit Modal */}
+              <Show when={editingMatch()}>
+                {(match) => (
+                  <ScoreEditModal
+                    open={true}
+                    team1Name={match().team1Name}
+                    team2Name={match().team2Name}
+                    games={match().games}
+                    onSave={handleSaveEditedScore}
+                    onCancel={handleCancelEdit}
+                    externalError={editModalError()}
+                  />
+                )}
               </Show>
             </>
           )}
