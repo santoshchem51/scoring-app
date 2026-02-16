@@ -13,14 +13,25 @@ import {
 import { firestore } from './config';
 import type { Match, CloudMatch, MatchVisibility } from '../types';
 
+/** Strip undefined values so Firestore doesn't reject the document. */
+function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
+  const result = {} as Record<string, unknown>;
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result as T;
+}
+
 function toCloudMatch(match: Match, ownerId: string, visibility: MatchVisibility = 'private'): CloudMatch {
-  return {
+  return stripUndefined({
     ...match,
     ownerId,
     sharedWith: [],
     visibility,
     syncedAt: Date.now(),
-  };
+  } as unknown as Record<string, unknown>) as CloudMatch;
 }
 
 export const firestoreMatchRepository = {

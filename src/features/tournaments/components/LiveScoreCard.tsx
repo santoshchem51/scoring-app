@@ -11,10 +11,22 @@ interface Props {
 const LiveScoreCard: Component<Props> = (props) => {
   const { match, loading } = useLiveMatch(() => props.matchId);
 
-  const currentGame = () => {
+  const liveScore = () => {
     const m = match();
-    if (!m || m.games.length === 0) return null;
-    return m.games[m.games.length - 1];
+    if (!m) return { team1Score: 0, team2Score: 0 };
+    // Use lastSnapshot for in-progress scores (games array only has completed games)
+    if (m.lastSnapshot && m.status === 'in-progress') {
+      try {
+        const snap = typeof m.lastSnapshot === 'string' ? JSON.parse(m.lastSnapshot) : m.lastSnapshot;
+        return { team1Score: snap.team1Score ?? 0, team2Score: snap.team2Score ?? 0 };
+      } catch { /* fall through */ }
+    }
+    // Fallback to last completed game
+    if (m.games.length > 0) {
+      const last = m.games[m.games.length - 1];
+      return { team1Score: last.team1Score, team2Score: last.team2Score };
+    }
+    return { team1Score: 0, team2Score: 0 };
   };
 
   const gameCount = () => {
@@ -59,7 +71,7 @@ const LiveScoreCard: Component<Props> = (props) => {
                     {props.team1Name}
                   </span>
                   <span class={`font-mono font-bold ${m().winningSide === 1 ? 'text-on-surface' : 'text-on-surface-muted'}`}>
-                    {currentGame()?.team1Score ?? 0}
+                    {liveScore().team1Score}
                   </span>
                 </div>
                 <div class="flex items-center justify-between text-sm">
@@ -67,7 +79,7 @@ const LiveScoreCard: Component<Props> = (props) => {
                     {props.team2Name}
                   </span>
                   <span class={`font-mono font-bold ${m().winningSide === 2 ? 'text-on-surface' : 'text-on-surface-muted'}`}>
-                    {currentGame()?.team2Score ?? 0}
+                    {liveScore().team2Score}
                   </span>
                 </div>
               </div>

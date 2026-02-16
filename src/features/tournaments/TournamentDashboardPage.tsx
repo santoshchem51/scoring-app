@@ -350,8 +350,8 @@ const TournamentDashboardPage: Component = () => {
       tournamentId: t.id,
       tournamentTeam1Id: team1Id,
       tournamentTeam2Id: team2Id,
-      poolId: extra.poolId,
-      bracketSlotId: extra.bracketSlotId,
+      poolId: extra.poolId ?? null,
+      bracketSlotId: extra.bracketSlotId ?? null,
     };
 
     try {
