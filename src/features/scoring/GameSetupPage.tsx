@@ -9,6 +9,7 @@ import type { GameType, ScoringMode, MatchFormat, Match, MatchConfig } from '../
 import { settings } from '../../stores/settingsStore';
 import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants/teamColors';
 import { cloudSync } from '../../data/firebase/cloudSync';
+import { Zap } from 'lucide-solid';
 
 const GameSetupPage: Component = () => {
   const navigate = useNavigate();
@@ -100,9 +101,7 @@ const GameSetupPage: Component = () => {
           class="w-full bg-primary text-surface font-bold text-lg py-5 rounded-2xl active:scale-95 transition-transform flex items-center justify-center gap-3"
           aria-label="Quick Game — start with defaults"
         >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
+          <Zap size={24} />
           Quick Game
         </button>
 
