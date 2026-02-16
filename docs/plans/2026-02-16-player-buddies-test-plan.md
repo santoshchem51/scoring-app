@@ -8,16 +8,16 @@
 
 ## Current Coverage Summary
 
-### What IS Tested (6 test files, ~65 test cases)
+### What IS Tested (6 test files, 92 test cases out of 332 project-wide)
 
 | File | Tests | Coverage Quality |
 |------|-------|-----------------|
-| `sessionHelpers.test.ts` | 15 tests | **Good** — all 7 exported functions covered |
-| `groupHelpers.test.ts` | 10 tests | **Good** — all 4 exported functions covered |
-| `notificationHelpers.test.ts` | 17+ tests | **Excellent** — all 7 helpers + shared behavior |
-| `firestoreBuddyGroupRepository.test.ts` | 14 tests | **Good** — all 10 methods covered |
-| `firestoreGameSessionRepository.test.ts` | 15 tests | **Good** — all 10 methods covered |
-| `firestoreBuddyNotificationRepository.test.ts` | 10 tests | **Good** — all 5 methods covered |
+| `sessionHelpers.test.ts` | 23 tests | **Good** — all 7 exported functions covered with multiple cases |
+| `groupHelpers.test.ts` | 13 tests | **Good** — all 4 exported functions covered |
+| `notificationHelpers.test.ts` | 16 tests | **Excellent** — all 7 helpers + shared behavior |
+| `firestoreBuddyGroupRepository.test.ts` | 15 tests | **Good** — all 10 methods covered |
+| `firestoreGameSessionRepository.test.ts` | 17 tests | **Good** — all 10 methods covered |
+| `firestoreBuddyNotificationRepository.test.ts` | 8 tests | **Good** — all 5 methods covered |
 
 ### What is NOT Tested (0 test files)
 
