@@ -1,5 +1,6 @@
 import { onMount } from 'solid-js';
 import type { Component, JSX } from 'solid-js';
+import TopNav from './TopNav';
 
 interface Props {
   title: string;
@@ -26,11 +27,7 @@ const PageLayout: Component<Props> = (props) => {
 
   return (
     <div class="flex flex-col min-h-screen bg-surface">
-      <header class="bg-surface-light border-b border-surface-lighter px-4 py-3">
-        <div class="max-w-lg mx-auto md:max-w-3xl">
-          <h1 class="text-lg font-bold text-on-surface">{props.title}</h1>
-        </div>
-      </header>
+      <TopNav pageTitle={props.title} />
       <main ref={mainRef} id="main-content" class="flex-1 overflow-y-auto pb-24" style={{ opacity: "0" }}>
         <div class="max-w-lg mx-auto md:max-w-3xl">
           {props.children}
