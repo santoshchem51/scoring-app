@@ -34,6 +34,12 @@ import { cloudSync } from '../../data/firebase/cloudSync';
 import ShareTournamentModal from './components/ShareTournamentModal';
 import { generateShareCode } from './engine/shareCode';
 import { useTournamentLive } from './hooks/useTournamentLive';
+import { detectViewerRole } from './engine/roleDetection';
+import type { ViewerRole } from './engine/roleDetection';
+import { getPlayerTeamId, getPlayerMatches, getPlayerStats } from './engine/playerStats';
+import MyMatchesSection from './components/MyMatchesSection';
+import MyStatsCard from './components/MyStatsCard';
+import ScorekeeperMatchList from './components/ScorekeeperMatchList';
 
 // Format-aware status transitions (no pool-play for single-elimination, no bracket for round-robin)
 const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatus, TournamentStatus>>> = {
@@ -105,6 +111,37 @@ const TournamentDashboardPage: Component = () => {
       map[team.id] = team.name;
     }
     return map;
+  });
+
+  const role = createMemo<ViewerRole>(() => {
+    const t = live.tournament();
+    const u = user();
+    if (!t) return 'spectator';
+    return detectViewerRole(t, u?.uid ?? null, live.registrations());
+  });
+
+  const playerTeamId = createMemo(() => {
+    const u = user();
+    if (!u) return null;
+    return getPlayerTeamId(u.uid, live.registrations(), live.teams());
+  });
+
+  const playerMatches = createMemo(() => {
+    const tid = playerTeamId();
+    if (!tid) return [];
+    return getPlayerMatches(tid, live.pools(), live.bracket(), teamNames());
+  });
+
+  const playerStats = createMemo(() => {
+    const tid = playerTeamId();
+    if (!tid) return { wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 };
+    return getPlayerStats(tid, live.pools(), live.bracket());
+  });
+
+  const playerTeamName = createMemo(() => {
+    const tid = playerTeamId();
+    if (!tid) return '';
+    return teamNames()[tid] ?? '';
   });
 
   const userNames = createMemo<Record<string, string>>(() => {
@@ -605,6 +642,30 @@ const TournamentDashboardPage: Component = () => {
                     onRegistered={handleRegistered}
                   />
                 </div>
+              </Show>
+
+              {/* Player Dashboard (registered players only) */}
+              <Show when={role() === 'player' && playerTeamId()}>
+                <MyMatchesSection
+                  matches={playerMatches()}
+                  teamNames={teamNames()}
+                  playerTeamName={playerTeamName()}
+                />
+                <MyStatsCard
+                  stats={playerStats()}
+                  playerTeamName={playerTeamName()}
+                />
+              </Show>
+
+              {/* Scorekeeper Match List */}
+              <Show when={role() === 'scorekeeper'}>
+                <ScorekeeperMatchList
+                  pools={live.pools()}
+                  bracket={live.bracket()}
+                  teamNames={teamNames()}
+                  onScorePoolMatch={handleScorePoolMatch}
+                  onScoreBracketMatch={handleScoreBracketMatch}
+                />
               </Show>
 
               {/* Tournament Results (completed) */}
