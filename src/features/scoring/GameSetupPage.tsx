@@ -199,7 +199,7 @@ const GameSetupPage: Component = () => {
 
       {/* Sticky Start Button */}
       <div class="fixed bottom-16 left-0 right-0 p-4 bg-surface/95 backdrop-blur-sm safe-bottom">
-        <div class="max-w-lg mx-auto md:max-w-3xl">
+        <div class="max-w-lg mx-auto md:max-w-3xl lg:max-w-5xl">
           <button
             type="button"
             onClick={startGame}
