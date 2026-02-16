@@ -18,8 +18,8 @@ const BottomNav: Component = () => {
   return (
     <nav aria-label="Main navigation" class="fixed bottom-0 left-0 right-0 bg-surface-light border-t border-surface-lighter safe-bottom">
       <div class="max-w-lg mx-auto md:max-w-3xl flex justify-around py-1">
-        <A href="/" class={linkClass('/')} aria-current={isActive('/') ? 'page' : undefined} aria-label="New Game">
-          <Show when={isActive('/')}>
+        <A href="/new" class={linkClass('/new')} aria-current={isActive('/new') ? 'page' : undefined} aria-label="New Game">
+          <Show when={isActive('/new')}>
             <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
           </Show>
           <svg aria-hidden="true" class="relative w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>

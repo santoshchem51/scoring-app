@@ -12,6 +12,7 @@ const TournamentListPage = lazy(() => import('../features/tournaments/Tournament
 const TournamentCreatePage = lazy(() => import('../features/tournaments/TournamentCreatePage'));
 const TournamentDashboardPage = lazy(() => import('../features/tournaments/TournamentDashboardPage'));
 const PublicTournamentPage = lazy(() => import('../features/tournaments/PublicTournamentPage'));
+const LandingPage = lazy(() => import('../features/landing/LandingPage'));
 
 function NotFoundPage() {
   return (
@@ -26,7 +27,8 @@ function NotFoundPage() {
 export default function AppRouter() {
   return (
     <Router root={App}>
-      <Route path="/" component={GameSetupPage} />
+      <Route path="/" component={LandingPage} />
+      <Route path="/new" component={GameSetupPage} />
       <Route path="/score/:matchId" component={ScoringPage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/players" component={PlayersPage} />

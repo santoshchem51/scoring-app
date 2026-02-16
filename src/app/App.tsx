@@ -1,5 +1,6 @@
 import type { Component, JSX } from 'solid-js';
-import { Suspense, createEffect } from 'solid-js';
+import { Show, Suspense, createEffect } from 'solid-js';
+import { useLocation } from '@solidjs/router';
 import BottomNav from '../shared/components/BottomNav';
 import { PageSkeleton } from '../shared/components/Skeleton';
 import { settings } from '../stores/settingsStore';
@@ -9,6 +10,9 @@ interface Props {
 }
 
 const App: Component<Props> = (props) => {
+  const location = useLocation();
+  const showBottomNav = () => location.pathname !== '/';
+
   createEffect(() => {
     const mode = settings().displayMode;
     document.documentElement.classList.toggle('outdoor', mode === 'outdoor');
@@ -42,7 +46,9 @@ const App: Component<Props> = (props) => {
       }>
         {props.children}
       </Suspense>
-      <BottomNav />
+      <Show when={showBottomNav()}>
+        <BottomNav />
+      </Show>
     </div>
   );
 };
