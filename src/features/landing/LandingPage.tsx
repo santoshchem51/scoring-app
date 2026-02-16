@@ -1,5 +1,6 @@
 import type { Component } from 'solid-js';
 import { A } from '@solidjs/router';
+import { Zap, Clock, Trophy, Activity, Share2, UserPlus } from 'lucide-solid';
 import TopNav from '../../shared/components/TopNav';
 import Logo from '../../shared/components/Logo';
 
@@ -53,14 +54,7 @@ const LandingPage: Component = () => {
             {FEATURES.map((f) => (
               <div class="bg-surface rounded-xl p-5">
                 <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 text-primary">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d={f.iconPath}
-                    />
-                  </svg>
+                  <f.icon size={20} />
                 </div>
                 <h3 class="font-bold text-on-surface mb-1 text-sm">{f.title}</h3>
                 <p class="text-xs text-on-surface-muted">{f.description}</p>
@@ -127,36 +121,36 @@ const LandingPage: Component = () => {
 
 /* ─── Static Data ─────────────────────────────────────────── */
 
-const FEATURES = [
+const FEATURES: { title: string; description: string; icon: Component<{ size: number; class?: string }> }[] = [
   {
     title: 'Quick Scoring',
     description: 'One-tap start, swipe to score, works offline court-side.',
-    iconPath: 'M12 4v16m8-8H4',
+    icon: Zap,
   },
   {
     title: 'Match History & Stats',
     description: 'Every game saved, win/loss tracking across all your matches.',
-    iconPath: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    icon: Clock,
   },
   {
     title: 'Tournament Management',
     description: 'Round-robin, elimination, pool-to-bracket formats with full bracket control.',
-    iconPath: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z',
+    icon: Trophy,
   },
   {
     title: 'Live Real-Time Scores',
     description: 'Point-by-point updates, live standings, spectator views.',
-    iconPath: 'M13 10V3L4 14h7v7l9-11h-7z',
+    icon: Activity,
   },
   {
     title: 'Sharing & QR Codes',
     description: 'Public links, QR codes, instant tournament access for anyone.',
-    iconPath: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z',
+    icon: Share2,
   },
   {
     title: 'Player Invitations',
     description: 'Search users, send in-app invites, one-tap accept to join.',
-    iconPath: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z',
+    icon: UserPlus,
   },
 ];
 
