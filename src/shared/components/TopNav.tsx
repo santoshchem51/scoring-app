@@ -19,7 +19,7 @@ const TopNav: Component<TopNavProps> = (props) => {
     <header
       class={`px-4 py-2.5 ${isLanding() ? '' : 'bg-surface-light border-b border-surface-lighter'}`}
     >
-      <div class="max-w-lg mx-auto md:max-w-3xl flex items-center justify-between">
+      <div class="max-w-5xl mx-auto flex items-center justify-between">
         {/* Left: Logo + title or wordmark */}
         <A href="/" class="flex items-center gap-2 no-underline">
           <LogoIcon class="w-7 h-7" />
