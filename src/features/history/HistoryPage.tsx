@@ -25,7 +25,7 @@ const HistoryPage: Component = () => {
             />
           }
         >
-          <ul role="list" class="md:grid md:grid-cols-2 md:gap-3 space-y-3 md:space-y-0 list-none p-0 m-0">
+          <ul role="list" class="md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 space-y-3 md:space-y-0 list-none p-0 m-0">
             <For each={matches()}>
               {(match) => <li><MatchCard match={match} /></li>}
             </For>
