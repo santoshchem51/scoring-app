@@ -49,15 +49,15 @@ const LandingPage: Component = () => {
       </section>
 
       {/* Features */}
-      <section class="px-4 py-12 bg-surface-light">
-        <div class="max-w-lg mx-auto md:max-w-3xl">
+      <section class="px-4 py-12 md:py-16 bg-surface-light/50">
+        <div class="max-w-lg mx-auto md:max-w-3xl lg:max-w-5xl">
           <h2
-            class="text-xl font-bold text-center mb-8"
+            class="text-xl md:text-2xl font-bold text-center mb-8 text-gradient-subtle"
             style={{ "font-family": "var(--font-score)" }}
           >
             Everything You Need
           </h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-in">
             {FEATURES.map((f) => (
               <div class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-200 hover-lift">
                 <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 text-primary">
@@ -72,18 +72,18 @@ const LandingPage: Component = () => {
       </section>
 
       {/* How It Works */}
-      <section class="px-4 py-12">
-        <div class="max-w-lg mx-auto md:max-w-3xl">
+      <section class="px-4 py-12 md:py-16">
+        <div class="max-w-lg mx-auto md:max-w-3xl lg:max-w-4xl">
           <h2
-            class="text-xl font-bold text-center mb-8"
+            class="text-xl md:text-2xl font-bold text-center mb-8 text-gradient-subtle"
             style={{ "font-family": "var(--font-score)" }}
           >
             How It Works
           </h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8">
             {STEPS.map((step, i) => (
               <div class="text-center">
-                <div class="w-10 h-10 rounded-full bg-primary text-surface font-bold text-lg flex items-center justify-center mx-auto mb-3">
+                <div class="w-10 h-10 rounded-full bg-primary text-surface font-bold text-lg flex items-center justify-center mx-auto mb-3" style={{ "box-shadow": "0 0 20px rgba(34,197,94,0.3)" }}>
                   {i + 1}
                 </div>
                 <h3 class="font-bold text-on-surface mb-1">{step.title}</h3>
@@ -95,8 +95,8 @@ const LandingPage: Component = () => {
       </section>
 
       {/* Final CTA */}
-      <section class="px-4 py-12 bg-surface-light text-center">
-        <div class="max-w-lg mx-auto">
+      <section class="px-4 py-12 md:py-16 bg-surface-light/50 text-center">
+        <div class="max-w-lg mx-auto md:max-w-2xl">
           <h2
             class="text-2xl font-bold mb-4"
             style={{ "font-family": "var(--font-score)" }}
@@ -105,7 +105,7 @@ const LandingPage: Component = () => {
           </h2>
           <A
             href="/new"
-            class="inline-block bg-primary text-surface font-semibold px-8 py-3.5 rounded-xl text-lg active:scale-95 transition-transform"
+            class="inline-block bg-primary text-surface font-semibold px-8 py-3.5 rounded-xl text-lg active:scale-[0.97] transition-all duration-200 hover-glow-primary"
           >
             Get Started
           </A>
@@ -113,7 +113,7 @@ const LandingPage: Component = () => {
       </section>
 
       {/* Footer */}
-      <footer class="px-4 py-8 text-center">
+      <footer class="px-4 py-8 text-center border-t border-border">
         <Logo size="sm" />
         <p class="text-xs text-on-surface-muted mt-2">
           Built for pickleball players and organizers
