@@ -24,4 +24,8 @@ export const firestoreRegistrationRepository = {
     if (note !== undefined) updates.paymentNote = note;
     await updateDoc(ref, updates);
   },
+  async updatePartnerName(tournamentId: string, regId: string, partnerName: string | null): Promise<void> {
+    const ref = doc(firestore, 'tournaments', tournamentId, 'registrations', regId);
+    await updateDoc(ref, { partnerName, updatedAt: serverTimestamp() });
+  },
 };
