@@ -211,8 +211,8 @@ const PublicSessionPage: Component = () => {
     <div ref={containerRef} style={{ opacity: '0' }} class="max-w-lg mx-auto px-4 pt-8 pb-24">
       {/* Loading state */}
       <Show when={!session.loading} fallback={<LoadingSkeleton />}>
-        {/* Not found state */}
-        <Show when={session()} fallback={<NotFoundState />}>
+        {/* Not found or error state */}
+        <Show when={!session.error && session()} fallback={<NotFoundState />}>
           {(s) => (
             <div class="space-y-5">
               {/* Session header card */}

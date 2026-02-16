@@ -113,10 +113,10 @@ describe('BuddyGroups (/buddyGroups/{groupId})', () => {
     await assertSucceeds(getDoc(doc(db, groupPath)));
   });
 
-  it('denies non-member from reading private group', async () => {
+  it('allows any authenticated user to read private group metadata (needed for invite links)', async () => {
     await seedDoc(groupPath, makeBuddyGroup(creatorId, { visibility: 'private' }));
     const db = authedContext(strangerId).firestore();
-    await assertFails(getDoc(doc(db, groupPath)));
+    await assertSucceeds(getDoc(doc(db, groupPath)));
   });
 
   it('allows any authenticated user to read public group', async () => {

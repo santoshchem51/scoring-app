@@ -20,4 +20,13 @@ export const firestore = getFirestore(app);
 if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS !== 'false') {
   connectFirestoreEmulator(firestore, '127.0.0.1', 8180);
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+
+  // Expose Firebase SDK on window for E2E tests (page.evaluate can't resolve bare specifiers)
+  (window as any).__TEST_FIREBASE__ = { auth, firestore };
+  import('firebase/auth').then((mod) => {
+    (window as any).__TEST_FIREBASE_AUTH__ = mod;
+  });
+  import('firebase/firestore').then((mod) => {
+    (window as any).__TEST_FIREBASE_FIRESTORE__ = mod;
+  });
 }

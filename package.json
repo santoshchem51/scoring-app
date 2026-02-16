@@ -9,6 +9,9 @@
     "preview": "vite preview",
     "generate-icons": "node scripts/generate-icons.mjs",
     "test:rules": "firebase emulators:exec --only firestore \"npx vitest run --config vitest.rules.config.ts\"",
+    "test:e2e": "npx playwright test",
+    "test:e2e:buddies": "firebase emulators:exec --only auth,firestore \"npx playwright test e2e/buddies*\"",
+    "test:e2e:headed": "npx playwright test --headed",
     "emulator:start": "firebase emulators:start --only firestore"
   },
   "dependencies": {

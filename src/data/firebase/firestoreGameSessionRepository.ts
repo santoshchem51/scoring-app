@@ -45,7 +45,11 @@ export const firestoreGameSessionRepository = {
   },
 
   async getByShareCode(code: string): Promise<GameSession | null> {
-    const q = query(collection(firestore, 'gameSessions'), where('shareCode', '==', code));
+    const q = query(
+      collection(firestore, 'gameSessions'),
+      where('shareCode', '==', code),
+      where('visibility', '==', 'open'),
+    );
     const snap = await getDocs(q);
     if (snap.docs.length === 0) return null;
     const d = snap.docs[0];

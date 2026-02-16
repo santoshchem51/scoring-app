@@ -98,8 +98,8 @@ const GroupInvitePage: Component = () => {
           <div class="bg-surface-light rounded-2xl h-14" />
         </div>
       }>
-        {/* Not found state */}
-        <Show when={group()} fallback={
+        {/* Not found or error state */}
+        <Show when={!group.error && group()} fallback={
           <div class="text-center py-16">
             <div class="text-5xl mb-4">🔍</div>
             <h1 class="text-xl font-bold text-on-surface mb-2">Group Not Found</h1>
