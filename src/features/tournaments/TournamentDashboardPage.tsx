@@ -33,6 +33,7 @@ import { advanceBracketWinner } from './engine/bracketAdvancement';
 import { cloudSync } from '../../data/firebase/cloudSync';
 import ShareTournamentModal from './components/ShareTournamentModal';
 import { generateShareCode } from './engine/shareCode';
+import { useTournamentLive } from './hooks/useTournamentLive';
 
 // Format-aware status transitions (no pool-play for single-elimination, no bracket for round-robin)
 const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatus, TournamentStatus>>> = {
@@ -72,22 +73,8 @@ const TournamentDashboardPage: Component = () => {
   const [editModalError, setEditModalError] = createSignal('');
   const [showShareModal, setShowShareModal] = createSignal(false);
 
-  // --- Data Fetching ---
-
-  const [tournament, { refetch: refetchTournament }] = createResource(
-    () => params.id,
-    (id) => firestoreTournamentRepository.getById(id),
-  );
-
-  const [teams, { refetch: refetchTeams }] = createResource(
-    () => params.id,
-    (id) => firestoreTeamRepository.getByTournament(id),
-  );
-
-  const [registrations, { refetch: refetchRegistrations }] = createResource(
-    () => params.id,
-    (id) => firestoreRegistrationRepository.getByTournament(id),
-  );
+  // --- Live Data (replaces createResource + refetch) ---
+  const live = useTournamentLive(() => params.id);
 
   // Fetch user's existing registration for RegistrationForm
   const [existingRegistration, { refetch: refetchExistingReg }] = createResource(
@@ -103,49 +90,16 @@ const TournamentDashboardPage: Component = () => {
     },
   );
 
-  // Pools: only fetch when status is pool-play or later and format uses pools
-  const [pools, { refetch: refetchPools }] = createResource(
-    () => {
-      const t = tournament();
-      if (!t) return null;
-      const hasPoolPlay = t.format === 'round-robin' || t.format === 'pool-bracket';
-      const pastRegistration = ['pool-play', 'bracket', 'completed'].includes(t.status);
-      if (hasPoolPlay && pastRegistration) return t.id;
-      return null;
-    },
-    (id) => {
-      if (!id) return Promise.resolve([]);
-      return firestorePoolRepository.getByTournament(id);
-    },
-  );
-
-  // Bracket: only fetch when status is bracket or later and format uses bracket
-  const [bracketSlots, { refetch: refetchBracket }] = createResource(
-    () => {
-      const t = tournament();
-      if (!t) return null;
-      const hasBracket = t.format === 'single-elimination' || t.format === 'pool-bracket';
-      const inBracketPhase = ['bracket', 'completed'].includes(t.status);
-      if (hasBracket && inBracketPhase) return t.id;
-      return null;
-    },
-    (id) => {
-      if (!id) return Promise.resolve([]);
-      return firestoreBracketRepository.getByTournament(id);
-    },
-  );
-
   // --- Derived State ---
 
   const isOrganizer = () => {
-    const t = tournament();
+    const t = live.tournament();
     const u = user();
     return !!t && !!u && t.organizerId === u.uid;
   };
 
   const teamNames = createMemo<Record<string, string>>(() => {
-    const t = teams();
-    if (!t) return {};
+    const t = live.teams();
     const map: Record<string, string> = {};
     for (const team of t) {
       map[team.id] = team.name;
@@ -154,8 +108,7 @@ const TournamentDashboardPage: Component = () => {
   });
 
   const userNames = createMemo<Record<string, string>>(() => {
-    const regs = registrations();
-    if (!regs) return {};
+    const regs = live.registrations();
     const map: Record<string, string> = {};
     for (const reg of regs) {
       map[reg.userId] = reg.playerName || `Player ${reg.userId.slice(0, 6)}`;
@@ -164,7 +117,7 @@ const TournamentDashboardPage: Component = () => {
   });
 
   const nextStatus = createMemo<TournamentStatus | null>(() => {
-    const t = tournament();
+    const t = live.tournament();
     if (!t) return null;
     const transitions = statusTransitions[t.format];
     if (!transitions) return null;
@@ -178,7 +131,7 @@ const TournamentDashboardPage: Component = () => {
   });
 
   const showPoolTables = createMemo(() => {
-    const t = tournament();
+    const t = live.tournament();
     if (!t) return false;
     const inPhase = ['pool-play', 'bracket', 'completed'].includes(t.status);
     const hasPoolFormat = t.format === 'round-robin' || t.format === 'pool-bracket';
@@ -186,7 +139,7 @@ const TournamentDashboardPage: Component = () => {
   });
 
   const showBracketView = createMemo(() => {
-    const t = tournament();
+    const t = live.tournament();
     if (!t) return false;
     const inPhase = ['bracket', 'completed'].includes(t.status);
     const hasBracketFormat = t.format === 'single-elimination' || t.format === 'pool-bracket';
@@ -196,7 +149,7 @@ const TournamentDashboardPage: Component = () => {
   // --- Status Advance with Side Effects ---
 
   const handleStatusAdvance = async () => {
-    const t = tournament();
+    const t = live.tournament();
     const next = nextStatus();
     if (!t || !next || advancing()) return;
 
@@ -210,7 +163,7 @@ const TournamentDashboardPage: Component = () => {
       // Validate completion prerequisites before advancing to completed
       if (next === 'completed') {
         if (fmt === 'round-robin') {
-          const currentPools = pools() ?? [];
+          const currentPools = live.pools();
           const poolResult = validatePoolCompletion(currentPools);
           if (!poolResult.valid) {
             setError(poolResult.message ?? 'Not all pool matches are completed.');
@@ -220,7 +173,7 @@ const TournamentDashboardPage: Component = () => {
         }
 
         if (fmt === 'single-elimination' || fmt === 'pool-bracket') {
-          const currentSlots = bracketSlots() ?? [];
+          const currentSlots = live.bracket();
           const bracketResult = validateBracketCompletion(currentSlots);
           if (!bracketResult.valid) {
             setError(bracketResult.message ?? 'Bracket is not complete.');
@@ -232,7 +185,7 @@ const TournamentDashboardPage: Component = () => {
 
       // registration -> pool-play or bracket: create teams first
       if (currentStatus === 'registration' && (next === 'pool-play' || next === 'bracket')) {
-        const regs = registrations() ?? [];
+        const regs = live.registrations();
         if (regs.length < 2) {
           setError('At least 2 registrations are required.');
           setAdvancing(false);
@@ -291,7 +244,7 @@ const TournamentDashboardPage: Component = () => {
 
       // pool-play -> bracket (for pool-bracket)
       else if (currentStatus === 'pool-play' && next === 'bracket' && fmt === 'pool-bracket') {
-        const currentPools = pools() ?? [];
+        const currentPools = live.pools();
         if (currentPools.length === 0) {
           setError('No pools found. Cannot advance to bracket.');
           setAdvancing(false);
@@ -327,7 +280,7 @@ const TournamentDashboardPage: Component = () => {
 
       // pool-play -> completed (for round-robin)
       else if (currentStatus === 'pool-play' && next === 'completed' && fmt === 'round-robin') {
-        const currentPools = pools() ?? [];
+        const currentPools = live.pools();
 
         for (const pool of currentPools) {
           const standings = calculateStandings(pool.teamIds, [], (m) => ({ team1: m.team1Name, team2: m.team2Name }));
@@ -347,12 +300,7 @@ const TournamentDashboardPage: Component = () => {
         await firestoreTournamentRepository.updateStatus(t.id, next);
       }
 
-      // Refetch all relevant resources after status change
-      refetchTournament();
-      refetchTeams();
-      refetchRegistrations();
-      refetchPools();
-      refetchBracket();
+      // Live data auto-updates via onSnapshot; only refetch user-specific resource
       refetchExistingReg();
     } catch (err) {
       console.error('Failed to advance tournament status:', err);
@@ -365,23 +313,22 @@ const TournamentDashboardPage: Component = () => {
   // --- Callbacks for child components ---
 
   const handleRegistered = () => {
-    refetchRegistrations();
     refetchExistingReg();
   };
 
   const handleOrganizerUpdated = () => {
-    refetchTournament();
+    // Live data auto-updates via onSnapshot
   };
 
   const handleFeeUpdated = () => {
-    refetchRegistrations();
+    // Live data auto-updates via onSnapshot
   };
 
   const createAndNavigateToMatch = async (team1Id: string, team2Id: string, extra: { poolId?: string; bracketSlotId?: string }) => {
-    const t = tournament();
+    const t = live.tournament();
     if (!t) return;
-    const team1 = (teams() ?? []).find((tm) => tm.id === team1Id);
-    const team2 = (teams() ?? []).find((tm) => tm.id === team2Id);
+    const team1 = live.teams().find((tm) => tm.id === team1Id);
+    const team2 = live.teams().find((tm) => tm.id === team2Id);
 
     const match: Match = {
       id: crypto.randomUUID(),
@@ -463,7 +410,7 @@ const TournamentDashboardPage: Component = () => {
   };
 
   const handleToggleVisibility = async (newVisibility: 'private' | 'public') => {
-    const t = tournament();
+    const t = live.tournament();
     if (!t) return;
 
     let shareCode = t.shareCode;
@@ -472,19 +419,19 @@ const TournamentDashboardPage: Component = () => {
     }
 
     await firestoreTournamentRepository.updateVisibility(t.id, newVisibility, shareCode);
-    refetchTournament();
+    // Live data auto-updates via onSnapshot
   };
 
   const handleSaveEditedScore = async (data: ScoreEditData) => {
     const match = editingMatch();
     const ctx = editingContext();
-    const t = tournament();
+    const t = live.tournament();
     if (!match || !ctx || !t) return;
 
     try {
       // For bracket matches, check safety before saving
       if (ctx.type === 'bracket' && ctx.slotId) {
-        const slots = bracketSlots() ?? [];
+        const slots = live.bracket();
         const currentSlot = slots.find((s) => s.id === ctx.slotId);
         if (currentSlot) {
           const newWinnerTeamId = data.winningSide === 1 ? ctx.team1Id : ctx.team2Id;
@@ -528,7 +475,7 @@ const TournamentDashboardPage: Component = () => {
 
       // Bracket match: update winner if changed
       if (ctx.type === 'bracket' && ctx.slotId) {
-        const slots = bracketSlots() ?? [];
+        const slots = live.bracket();
         const currentSlot = slots.find((s) => s.id === ctx.slotId);
         if (currentSlot) {
           const newWinnerTeamId = data.winningSide === 1 ? ctx.team1Id : ctx.team2Id;
@@ -546,12 +493,10 @@ const TournamentDashboardPage: Component = () => {
         }
       }
 
-      // Close modal and refresh data
+      // Close modal — live data auto-updates via onSnapshot
       setEditingMatch(null);
       setEditingContext(null);
       setEditModalError('');
-      refetchPools();
-      refetchBracket();
     } catch (err) {
       console.error('Failed to save edited score:', err);
       setEditModalError(err instanceof Error ? err.message : 'Failed to save score.');
@@ -561,9 +506,10 @@ const TournamentDashboardPage: Component = () => {
   // --- Render ---
 
   return (
-    <PageLayout title={tournament()?.name ?? 'Tournament'}>
+    <PageLayout title={live.tournament()?.name ?? 'Tournament'}>
       <div class="p-4 space-y-6">
-        <Show when={tournament()} fallback={<p class="text-on-surface-muted">Loading...</p>}>
+        <Show when={!live.loading()} fallback={<p class="text-on-surface-muted">Loading...</p>}>
+        <Show when={live.tournament()} fallback={<p class="text-on-surface-muted">Tournament not found.</p>}>
           {(t) => (
             <>
               {/* Error Banner */}
@@ -624,7 +570,7 @@ const TournamentDashboardPage: Component = () => {
                 <div class="bg-surface-light rounded-xl p-4">
                   <div class="text-xs text-on-surface-muted uppercase tracking-wider">Teams</div>
                   <div class="font-semibold text-on-surface">
-                    {teams()?.length ?? 0}{t().maxPlayers ? ` / ${t().maxPlayers}` : ''}
+                    {live.teams().length}{t().maxPlayers ? ` / ${t().maxPlayers}` : ''}
                   </div>
                 </div>
               </div>
@@ -635,13 +581,13 @@ const TournamentDashboardPage: Component = () => {
                   <Show when={isOrganizer()}>
                     <OrganizerPlayerManager
                       tournament={t()}
-                      registrations={registrations() ?? []}
+                      registrations={live.registrations()}
                       onUpdated={handleRegistered}
                     />
                     <Show when={t().config.gameType === 'doubles' && t().teamFormation === 'byop'}>
                       <OrganizerPairingPanel
                         tournamentId={t().id}
-                        registrations={registrations() ?? []}
+                        registrations={live.registrations()}
                         userNames={userNames()}
                         onUpdated={handleRegistered}
                       />
@@ -659,17 +605,17 @@ const TournamentDashboardPage: Component = () => {
               <Show when={t().status === 'completed'}>
                 <TournamentResults
                   format={t().format}
-                  poolStandings={pools()?.[0]?.standings}
-                  bracketSlots={bracketSlots() ?? undefined}
+                  poolStandings={live.pools()[0]?.standings}
+                  bracketSlots={live.bracket().length > 0 ? live.bracket() : undefined}
                   teamNames={teamNames()}
                 />
               </Show>
 
               {/* Pool Tables */}
-              <Show when={showPoolTables() && (pools()?.length ?? 0) > 0}>
+              <Show when={showPoolTables() && live.pools().length > 0}>
                 <div class="space-y-4">
                   <h2 class="font-bold text-on-surface text-lg">Pool Standings</h2>
-                  <For each={pools()}>
+                  <For each={live.pools()}>
                     {(pool) => (
                       <PoolTable
                         poolId={pool.id}
@@ -687,11 +633,11 @@ const TournamentDashboardPage: Component = () => {
               </Show>
 
               {/* Bracket View */}
-              <Show when={showBracketView() && (bracketSlots()?.length ?? 0) > 0}>
+              <Show when={showBracketView() && live.bracket().length > 0}>
                 <div class="space-y-4">
                   <h2 class="font-bold text-on-surface text-lg">Bracket</h2>
                   <BracketView
-                    slots={bracketSlots()!}
+                    slots={live.bracket()}
                     teamNames={teamNames()}
                     onScoreMatch={handleScoreBracketMatch}
                     onEditMatch={isOrganizer() ? handleEditBracketMatch : undefined}
@@ -704,7 +650,7 @@ const TournamentDashboardPage: Component = () => {
                 <FeeTracker
                   tournamentId={t().id}
                   entryFee={t().entryFee!}
-                  registrations={registrations() ?? []}
+                  registrations={live.registrations()}
                   isOrganizer={true}
                   userNames={userNames()}
                   onUpdated={handleFeeUpdated}
@@ -734,7 +680,7 @@ const TournamentDashboardPage: Component = () => {
                 )}
               </Show>
 
-              <Show when={tournament()}>
+              <Show when={live.tournament()}>
                 {(t) => (
                   <ShareTournamentModal
                     open={showShareModal()}
@@ -750,6 +696,7 @@ const TournamentDashboardPage: Component = () => {
               </Show>
             </>
           )}
+        </Show>
         </Show>
       </div>
     </PageLayout>
