@@ -1,6 +1,7 @@
 import { For, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { BracketSlot } from '../../../data/types';
+import LiveScoreCard from './LiveScoreCard';
 
 interface Props {
   slots: BracketSlot[];
@@ -61,12 +62,19 @@ const BracketView: Component<Props> = (props) => {
                         >
                           <span class="truncate">{team2.name}</span>
                         </div>
-                        <Show when={!slot.winnerId && slot.team1Id && slot.team2Id && props.onScoreMatch}>
+                        <Show when={!slot.matchId && !slot.winnerId && slot.team1Id && slot.team2Id && props.onScoreMatch}>
                           <button type="button"
                             onClick={() => props.onScoreMatch!(slot.id, slot.team1Id!, slot.team2Id!)}
                             class="w-full text-xs font-semibold py-1 bg-primary/20 text-primary text-center">
                             Score Match
                           </button>
+                        </Show>
+                        <Show when={slot.matchId && !slot.winnerId}>
+                          <LiveScoreCard
+                            matchId={slot.matchId!}
+                            team1Name={props.teamNames[slot.team1Id ?? ''] ?? 'TBD'}
+                            team2Name={props.teamNames[slot.team2Id ?? ''] ?? 'TBD'}
+                          />
                         </Show>
                         <Show when={slot.winnerId && slot.matchId && props.onEditMatch}>
                           <button type="button"

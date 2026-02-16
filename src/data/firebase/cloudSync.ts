@@ -58,6 +58,12 @@ export const cloudSync = {
           startedAt: cloudMatch.startedAt,
           completedAt: cloudMatch.completedAt,
           lastSnapshot: cloudMatch.lastSnapshot,
+          tournamentId: cloudMatch.tournamentId,
+          tournamentTeam1Id: cloudMatch.tournamentTeam1Id,
+          tournamentTeam2Id: cloudMatch.tournamentTeam2Id,
+          poolId: cloudMatch.poolId,
+          bracketSlotId: cloudMatch.bracketSlotId,
+          court: cloudMatch.court,
         };
         await matchRepository.save(localMatch);
         synced++;
