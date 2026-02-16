@@ -5,7 +5,7 @@ service cloud.firestore {
 
     // ── Users (/users/{userId}) ───────────────────────────────────────
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
 
       allow create: if request.auth != null && request.auth.uid == userId
         && request.resource.data.id == userId
@@ -264,6 +264,42 @@ service cloud.firestore {
           && (resource.data.userId == request.auth.uid
               || get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid);
       }
+
+      // ── Invitations (/tournaments/{tid}/invitations/{invId}) ──
+      match /invitations/{invitationId} {
+        // Organizer can read all invitations for their tournament
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+
+        // Invited user can read their own invitation
+        allow read: if request.auth != null
+          && resource.data.invitedUserId == request.auth.uid;
+
+        // Only organizer can create invitations
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && request.resource.data.tournamentId == tournamentId
+          && request.resource.data.invitedUserId is string
+          && request.resource.data.invitedEmail is string
+          && request.resource.data.invitedName is string
+          && request.resource.data.invitedByUserId == request.auth.uid
+          && request.resource.data.status == 'pending';
+
+        // Invited user can update status (accept/decline) only from pending
+        allow update: if request.auth != null
+          && resource.data.invitedUserId == request.auth.uid
+          && request.resource.data.status in ['accepted', 'declined']
+          && resource.data.status == 'pending'
+          && request.resource.data.invitedUserId == resource.data.invitedUserId
+          && request.resource.data.tournamentId == resource.data.tournamentId
+          && request.resource.data.invitedByUserId == resource.data.invitedByUserId;
+      }
+    }
+
+    // ── Collection Group: Invitations (for player inbox query) ────────
+    match /{path=**}/invitations/{invitationId} {
+      allow read: if request.auth != null
+        && resource.data.invitedUserId == request.auth.uid;
     }
   }
 }
