@@ -78,6 +78,7 @@ export interface CloudScoreEvent extends ScoreEvent {
 export interface UserProfile {
   id: string;
   displayName: string;
+  displayNameLower: string;
   email: string;
   photoURL: string | null;
   createdAt: number;
@@ -204,4 +205,18 @@ export interface TournamentRegistration {
   partnerName: string | null;       // BYOP: display name for lookup
   profileComplete: boolean;         // true when rating + partner (if BYOP) filled
   registeredAt: number;
+}
+
+export type InvitationStatus = 'pending' | 'accepted' | 'declined';
+
+export interface TournamentInvitation {
+  id: string;
+  tournamentId: string;
+  invitedUserId: string;
+  invitedEmail: string;
+  invitedName: string;
+  invitedByUserId: string;
+  status: InvitationStatus;
+  createdAt: number;
+  respondedAt: number | null;
 }

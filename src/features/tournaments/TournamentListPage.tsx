@@ -6,6 +6,7 @@ import EmptyState from '../../shared/components/EmptyState';
 import TournamentCard from './components/TournamentCard';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
+import InvitationInbox from './components/InvitationInbox';
 
 const TournamentListPage: Component = () => {
   const { user } = useAuth();
@@ -21,6 +22,9 @@ const TournamentListPage: Component = () => {
   return (
     <PageLayout title="Tournaments">
       <div class="p-4">
+        <Show when={user()}>
+          {(u) => <InvitationInbox userId={u().uid} />}
+        </Show>
         <Switch>
           <Match when={tournaments.loading}>
             <div class="flex flex-col items-center justify-center py-16 gap-3">

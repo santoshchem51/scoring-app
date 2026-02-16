@@ -1,14 +1,18 @@
 import { createSignal, createEffect, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import QRCode from 'qrcode';
+import PlayerSearch from './PlayerSearch';
 
 interface Props {
   open: boolean;
+  tournamentId: string;
   tournamentName: string;
   tournamentDate: string;
   tournamentLocation: string;
   visibility: 'private' | 'public';
   shareCode: string | null;
+  organizerId: string;
+  registeredUserIds: string[];
   onToggleVisibility: (newVisibility: 'private' | 'public') => Promise<void>;
   onClose: () => void;
 }
@@ -17,7 +21,6 @@ const ShareTournamentModal: Component<Props> = (props) => {
   const [qrDataUrl, setQrDataUrl] = createSignal('');
   const [copied, setCopied] = createSignal(false);
   const [toggling, setToggling] = createSignal(false);
-  const [email, setEmail] = createSignal('');
 
   const shareUrl = () => {
     if (!props.shareCode) return '';
@@ -69,16 +72,6 @@ const ShareTournamentModal: Component<Props> = (props) => {
     link.download = `${props.tournamentName.replace(/\s+/g, '-')}-qr.png`;
     link.href = dataUrl;
     link.click();
-  };
-
-  const mailtoHref = () => {
-    const addr = email().trim();
-    if (!addr) return '';
-    const subject = encodeURIComponent(`You're invited to ${props.tournamentName}`);
-    const body = encodeURIComponent(
-      `Join ${props.tournamentName} on ${props.tournamentDate} at ${props.tournamentLocation}.\n\nView tournament: ${shareUrl()}`,
-    );
-    return `mailto:${addr}?subject=${subject}&body=${body}`;
   };
 
   return (
@@ -157,31 +150,17 @@ const ShareTournamentModal: Component<Props> = (props) => {
               </div>
             </Show>
 
-            {/* Section 4: Email Invite (only when public) */}
+            {/* Section 4: Invite Player (only when public) */}
             <Show when={props.visibility === 'public' && shareUrl()}>
-              <div>
-                <div class="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mb-2">Invite by Email</div>
-                <div class="flex gap-2">
-                  <input
-                    type="email"
-                    value={email()}
-                    onInput={(e) => setEmail(e.currentTarget.value)}
-                    placeholder="player@example.com"
-                    class="flex-1 bg-surface-light border border-surface-lighter rounded-lg px-3 py-2 text-on-surface text-sm"
-                  />
-                  <a
-                    href={mailtoHref() || undefined}
-                    class={`px-3 py-2 text-xs font-semibold rounded-lg inline-flex items-center ${
-                      mailtoHref()
-                        ? 'bg-primary text-surface active:scale-95'
-                        : 'bg-surface-light text-on-surface-muted cursor-not-allowed'
-                    }`}
-                    onClick={(e) => { if (!mailtoHref()) e.preventDefault(); }}
-                  >
-                    Send
-                  </a>
-                </div>
-              </div>
+              <PlayerSearch
+                tournamentId={props.tournamentId}
+                tournamentName={props.tournamentName}
+                tournamentDate={props.tournamentDate}
+                tournamentLocation={props.tournamentLocation}
+                organizerId={props.organizerId}
+                registeredUserIds={props.registeredUserIds}
+                shareUrl={shareUrl()}
+              />
             </Show>
           </div>
 
