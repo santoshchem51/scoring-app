@@ -1,26 +1,24 @@
 # Tournament v2 — Known Gaps & Future Test Scenarios
 
 **Created:** 2026-02-15
-**Updated:** 2026-02-15 (Wave 1 complete — bracket scoring + completion flow)
-**Context:** Post-merge of `feature/tournament-v2` into `main` (17 commits, 164 tests → 178 tests after Wave 1)
+**Updated:** 2026-02-15 (Wave 2 complete — BYOP manual pairing)
+**Context:** Post-merge of `feature/tournament-v2` into `main` (17 commits, 164 tests → 190 tests after Wave 2)
 
 ---
 
 ## Known Gaps
 
-### 1. BYOP Manual Pairing (HIGH priority)
+### ~~1. BYOP Manual Pairing~~ — RESOLVED (Wave 2)
 
-**Problem:** When organizer adds players to a doubles/BYOP tournament, there's no UI to manually pair unmatched players into teams. The auto-matching only works when both players name each other as partners. Organizer-added players have no way to specify mutual partnerships.
+**Fixed in:** commits `1cf436e`, `9c7c7b5`, `99a9f2f`, `0012a26`, `3393b07` (branch `feature/byop-manual-pairing`)
 
-**Impact:** Doubles BYOP tournaments are effectively unusable for organizer-managed registration. Advancing to pool play fails with "0 teams could be formed, N players unmatched."
-
-**Fix needed:**
-- Add organizer pairing UI in the registration phase
-- Show unmatched players with drag-to-pair or checkbox-to-pair interaction
-- Allow organizer to manually create teams from unmatched players
-- Consider a "pair remaining" auto-pair fallback button
-
-**Files:** `TournamentDashboardPage.tsx`, new `OrganizerPairingUI.tsx` component
+- `OrganizerPairingPanel` component: tap-to-pair UI for organizer during registration phase
+- `classifyRegistrations()` detects mutually-named pre-pairs vs unmatched players
+- `preparePairUpdate()` / `prepareUnpairUpdate()` / `prepareAutoPairUpdates()` pure helpers
+- `updatePartnerName()` added to registration repository
+- Auto-pair remaining button uses skill-rating-based algorithm
+- Unpair button dissolves any team back to unmatched
+- **E2E verified:** BYOP doubles tournament — 4 players added, manual pair 2, auto-pair 2, unpair/re-pair, advance to bracket, score final, champion displayed (Bob & Alice)
 
 ### ~~2. Bracket Scoring Integration~~ — RESOLVED (Wave 1)
 
@@ -88,11 +86,11 @@
 - [ ] Remove a registered player
 
 ### Doubles Team Formation
-- [ ] BYOP: Two users mutually name each other → paired successfully
-- [ ] BYOP: Unmatched players shown clearly
+- [x] BYOP: Two users mutually name each other → paired successfully *(Wave 2 E2E — classifyRegistrations detects pre-pairs)*
+- [x] BYOP: Unmatched players shown clearly *(Wave 2 E2E — OrganizerPairingPanel shows unmatched grid)*
 - [x] Auto-pair: Players paired by closest skill rating *(Wave 1 E2E — 8 players → 4 balanced teams)*
 - [ ] Auto-pair: Odd number of players → one left unmatched
-- [ ] Mixed: Some BYOP pairs + auto-pair remainder
+- [x] Mixed: Some BYOP pairs + auto-pair remainder *(Wave 2 E2E — manual pair 2, auto-pair remaining 2)*
 
 ### Pool Play
 - [ ] Multiple pools (6+ players with 2 pools)
@@ -139,7 +137,7 @@
 
 ---
 
-## Test Coverage Summary (current — post Wave 1)
+## Test Coverage Summary (current — post Wave 2)
 
 | Area | Tests | Files |
 |------|-------|-------|
@@ -156,14 +154,25 @@
 | Completion validation | 8 | 1 |
 | Auto-pair | 6 | 1 |
 | Team formation | 5 | 1 |
+| Pairing helpers | 12 | 1 |
 | Tournament validation | 16 | 1 |
 | Firestore repos | 35 | 4 |
 | Tournament lifecycle | 7 | 1 |
 | Cloud sync | 4 | 1 |
-| **Total** | **178** | **22** |
+| **Total** | **190** | **23** |
 
 ### Wave 1 E2E Tests Performed (manual via Playwright)
 - Singles single-elimination: 4 players → bracket → 3 matches → champion (Diana)
 - Doubles single-elimination with auto-pair: 8 players → 4 teams → bracket → 3 matches → champion (Eve & Anna)
 - Completion validation: premature completion blocked with error message
 - Champion display: correct for both singles names and doubles team names
+
+### Wave 2 E2E Tests Performed (manual via Playwright)
+- BYOP doubles single-elimination: 4 players added without partner names → all unmatched
+- Tap-to-pair: Alice + Bob → paired, moved to Paired Teams (Combined: 8.0)
+- Auto-pair remaining: Charlie + Diana → paired, "All players paired!" banner
+- Unpair: Bob & Alice unpaired → both returned to unmatched list
+- Re-pair: Bob + Alice manually re-paired
+- Advance to bracket: 2 teams formed, bracket generated correctly
+- Score final: Bob & Alice 11-0 Charlie & Diana → champion displayed
+- Full flow: Registration → Bracket Play → Completed with BYOP pairing
