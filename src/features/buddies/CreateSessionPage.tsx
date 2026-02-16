@@ -4,8 +4,10 @@ import { useParams, useNavigate } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
+import { firestoreBuddyNotificationRepository } from '../../data/firebase/firestoreBuddyNotificationRepository';
 import { firestoreGameSessionRepository } from '../../data/firebase/firestoreGameSessionRepository';
 import { generateShareCode } from '../tournaments/engine/shareCode';
+import { createSessionProposedNotification } from './engine/notificationHelpers';
 import type { GameSession, TimeSlot, RsvpStyle } from '../../data/types';
 
 const MAX_TIME_SLOTS = 4;
@@ -169,6 +171,24 @@ const CreateSessionPage: Component = () => {
       };
 
       await firestoreGameSessionRepository.create(session);
+
+      // Fire-and-forget: notify group members about the new session
+      try {
+        const creatorName = currentUser.displayName ?? 'Someone';
+        const members = await firestoreBuddyGroupRepository.getMembers(params.groupId);
+        await Promise.all(
+          members
+            .filter((m) => m.userId !== currentUser.uid)
+            .map((m) =>
+              firestoreBuddyNotificationRepository.create(
+                createSessionProposedNotification(m.userId, creatorName, session.title, session.id, params.groupId),
+              ),
+            ),
+        );
+      } catch {
+        // Notification failures should not block navigation
+      }
+
       navigate(`/session/${sessionId}`);
     } catch (err) {
       console.error('Failed to create session:', err);

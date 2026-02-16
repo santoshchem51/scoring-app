@@ -4,7 +4,9 @@ import { useParams } from '@solidjs/router';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { useGameSession } from './hooks/useGameSession';
 import { firestoreGameSessionRepository } from '../../data/firebase/firestoreGameSessionRepository';
+import { firestoreBuddyNotificationRepository } from '../../data/firebase/firestoreBuddyNotificationRepository';
 import { canRsvp, canUpdateDayOfStatus, getSessionDisplayStatus } from './engine/sessionHelpers';
+import { createPlayerJoinedNotification, createSessionConfirmedNotification, createSpotOpenedNotification } from './engine/notificationHelpers';
 import type { SessionRsvp, RsvpResponse, DayOfStatus, TimeSlot } from '../../data/types';
 
 // --- Sub-components ---
@@ -314,6 +316,24 @@ const SessionDetailPage: Component = () => {
     };
 
     await firestoreGameSessionRepository.submitRsvp(s.id, rsvp);
+
+    // Fire-and-forget notifications
+    if (response === 'in' && s.createdBy !== u.uid) {
+      const notif = createPlayerJoinedNotification(
+        s.createdBy, u.displayName ?? 'Someone', s.title, s.id,
+      );
+      firestoreBuddyNotificationRepository.create(notif).catch(() => {});
+    }
+
+    if (response === 'in' && s.spotsConfirmed + 1 >= s.spotsTotal) {
+      const confirmedRsvps = rsvps().filter((r) => r.response === 'in' || r.response === 'maybe');
+      confirmedRsvps.forEach((r) => {
+        if (r.userId !== u.uid) {
+          const notif = createSessionConfirmedNotification(r.userId, s.title, s.id, s.groupId);
+          firestoreBuddyNotificationRepository.create(notif).catch(() => {});
+        }
+      });
+    }
   };
 
   const handleDayOfStatus = async (status: DayOfStatus) => {
@@ -321,6 +341,14 @@ const SessionDetailPage: Component = () => {
     const u = user();
     if (!s || !u) return;
     await firestoreGameSessionRepository.updateDayOfStatus(s.id, u.uid, status);
+
+    // Fire-and-forget: notify creator when someone drops out
+    if (status === 'cant-make-it' && s.createdBy !== u.uid) {
+      const notif = createSpotOpenedNotification(
+        s.createdBy, u.displayName ?? 'Someone', s.title, s.id,
+      );
+      firestoreBuddyNotificationRepository.create(notif).catch(() => {});
+    }
   };
 
   const handleSlotVote = async (slotId: string) => {
