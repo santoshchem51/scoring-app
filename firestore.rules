@@ -301,5 +301,102 @@ service cloud.firestore {
       allow read: if request.auth != null
         && resource.data.invitedUserId == request.auth.uid;
     }
+
+    // ── Buddy Groups (/buddyGroups/{groupId}) ─────────────────────────
+    match /buddyGroups/{groupId} {
+
+      // Public groups readable by anyone authenticated; members can always read
+      allow read: if request.auth != null
+        && (resource.data.visibility == 'public'
+            || exists(/databases/$(database)/documents/buddyGroups/$(groupId)/members/$(request.auth.uid)));
+
+      // Any authenticated user can create a group
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 50
+        && request.resource.data.memberCount == 0
+        && request.resource.data.visibility in ['private', 'public'];
+
+      // Only admin can update group
+      allow update: if request.auth != null
+        && exists(/databases/$(database)/documents/buddyGroups/$(groupId)/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/buddyGroups/$(groupId)/members/$(request.auth.uid)).data.role == 'admin'
+        && request.resource.data.createdBy == resource.data.createdBy;
+
+      // Only admin can delete
+      allow delete: if request.auth != null
+        && get(/databases/$(database)/documents/buddyGroups/$(groupId)/members/$(request.auth.uid)).data.role == 'admin';
+
+      // ── Members (/buddyGroups/{gid}/members/{userId}) ──────────
+      match /members/{userId} {
+        // Any group member can read members list
+        allow read: if request.auth != null
+          && exists(/databases/$(database)/documents/buddyGroups/$(groupId)/members/$(request.auth.uid));
+
+        // Admin can add anyone; user can add themselves
+        allow create: if request.auth != null
+          && (request.auth.uid == userId
+              || get(/databases/$(database)/documents/buddyGroups/$(groupId)/members/$(request.auth.uid)).data.role == 'admin')
+          && request.resource.data.userId == userId;
+
+        // Admin can remove anyone; user can remove themselves
+        allow delete: if request.auth != null
+          && (request.auth.uid == userId
+              || get(/databases/$(database)/documents/buddyGroups/$(groupId)/members/$(request.auth.uid)).data.role == 'admin');
+      }
+    }
+
+    // ── Game Sessions (/gameSessions/{sessionId}) ────────────────────
+    match /gameSessions/{sessionId} {
+
+      // Open sessions are readable by anyone authenticated; group members can read group sessions
+      allow read: if request.auth != null
+        && (resource.data.visibility == 'open'
+            || (resource.data.groupId != null
+                && exists(/databases/$(database)/documents/buddyGroups/$(resource.data.groupId)/members/$(request.auth.uid))));
+
+      // Any authenticated user can create (standalone or in their group)
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'proposed'
+        && request.resource.data.spotsConfirmed == 0;
+
+      // Creator can update session fields
+      allow update: if request.auth != null
+        && resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdBy == resource.data.createdBy;
+
+      // Creator can delete
+      allow delete: if request.auth != null
+        && resource.data.createdBy == request.auth.uid;
+
+      // ── RSVPs (/gameSessions/{sid}/rsvps/{userId}) ─────────────
+      match /rsvps/{userId} {
+        // Anyone who can read session can read RSVPs
+        allow read: if request.auth != null;
+
+        // Users can create/update/delete their own RSVP
+        allow create: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.userId == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // ── Buddy Notifications (/users/{userId}/buddyNotifications/{nid}) ─
+    match /users/{userId}/buddyNotifications/{notifId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Collection Group: Members (for "my groups" query) ──────────────
+    match /{path=**}/members/{userId} {
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
   }
 }
