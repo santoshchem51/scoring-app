@@ -388,7 +388,11 @@ service cloud.firestore {
     // ── Buddy Notifications (/users/{userId}/buddyNotifications/{nid}) ─
     match /users/{userId}/buddyNotifications/{notifId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.userId == userId
+        && request.resource.data.type in ['session_proposed','session_confirmed','session_cancelled','spot_opened','player_joined','group_invite','voting_reminder']
+        && request.resource.data.message is string
+        && request.resource.data.read == false;
       allow update: if request.auth != null && request.auth.uid == userId;
       allow delete: if request.auth != null && request.auth.uid == userId;
     }

@@ -20,7 +20,7 @@ function formatSessionDate(timestamp: number | null): string {
 function OpenSessionCard(props: { session: GameSession }) {
   return (
     <A
-      href={`/buddies/session/${props.session.id}`}
+      href={`/session/${props.session.id}`}
       class="block bg-surface-light rounded-2xl p-4 active:scale-[0.98] transition-transform"
     >
       <div class="flex items-center justify-between">

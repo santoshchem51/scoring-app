@@ -14,20 +14,32 @@ const {
   mockWhere,
   mockIncrement,
   mockServerTimestamp,
-} = vi.hoisted(() => ({
-  mockDoc: vi.fn(() => 'mock-doc-ref'),
-  mockSetDoc: vi.fn(),
-  mockGetDoc: vi.fn(),
-  mockGetDocs: vi.fn(),
-  mockUpdateDoc: vi.fn(),
-  mockDeleteDoc: vi.fn(),
-  mockCollection: vi.fn(() => 'mock-collection-ref'),
-  mockCollectionGroup: vi.fn(() => 'mock-collection-group-ref'),
-  mockQuery: vi.fn(() => 'mock-query'),
-  mockWhere: vi.fn(() => 'mock-where'),
-  mockIncrement: vi.fn((n: number) => ({ _increment: n })),
-  mockServerTimestamp: vi.fn(() => 'mock-timestamp'),
-}));
+  mockWriteBatch,
+  mockBatch,
+} = vi.hoisted(() => {
+  const mockBatch = {
+    set: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    commit: vi.fn().mockResolvedValue(undefined),
+  };
+  return {
+    mockDoc: vi.fn(() => 'mock-doc-ref'),
+    mockSetDoc: vi.fn(),
+    mockGetDoc: vi.fn(),
+    mockGetDocs: vi.fn(),
+    mockUpdateDoc: vi.fn(),
+    mockDeleteDoc: vi.fn(),
+    mockCollection: vi.fn(() => 'mock-collection-ref'),
+    mockCollectionGroup: vi.fn(() => 'mock-collection-group-ref'),
+    mockQuery: vi.fn(() => 'mock-query'),
+    mockWhere: vi.fn(() => 'mock-where'),
+    mockIncrement: vi.fn((n: number) => ({ _increment: n })),
+    mockServerTimestamp: vi.fn(() => 'mock-timestamp'),
+    mockWriteBatch: vi.fn(() => mockBatch),
+    mockBatch,
+  };
+});
 
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
@@ -42,6 +54,7 @@ vi.mock('firebase/firestore', () => ({
   where: mockWhere,
   increment: mockIncrement,
   serverTimestamp: mockServerTimestamp,
+  writeBatch: mockWriteBatch,
 }));
 
 vi.mock('../config', () => ({
@@ -157,8 +170,6 @@ describe('firestoreBuddyGroupRepository', () => {
 
   describe('addMember', () => {
     it('adds member to subcollection and increments memberCount', async () => {
-      mockSetDoc.mockResolvedValue(undefined);
-      mockUpdateDoc.mockResolvedValue(undefined);
       const member: BuddyGroupMember = {
         userId: 'user1',
         displayName: 'Alice',
@@ -169,32 +180,35 @@ describe('firestoreBuddyGroupRepository', () => {
 
       await firestoreBuddyGroupRepository.addMember('g1', member);
 
-      // First call: doc ref for member subcollection
+      expect(mockWriteBatch).toHaveBeenCalledWith('mock-firestore');
+      // Doc refs for member and group
       expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'buddyGroups', 'g1', 'members', 'user1');
-      expect(mockSetDoc).toHaveBeenCalledWith('mock-doc-ref', member);
-      // Second call: doc ref for group to increment memberCount
       expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'buddyGroups', 'g1');
-      expect(mockUpdateDoc).toHaveBeenCalledWith('mock-doc-ref', {
+      // Batch operations
+      expect(mockBatch.set).toHaveBeenCalledWith('mock-doc-ref', member);
+      expect(mockBatch.update).toHaveBeenCalledWith('mock-doc-ref', {
         memberCount: { _increment: 1 },
         updatedAt: 'mock-timestamp',
       });
+      expect(mockBatch.commit).toHaveBeenCalled();
     });
   });
 
   describe('removeMember', () => {
     it('deletes member from subcollection and decrements memberCount', async () => {
-      mockDeleteDoc.mockResolvedValue(undefined);
-      mockUpdateDoc.mockResolvedValue(undefined);
-
       await firestoreBuddyGroupRepository.removeMember('g1', 'user1');
 
+      expect(mockWriteBatch).toHaveBeenCalledWith('mock-firestore');
+      // Doc refs for member and group
       expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'buddyGroups', 'g1', 'members', 'user1');
-      expect(mockDeleteDoc).toHaveBeenCalledWith('mock-doc-ref');
       expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'buddyGroups', 'g1');
-      expect(mockUpdateDoc).toHaveBeenCalledWith('mock-doc-ref', {
+      // Batch operations
+      expect(mockBatch.delete).toHaveBeenCalledWith('mock-doc-ref');
+      expect(mockBatch.update).toHaveBeenCalledWith('mock-doc-ref', {
         memberCount: { _increment: -1 },
         updatedAt: 'mock-timestamp',
       });
+      expect(mockBatch.commit).toHaveBeenCalled();
     });
   });
 

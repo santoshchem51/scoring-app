@@ -9,6 +9,8 @@ import { firestoreGameSessionRepository } from '../../data/firebase/firestoreGam
 import { firestoreBuddyNotificationRepository } from '../../data/firebase/firestoreBuddyNotificationRepository';
 import { canRsvp, canUpdateDayOfStatus, getSessionDisplayStatus } from './engine/sessionHelpers';
 import { createPlayerJoinedNotification, createSessionConfirmedNotification, createSpotOpenedNotification } from './engine/notificationHelpers';
+import { statusColor, statusLabel, statusTextColor } from './engine/rsvpDisplayHelpers';
+import { increment } from 'firebase/firestore';
 import type { SessionRsvp, RsvpResponse, DayOfStatus, TimeSlot } from '../../data/types';
 
 // --- Animation helper ---
@@ -211,32 +213,6 @@ function DayOfButtons(props: {
   );
 }
 
-function statusColor(rsvp: SessionRsvp): string {
-  if (rsvp.dayOfStatus === 'here') return 'border-emerald-500';
-  if (rsvp.dayOfStatus === 'on-my-way') return 'border-blue-500';
-  if (rsvp.response === 'maybe') return 'border-amber-500';
-  if (rsvp.response === 'out' || rsvp.dayOfStatus === 'cant-make-it') return 'border-gray-500';
-  return 'border-emerald-500/50';
-}
-
-function statusLabel(rsvp: SessionRsvp): string {
-  if (rsvp.dayOfStatus === 'here') return 'Here';
-  if (rsvp.dayOfStatus === 'on-my-way') return 'On my way';
-  if (rsvp.dayOfStatus === 'cant-make-it') return "Can't make it";
-  if (rsvp.response === 'in') return 'In';
-  if (rsvp.response === 'maybe') return 'Maybe';
-  return 'Out';
-}
-
-function statusTextColor(rsvp: SessionRsvp): string {
-  if (rsvp.dayOfStatus === 'here') return 'text-emerald-400';
-  if (rsvp.dayOfStatus === 'on-my-way') return 'text-blue-400';
-  if (rsvp.dayOfStatus === 'cant-make-it') return 'text-red-400';
-  if (rsvp.response === 'in') return 'text-emerald-400';
-  if (rsvp.response === 'maybe') return 'text-amber-400';
-  return 'text-gray-400';
-}
-
 function PlayerList(props: { rsvps: SessionRsvp[] }) {
   return (
     <div class="space-y-2">
@@ -359,24 +335,37 @@ const SessionDetailPage: Component = () => {
   });
 
   const handleRsvp = async (response: RsvpResponse) => {
-    haptics.medium();
-
     const s = session();
     const u = user();
     if (!s || !u) return;
+    haptics.medium();
 
-    const rsvp: SessionRsvp = {
-      userId: u.uid,
-      displayName: u.displayName ?? 'Anonymous',
-      photoURL: u.photoURL,
-      response,
-      dayOfStatus: 'none',
-      selectedSlotIds: selectedSlotIds(),
-      respondedAt: Date.now(),
-      statusUpdatedAt: null,
-    };
-
-    await firestoreGameSessionRepository.submitRsvp(s.id, rsvp);
+    const existing = currentUserRsvp();
+    if (existing) {
+      // Changing response — calculate spots delta
+      const wasIn = existing.response === 'in';
+      const willBeIn = response === 'in';
+      let delta = 0;
+      if (!wasIn && willBeIn) delta = 1;
+      if (wasIn && !willBeIn) delta = -1;
+      await firestoreGameSessionRepository.updateRsvpResponse(s.id, u.uid, response, delta);
+    } else {
+      // New RSVP
+      const rsvp: SessionRsvp = {
+        userId: u.uid,
+        displayName: u.displayName ?? 'Anonymous',
+        photoURL: u.photoURL,
+        response,
+        dayOfStatus: 'none',
+        selectedSlotIds: [],
+        respondedAt: Date.now(),
+        statusUpdatedAt: null,
+      };
+      await firestoreGameSessionRepository.submitRsvp(s.id, rsvp);
+      if (response === 'in') {
+        await firestoreGameSessionRepository.update(s.id, { spotsConfirmed: increment(1) } as any);
+      }
+    }
 
     // Fire-and-forget notifications
     if (response === 'in' && s.createdBy !== u.uid) {
@@ -459,7 +448,7 @@ const SessionDetailPage: Component = () => {
     const s = session();
     if (!s) return;
 
-    const shareUrl = `${window.location.origin}/session/${s.shareCode}`;
+    const shareUrl = `${window.location.origin}/s/${s.shareCode}`;
 
     if (navigator.share) {
       try {

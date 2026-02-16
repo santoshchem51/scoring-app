@@ -51,7 +51,7 @@ const CreateGroupPage: Component = () => {
         defaultLocation: defaultLocation().trim() || null,
         defaultDay: defaultDay() || null,
         defaultTime: defaultTime() || null,
-        memberCount: 1,
+        memberCount: 0,
         visibility: visibility(),
         shareCode: generateShareCode(),
         createdAt: now,

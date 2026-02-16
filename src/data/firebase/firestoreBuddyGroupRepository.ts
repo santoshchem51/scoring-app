@@ -1,4 +1,4 @@
-import { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, collection, collectionGroup, query, where, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, collection, collectionGroup, query, where, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { firestore } from './config';
 import type { BuddyGroup, BuddyGroupMember } from '../types';
 
@@ -32,14 +32,21 @@ export const firestoreBuddyGroupRepository = {
   },
 
   async addMember(groupId: string, member: BuddyGroupMember): Promise<void> {
-    const ref = doc(firestore, 'buddyGroups', groupId, 'members', member.userId);
-    await setDoc(ref, member);
-    await updateDoc(doc(firestore, 'buddyGroups', groupId), { memberCount: increment(1), updatedAt: serverTimestamp() });
+    const batch = writeBatch(firestore);
+    const memberRef = doc(firestore, 'buddyGroups', groupId, 'members', member.userId);
+    const groupRef = doc(firestore, 'buddyGroups', groupId);
+    batch.set(memberRef, member);
+    batch.update(groupRef, { memberCount: increment(1), updatedAt: serverTimestamp() });
+    await batch.commit();
   },
 
   async removeMember(groupId: string, userId: string): Promise<void> {
-    await deleteDoc(doc(firestore, 'buddyGroups', groupId, 'members', userId));
-    await updateDoc(doc(firestore, 'buddyGroups', groupId), { memberCount: increment(-1), updatedAt: serverTimestamp() });
+    const batch = writeBatch(firestore);
+    const memberRef = doc(firestore, 'buddyGroups', groupId, 'members', userId);
+    const groupRef = doc(firestore, 'buddyGroups', groupId);
+    batch.delete(memberRef);
+    batch.update(groupRef, { memberCount: increment(-1), updatedAt: serverTimestamp() });
+    await batch.commit();
   },
 
   async getMembers(groupId: string): Promise<BuddyGroupMember[]> {
