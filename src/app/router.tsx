@@ -8,7 +8,7 @@ const ScoringPage = lazy(() => import('../features/scoring/ScoringPage'));
 const HistoryPage = lazy(() => import('../features/history/HistoryPage'));
 const PlayersPage = lazy(() => import('../features/players/PlayersPage'));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
-const TournamentListPage = lazy(() => import('../features/tournaments/TournamentListPage'));
+const DiscoverPage = lazy(() => import('../features/tournaments/DiscoverPage'));
 const TournamentCreatePage = lazy(() => import('../features/tournaments/TournamentCreatePage'));
 const TournamentDashboardPage = lazy(() => import('../features/tournaments/TournamentDashboardPage'));
 const PublicTournamentPage = lazy(() => import('../features/tournaments/PublicTournamentPage'));
@@ -40,10 +40,14 @@ export default function AppRouter() {
       <Route path="/score/:matchId" component={ScoringPage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/players" component={PlayersPage} />
-      <Route path="/tournaments" component={RequireAuth}>
-        <Route path="/" component={TournamentListPage} />
-        <Route path="/new" component={TournamentCreatePage} />
-        <Route path="/:id" component={TournamentDashboardPage} />
+      <Route path="/tournaments">
+        <Route path="/" component={DiscoverPage} />
+        <Route path="/new" component={RequireAuth}>
+          <Route path="/" component={TournamentCreatePage} />
+        </Route>
+        <Route path="/:id" component={RequireAuth}>
+          <Route path="/" component={TournamentDashboardPage} />
+        </Route>
       </Route>
       <Route path="/t/:code" component={PublicTournamentPage} />
       <Route path="/buddies" component={RequireAuth}>
