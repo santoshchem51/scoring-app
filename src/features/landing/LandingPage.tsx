@@ -1,8 +1,68 @@
 import type { Component } from 'solid-js';
+import { createResource, Show, For } from 'solid-js';
 import { A } from '@solidjs/router';
 import { Zap, Clock, Trophy, Activity, Share2, UserPlus } from 'lucide-solid';
 import TopNav from '../../shared/components/TopNav';
 import Logo from '../../shared/components/Logo';
+import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
+import { filterPublicTournaments } from '../tournaments/engine/discoveryFilters';
+import { formatLabels } from '../tournaments/constants';
+
+function TournamentPreview() {
+  const [upcoming] = createResource(async () => {
+    try {
+      const result = await firestoreTournamentRepository.getPublicTournaments(10);
+      return filterPublicTournaments(result.tournaments, { status: 'upcoming' }).slice(0, 5);
+    } catch {
+      return [];
+    }
+  });
+
+  return (
+    <Show when={upcoming() && upcoming()!.length > 0}>
+      <section class="px-4 py-12 md:py-16">
+        <div class="max-w-lg mx-auto md:max-w-3xl lg:max-w-5xl">
+          <h2
+            class="text-xl md:text-2xl font-bold text-center mb-2 text-gradient-subtle"
+            style={{ "font-family": "var(--font-score)" }}
+          >
+            Upcoming Tournaments
+          </h2>
+          <p class="text-center text-on-surface-muted text-sm mb-6">
+            Find and join public tournaments near you
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <For each={upcoming()}>
+              {(t) => (
+                <A
+                  href={t.shareCode ? `/t/${t.shareCode}` : `/tournaments/${t.id}`}
+                  class="block bg-surface-light rounded-xl p-4 border border-border hover-lift transition-all duration-200"
+                >
+                  <h3 class="font-bold text-on-surface truncate mb-1">{t.name}</h3>
+                  <div class="text-sm text-on-surface-muted">
+                    {new Date(t.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    {t.location ? ` · ${t.location}` : ''}
+                  </div>
+                  <span class="inline-block mt-2 text-xs font-semibold text-blue-400 bg-blue-500/20 px-2 py-0.5 rounded-full">
+                    {formatLabels[t.format] ?? t.format}
+                  </span>
+                </A>
+              )}
+            </For>
+          </div>
+          <div class="text-center mt-4">
+            <A
+              href="/tournaments"
+              class="text-primary text-sm font-semibold hover:underline"
+            >
+              Browse All Tournaments →
+            </A>
+          </div>
+        </div>
+      </section>
+    </Show>
+  );
+}
 
 const LandingPage: Component = () => {
   return (
@@ -93,6 +153,9 @@ const LandingPage: Component = () => {
           </div>
         </div>
       </section>
+
+      {/* Upcoming Tournaments */}
+      <TournamentPreview />
 
       {/* Final CTA */}
       <section class="px-4 py-12 md:py-16 bg-surface-light/50 text-center">
