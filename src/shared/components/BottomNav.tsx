@@ -1,14 +1,23 @@
-import { Show } from 'solid-js';
+import { Show, createResource } from 'solid-js';
 import type { Component } from 'solid-js';
 import { A, useLocation } from '@solidjs/router';
 import { Plus, Clock, Users, Sparkles, Heart, Settings } from 'lucide-solid';
 import { useAuth } from '../hooks/useAuth';
 import { useBuddyNotifications } from '../../features/buddies/hooks/useBuddyNotifications';
+import { firestoreInvitationRepository } from '../../data/firebase/firestoreInvitationRepository';
 
 const BottomNav: Component = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { unreadCount } = useBuddyNotifications(() => user()?.uid);
+  const [invitationCount] = createResource(
+    () => user()?.uid,
+    async (uid) => {
+      if (!uid) return 0;
+      const pending = await firestoreInvitationRepository.getPendingForUser(uid);
+      return pending.length;
+    },
+  );
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
@@ -47,6 +56,14 @@ const BottomNav: Component = () => {
             <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
           </Show>
           <Sparkles size={24} class="relative" />
+          <Show when={(invitationCount() ?? 0) > 0}>
+            <span
+              class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+              aria-label={`${invitationCount()} pending invitations`}
+            >
+              {(invitationCount() ?? 0) > 9 ? '9+' : invitationCount()}
+            </span>
+          </Show>
           <span class="relative">Tourneys</span>
         </A>
         <Show when={user()}>
