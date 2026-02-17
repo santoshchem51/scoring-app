@@ -1,6 +1,7 @@
 import {
   doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc,
-  collection, query, where, orderBy, serverTimestamp,
+  collection, collectionGroup, query, where, orderBy, serverTimestamp,
+  limit as firestoreLimit, startAfter,
 } from 'firebase/firestore';
 import { firestore } from './config';
 import type { Tournament, TournamentStatus } from '../types';
@@ -60,5 +61,38 @@ export const firestoreTournamentRepository = {
 
   async delete(id: string): Promise<void> {
     await deleteDoc(doc(firestore, 'tournaments', id));
+  },
+
+  async getPublicTournaments(pageSize = 50, cursor?: unknown): Promise<{ tournaments: Tournament[]; lastDoc: unknown }> {
+    const constraints = [
+      where('visibility', '==', 'public'),
+      orderBy('date', 'desc'),
+      firestoreLimit(pageSize),
+    ];
+    if (cursor) {
+      constraints.push(startAfter(cursor));
+    }
+    const q = query(collection(firestore, 'tournaments'), ...constraints);
+    const snapshot = await getDocs(q);
+    const tournaments = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
+    const lastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+    return { tournaments, lastDoc };
+  },
+
+  async getByParticipant(userId: string): Promise<string[]> {
+    const q = query(collectionGroup(firestore, 'registrations'), where('userId', '==', userId));
+    const snap = await getDocs(q);
+    const ids = snap.docs.map((d) => d.ref.parent.parent!.id);
+    return [...new Set(ids)];
+  },
+
+  async getByScorekeeper(userId: string): Promise<Tournament[]> {
+    const q = query(
+      collection(firestore, 'tournaments'),
+      where('scorekeeperIds', 'array-contains', userId),
+      orderBy('date', 'desc'),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
   },
 };
