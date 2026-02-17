@@ -42,15 +42,13 @@ const BottomNav: Component = () => {
           <Users size={24} class="relative" />
           <span class="relative">Players</span>
         </A>
-        <Show when={user()}>
-          <A href="/tournaments" class={linkClass('/tournaments')} aria-current={isActive('/tournaments') ? 'page' : undefined} aria-label="Tournaments">
-            <Show when={isActive('/tournaments')}>
-              <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
-            </Show>
-            <Sparkles size={24} class="relative" />
-            <span class="relative">Tourneys</span>
-          </A>
-        </Show>
+        <A href="/tournaments" class={linkClass('/tournaments')} aria-current={isActive('/tournaments') ? 'page' : undefined} aria-label="Tournaments">
+          <Show when={isActive('/tournaments')}>
+            <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
+          </Show>
+          <Sparkles size={24} class="relative" />
+          <span class="relative">Tourneys</span>
+        </A>
         <Show when={user()}>
           <A href="/buddies" class={linkClass('/buddies')} aria-current={isActive('/buddies') ? 'page' : undefined} aria-label="Buddies">
             <Show when={isActive('/buddies')}>
