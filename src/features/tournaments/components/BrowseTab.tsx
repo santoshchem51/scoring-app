@@ -1,7 +1,7 @@
 import type { Component } from 'solid-js';
-import { createSignal, createResource, createMemo, Show, For } from 'solid-js';
-import { Search, Sparkles } from 'lucide-solid';
-import type { TournamentFormat } from '../../../data/types';
+import type { Tournament, TournamentFormat } from '../../../data/types';
+import { createSignal, createResource, createMemo, createEffect, Show, For } from 'solid-js';
+import { Search, CalendarPlus, FilterX } from 'lucide-solid';
 import { firestoreTournamentRepository } from '../../../data/firebase/firestoreTournamentRepository';
 import { filterPublicTournaments } from '../engine/discoveryFilters';
 import type { BrowseStatusFilter } from '../engine/discoveryFilters';
@@ -13,9 +13,7 @@ const BrowseTab: Component = () => {
   const [statusFilter, setStatusFilter] = createSignal<BrowseStatusFilter>('upcoming');
   const [formatFilter, setFormatFilter] = createSignal<TournamentFormat | undefined>(undefined);
   const [cursor, setCursor] = createSignal<unknown>(undefined);
-  const [allTournaments, setAllTournaments] = createSignal<
-    Array<{ id: string; tournament: any; registrationCount: number }>
-  >([]);
+  const [allTournaments, setAllTournaments] = createSignal<Tournament[]>([]);
 
   const [data] = createResource(async () => {
     const result = await firestoreTournamentRepository.getPublicTournaments(50);
@@ -23,8 +21,16 @@ const BrowseTab: Component = () => {
     return result.tournaments;
   });
 
+  // Seed the cumulative signal when the initial resource resolves
+  createEffect(() => {
+    const initial = data();
+    if (initial) {
+      setAllTournaments(initial);
+    }
+  });
+
   const filtered = createMemo(() => {
-    const tournaments = data() ?? [];
+    const tournaments = allTournaments();
     const filters: { status?: BrowseStatusFilter; format?: TournamentFormat; search?: string } = {};
 
     const currentStatus = statusFilter();
@@ -45,12 +51,18 @@ const BrowseTab: Component = () => {
     return filterPublicTournaments(tournaments, filters);
   });
 
+  const clearFilters = () => {
+    setSearch('');
+    setStatusFilter('upcoming');
+    setFormatFilter(undefined);
+  };
+
   const handleLoadMore = async () => {
     const currentCursor = cursor();
     if (!currentCursor) return;
     const result = await firestoreTournamentRepository.getPublicTournaments(50, currentCursor);
     setCursor(result.lastDoc);
-    // Note: In a full implementation, we'd append to existing tournaments
+    setAllTournaments((prev) => [...prev, ...result.tournaments]);
   };
 
   return (
@@ -114,17 +126,32 @@ const BrowseTab: Component = () => {
         <Show
           when={filtered().length > 0}
           fallback={
-            <EmptyState
-              icon={<Sparkles size={32} />}
-              title="No tournaments found"
-              description="Try adjusting your filters or check back later for new tournaments."
-            />
+            <Show
+              when={allTournaments().length > 0}
+              fallback={
+                <EmptyState
+                  icon={<CalendarPlus size={32} />}
+                  title="No tournaments yet"
+                  description="Be the first to create one!"
+                  actionLabel="Create Tournament"
+                  actionHref="/tournaments/new"
+                />
+              }
+            >
+              <EmptyState
+                icon={<FilterX size={32} />}
+                title="No tournaments found"
+                description="No tournaments found. Try adjusting your filters."
+                actionLabel="Clear Filters"
+                onAction={clearFilters}
+              />
+            </Show>
           }
         >
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <For each={filtered()}>
               {(tournament) => (
-                <BrowseCard tournament={tournament} registrationCount={0} />
+                <BrowseCard tournament={tournament} />
               )}
             </For>
           </div>

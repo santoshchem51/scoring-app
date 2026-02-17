@@ -107,4 +107,10 @@ describe('BrowseCard', () => {
     const link = screen.getByRole('link');
     expect(link).toHaveAttribute('href', '/tournaments/t42');
   });
+
+  it('hides registration count when registrationCount is not provided', () => {
+    const tournament = makeTournament();
+    render(() => <BrowseCard tournament={tournament} />);
+    expect(screen.queryByText(/registered/)).not.toBeInTheDocument();
+  });
 });

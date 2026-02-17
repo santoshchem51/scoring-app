@@ -1,4 +1,5 @@
 import type { Component } from 'solid-js';
+import { Show } from 'solid-js';
 import type { Tournament } from '../../../data/types';
 import { A } from '@solidjs/router';
 import { Calendar, Activity, Trophy, X } from 'lucide-solid';
@@ -6,7 +7,7 @@ import { formatLabels, statusLabels, statusColors } from '../constants';
 
 interface BrowseCardProps {
   tournament: Tournament;
-  registrationCount: number;
+  registrationCount?: number;
 }
 
 function formatDate(timestamp: number): string {
@@ -77,7 +78,9 @@ const BrowseCard: Component<BrowseCardProps> = (props) => {
       </div>
 
       {/* Registration count */}
-      <p class="text-xs text-on-surface-muted mt-2">{registrationText()}</p>
+      <Show when={props.registrationCount !== undefined}>
+        <p class="text-xs text-on-surface-muted mt-2">{registrationText()}</p>
+      </Show>
     </A>
   );
 };
