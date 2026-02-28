@@ -23,8 +23,13 @@ dist-ssr
 *.sln
 *.sw?
 
-# Firebase Emulator
+# Firebase
 .firebase/
+.firebaserc
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+
+# Test reports & screenshots
+playwright-report/
+screenshots/
