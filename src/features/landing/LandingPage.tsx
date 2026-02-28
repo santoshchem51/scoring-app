@@ -81,6 +81,7 @@ const LandingPage: Component = () => {
   let featuresEl!: HTMLElement;
   let stepsEl!: HTMLElement;
   let finalCtaEl!: HTMLElement;
+  let footerEl!: HTMLElement;
 
   onMount(async () => {
     const { initLenis } = await import('./animations');
@@ -101,6 +102,7 @@ const LandingPage: Component = () => {
       tournaments: null,
       finalCta: finalCtaEl,
       heroSection: heroSectionEl,
+      footer: footerEl,
     });
     const { setupCardSpotlight, setupMagneticButtons, setupCardGlow } = await import('./animations/cursorEffects');
     const spotlightCleanup = setupCardSpotlight(cardEl);
@@ -212,16 +214,29 @@ const LandingPage: Component = () => {
           >
             How It Works
           </h2>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8">
-            <For each={STEPS}>{(step, i) => (
-              <div use:tilt={{ maxDeg: 4, scale: 1.0 }} class="text-center" style={{ "transition": "transform 0.3s ease-out" }}>
-                <div class="w-10 h-10 rounded-full bg-primary text-surface font-bold text-lg flex items-center justify-center mx-auto mb-3" style={{ "box-shadow": "0 0 20px rgba(34,197,94,0.3)" }}>
-                  {i() + 1}
+          <div class="relative">
+            {/* Connector line between step circles */}
+            <svg
+              class="steps-connector hidden sm:block"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <line x1="16.67%" y1="20" x2="83.33%" y2="20" />
+            </svg>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8">
+              <For each={STEPS}>{(step, i) => (
+                <div use:tilt={{ maxDeg: 4, scale: 1.0 }} class="text-center" style={{ "transition": "transform 0.3s ease-out" }}>
+                  <div
+                    class="step-circle w-10 h-10 rounded-full bg-primary text-surface font-bold text-lg flex items-center justify-center mx-auto mb-3"
+                    style={{ "box-shadow": "0 0 20px rgba(34,197,94,0.3)" }}
+                  >
+                    {i() + 1}
+                  </div>
+                  <h3 class="font-bold text-on-surface mb-1">{step.title}</h3>
+                  <p class="text-sm text-on-surface-muted">{step.description}</p>
                 </div>
-                <h3 class="font-bold text-on-surface mb-1">{step.title}</h3>
-                <p class="text-sm text-on-surface-muted">{step.description}</p>
-              </div>
-            )}</For>
+              )}</For>
+            </div>
           </div>
         </div>
       </section>
@@ -251,7 +266,7 @@ const LandingPage: Component = () => {
       </section>
 
       {/* Footer */}
-      <footer class="px-4 py-8 text-center border-t border-border">
+      <footer ref={footerEl} class="px-4 py-8 text-center border-t border-border">
         <Logo size="sm" />
         <p class="text-xs text-on-surface-muted mt-2">
           Built for pickleball players and organizers
