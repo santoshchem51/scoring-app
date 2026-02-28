@@ -20,6 +20,7 @@
     "dexie": "^4.3.0",
     "firebase": "^12.9.0",
     "lucide-solid": "^0.564.0",
+    "open-simplex-noise": "^2.5.0",
     "qrcode": "^1.5.4",
     "solid-js": "^1.9.10",
     "solid-transition-group": "^0.3.0",
