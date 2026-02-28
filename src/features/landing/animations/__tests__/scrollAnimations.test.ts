@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('gsap', () => ({
-  gsap: { from: vi.fn(), set: vi.fn(), to: vi.fn(), matchMedia: vi.fn() },
-  default: { from: vi.fn(), set: vi.fn(), to: vi.fn(), matchMedia: vi.fn() },
+  gsap: { from: vi.fn(), set: vi.fn(), to: vi.fn(), matchMedia: vi.fn(), registerPlugin: vi.fn() },
+  default: { from: vi.fn(), set: vi.fn(), to: vi.fn(), matchMedia: vi.fn(), registerPlugin: vi.fn() },
 }));
 
 vi.mock('gsap/ScrollTrigger', () => ({
-  ScrollTrigger: { create: vi.fn().mockReturnValue({ kill: vi.fn() }), killAll: vi.fn() },
+  ScrollTrigger: { create: vi.fn().mockReturnValue({ kill: vi.fn() }), killAll: vi.fn(), refresh: vi.fn() },
 }));
 
 describe('setupScrollAnimations (creative)', () => {
