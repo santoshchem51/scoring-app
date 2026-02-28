@@ -7,6 +7,7 @@ export interface SectionElements {
   tournaments: HTMLElement | null;
   finalCta: HTMLElement;
   heroSection?: HTMLElement;
+  footer?: HTMLElement;
 }
 
 /**
@@ -153,42 +154,130 @@ export function setupScrollAnimations(sections: SectionElements): () => void {
     }
   });
 
-  // How It Works: alternate slide from left/right, per-card trigger
-  const stepCards = sections.steps.querySelectorAll(':scope > div > div > div');
-  stepCards.forEach((card, i) => {
-    const fromX = i % 2 === 0 ? -80 : 80;
-    gsap.set(card, { opacity: 0, x: fromX });
-    triggers.push(
-      ScrollTrigger.create({
-        trigger: card as HTMLElement,
-        start: 'top 85%',
-        onEnter: () => {
-          gsap.to(card, {
-            opacity: 1, x: 0,
-            duration: 0.6, ease: 'back.out(1.2)',
-            delay: i * 0.15,
-          });
-        },
-        once: true,
-      })
-    );
+  // How It Works: connector line draw + staggered step deblur
+  const connectorSvg = sections.steps.querySelector('.steps-connector');
+  const connectorLine = connectorSvg?.querySelector('line');
+  const stepCards = Array.from(
+    sections.steps.querySelectorAll(':scope > div > div.relative > div:last-child > div')
+  ) as HTMLElement[];
+
+  stepCards.forEach((card) => {
+    gsap.set(card, { opacity: 0, y: 20, filter: 'blur(6px)' });
   });
 
-  // Final CTA: elastic scale
-  gsap.set(sections.finalCta, { opacity: 0, scale: 0.8 });
+  if (connectorLine) {
+    connectorLine.style.strokeDasharray = '1000';
+    connectorLine.style.strokeDashoffset = '1000';
+  }
+
   triggers.push(
     ScrollTrigger.create({
-      trigger: sections.finalCta,
+      trigger: sections.steps,
       start: 'top 85%',
       onEnter: () => {
-        gsap.to(sections.finalCta, {
-          opacity: 1, scale: 1,
-          duration: 0.8, ease: 'elastic.out(1, 0.5)',
+        if (connectorLine) {
+          gsap.to(connectorLine, {
+            strokeDashoffset: 0,
+            duration: 1.5,
+            ease: 'power2.inOut',
+          });
+        }
+
+        stepCards.forEach((card, i) => {
+          const circle = card.querySelector('.step-circle') as HTMLElement | null;
+          const delay = 0.2 + i * 0.5;
+
+          gsap.to(card, {
+            opacity: 1, y: 0, filter: 'blur(0px)',
+            duration: 0.4, ease: 'power2.out',
+            delay,
+          });
+
+          if (circle) {
+            gsap.to(circle, {
+              boxShadow: '0 0 30px rgba(34, 197, 94, 0.5), 0 0 60px rgba(34, 197, 94, 0.2)',
+              duration: 0.3, ease: 'power2.out',
+              delay: delay + 0.1,
+              onComplete: () => {
+                gsap.to(circle, {
+                  boxShadow: '0 0 20px rgba(34, 197, 94, 0.3)',
+                  duration: 0.6, ease: 'power2.inOut',
+                });
+              },
+            });
+          }
         });
       },
       once: true,
     })
   );
+
+  // Final CTA: heading deblurs, button materializes with glow burst
+  const ctaHeading = sections.finalCta.querySelector('h2');
+  const ctaButton = sections.finalCta.querySelector('a');
+
+  if (ctaHeading) {
+    gsap.set(ctaHeading, { opacity: 0, y: 20, filter: 'blur(10px)' });
+  }
+  if (ctaButton) {
+    gsap.set(ctaButton, { opacity: 0, scale: 0.8 });
+  }
+
+  triggers.push(
+    ScrollTrigger.create({
+      trigger: sections.finalCta,
+      start: 'top 85%',
+      onEnter: () => {
+        if (ctaHeading) {
+          gsap.to(ctaHeading, {
+            opacity: 1, y: 0, filter: 'blur(0px)',
+            duration: 0.5, ease: 'power2.out',
+          });
+        }
+        if (ctaButton) {
+          gsap.to(ctaButton, {
+            opacity: 1, scale: 1,
+            duration: 0.6, ease: 'back.out(1.4)',
+            delay: 0.4,
+            onComplete: () => {
+              gsap.to(ctaButton, {
+                boxShadow: '0 0 30px rgba(34, 197, 94, 0.4), 0 0 60px rgba(34, 197, 94, 0.15)',
+                duration: 0.3, ease: 'power2.out',
+                onComplete: () => {
+                  gsap.to(ctaButton, {
+                    boxShadow: '0 0 0px transparent',
+                    duration: 0.4, ease: 'power2.inOut',
+                    onComplete: () => {
+                      (ctaButton as HTMLElement).classList.add('cta-glow-active');
+                    },
+                  });
+                },
+              });
+            },
+          });
+        }
+      },
+      once: true,
+    })
+  );
+
+  // Footer: subtle fade-in
+  if (sections.footer) {
+    gsap.set(sections.footer, { opacity: 0, y: 10 });
+    triggers.push(
+      ScrollTrigger.create({
+        trigger: sections.footer,
+        start: 'top 95%',
+        onEnter: () => {
+          gsap.to(sections.footer!, {
+            opacity: 1, y: 0,
+            duration: 0.4, ease: 'power2.out',
+          });
+        },
+        once: true,
+      })
+    );
+  }
 
   // Canvas parallax for hero section
   if (sections.heroSection) {

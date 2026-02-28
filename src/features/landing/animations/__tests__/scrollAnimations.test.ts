@@ -138,3 +138,124 @@ describe('setupScrollAnimations — glow entrance', () => {
     expect(overlays.length).toBe(6);
   });
 });
+
+describe('setupScrollAnimations — bottom half redesign', () => {
+  let stepsEl: HTMLElement;
+  let finalCtaEl: HTMLElement;
+  let footerEl: HTMLElement;
+  let featuresEl: HTMLElement;
+
+  function makeStepsSection(): HTMLElement {
+    const section = document.createElement('section');
+    const maxW = document.createElement('div');
+    const h2 = document.createElement('h2');
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('relative');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('steps-connector');
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    svg.appendChild(line);
+    const grid = document.createElement('div');
+    for (let idx = 0; idx < 3; idx++) {
+      const step = document.createElement('div');
+      const circle = document.createElement('div');
+      circle.classList.add('step-circle');
+      step.appendChild(circle);
+      grid.appendChild(step);
+    }
+    wrapper.appendChild(svg);
+    wrapper.appendChild(grid);
+    maxW.appendChild(h2);
+    maxW.appendChild(wrapper);
+    section.appendChild(maxW);
+    return section;
+  }
+
+  function makeCtaSection(): HTMLElement {
+    const section = document.createElement('section');
+    const inner = document.createElement('div');
+    const h2 = document.createElement('h2');
+    const btn = document.createElement('a');
+    inner.appendChild(h2);
+    inner.appendChild(btn);
+    section.appendChild(inner);
+    return section;
+  }
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.mock('gsap', () => ({
+      gsap: { from: vi.fn(), set: vi.fn(), to: vi.fn(), matchMedia: vi.fn(), registerPlugin: vi.fn() },
+      default: { from: vi.fn(), set: vi.fn(), to: vi.fn(), matchMedia: vi.fn(), registerPlugin: vi.fn() },
+    }));
+    vi.mock('gsap/ScrollTrigger', () => ({
+      ScrollTrigger: { create: vi.fn().mockReturnValue({ kill: vi.fn() }), killAll: vi.fn(), refresh: vi.fn() },
+    }));
+
+    stepsEl = makeStepsSection();
+    finalCtaEl = makeCtaSection();
+    footerEl = document.createElement('footer');
+    featuresEl = document.createElement('div');
+    const g = document.createElement('div');
+    const inner = document.createElement('div');
+    featuresEl.appendChild(g);
+    g.appendChild(inner);
+  });
+
+  it('sets initial blur+opacity on step cards', async () => {
+    const { gsap } = await import('gsap');
+    const { setupScrollAnimations } = await import('../scrollAnimations');
+    setupScrollAnimations({
+      features: featuresEl,
+      steps: stepsEl,
+      tournaments: null,
+      finalCta: finalCtaEl,
+      footer: footerEl,
+    });
+
+    const setCalls = (gsap.set as ReturnType<typeof vi.fn>).mock.calls;
+    // Find calls that set filter with blur on step card elements
+    const grid = stepsEl.querySelector('.relative > div:last-child')!;
+    const stepDivs = Array.from(grid.children);
+    const stepBlurCalls = setCalls.filter(
+      (c: unknown[]) => stepDivs.includes(c[0] as Element) && typeof c[1] === 'object' && 'filter' in (c[1] as Record<string, unknown>)
+    );
+    expect(stepBlurCalls.length).toBe(3);
+  });
+
+  it('sets initial hidden state on CTA heading and button', async () => {
+    const { gsap } = await import('gsap');
+    const { setupScrollAnimations } = await import('../scrollAnimations');
+    setupScrollAnimations({
+      features: featuresEl,
+      steps: stepsEl,
+      tournaments: null,
+      finalCta: finalCtaEl,
+      footer: footerEl,
+    });
+
+    const setCalls = (gsap.set as ReturnType<typeof vi.fn>).mock.calls;
+    const h2 = finalCtaEl.querySelector('h2')!;
+    const btn = finalCtaEl.querySelector('a')!;
+    const headingSet = setCalls.find((c: unknown[]) => c[0] === h2);
+    const btnSet = setCalls.find((c: unknown[]) => c[0] === btn);
+    expect(headingSet).toBeTruthy();
+    expect(btnSet).toBeTruthy();
+  });
+
+  it('sets initial hidden state on footer', async () => {
+    const { gsap } = await import('gsap');
+    const { setupScrollAnimations } = await import('../scrollAnimations');
+    setupScrollAnimations({
+      features: featuresEl,
+      steps: stepsEl,
+      tournaments: null,
+      finalCta: finalCtaEl,
+      footer: footerEl,
+    });
+
+    const setCalls = (gsap.set as ReturnType<typeof vi.fn>).mock.calls;
+    const footerSet = setCalls.find((c: unknown[]) => c[0] === footerEl);
+    expect(footerSet).toBeTruthy();
+  });
+});
