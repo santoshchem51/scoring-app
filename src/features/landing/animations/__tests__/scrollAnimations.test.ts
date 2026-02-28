@@ -109,8 +109,12 @@ describe('setupScrollAnimations — glow entrance', () => {
     });
 
     expect(hero.querySelector('.glow-trace')).toBeTruthy();
+    expect(hero.style.overflow).toBe('hidden');
+    expect(hero.style.position).toBe('relative');
     cleanup();
     expect(hero.querySelector('.glow-trace')).toBeFalsy();
+    expect(hero.style.overflow).toBe('');
+    expect(hero.style.position).toBe('');
   });
 
   it('creates overlays for all 6 cards (2 hero + 4 compact)', async () => {

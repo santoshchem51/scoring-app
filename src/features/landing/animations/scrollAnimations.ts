@@ -109,9 +109,9 @@ export function setupScrollAnimations(sections: SectionElements): () => void {
     } else {
       // Compact cards: rise + deblur, faster border trace
       const staggerDelay = 0.4 + compactIdx * 0.15;
+      compactIdx++;
       gsap.set(card, { opacity: 0, y: 30, scale: 0.9, filter: 'blur(6px)' });
       gsap.set(overlay, { opacity: 0 });
-      compactIdx++;
 
       triggers.push(
         ScrollTrigger.create({
@@ -210,7 +210,14 @@ export function setupScrollAnimations(sections: SectionElements): () => void {
   ScrollTrigger.refresh();
 
   return () => {
-    glowOverlays.forEach(el => el.remove());
+    glowOverlays.forEach(el => {
+      const parent = el.parentElement;
+      el.remove();
+      if (parent) {
+        parent.style.overflow = '';
+        parent.style.position = '';
+      }
+    });
     triggers.forEach(t => t.kill());
   };
 }
