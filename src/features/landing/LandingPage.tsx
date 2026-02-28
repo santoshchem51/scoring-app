@@ -168,6 +168,7 @@ const LandingPage: Component = () => {
             <For each={FEATURES}>{(f) => (
               <div
                 use:tilt={{ maxDeg: f.hero ? 4 : 6, scale: 1.0 }}
+                data-accent-rgb={f.accentRgb}
                 class={`bg-surface-light rounded-xl border border-border transition-all duration-300 hover-lift ${f.hero ? 'lg:col-span-2 p-6 sm:p-8' : 'p-5'}`}
                 style={{
                   "transition-property": "transform, box-shadow, background-color, border-color",
