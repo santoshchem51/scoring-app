@@ -164,14 +164,35 @@ const LandingPage: Component = () => {
           >
             Everything You Need
           </h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-auto">
             <For each={FEATURES}>{(f) => (
-              <div use:tilt={{ maxDeg: 6, scale: 1.0 }} class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-300 hover-lift hover:bg-primary/10 hover:border-primary/20" style={{ "transition-property": "transform, box-shadow, background-color, border-color" }}>
-                <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 text-primary">
-                  <f.icon size={20} />
+              <div
+                use:tilt={{ maxDeg: f.hero ? 4 : 6, scale: 1.0 }}
+                class={`bg-surface-light rounded-xl border border-border transition-all duration-300 hover-lift ${f.hero ? 'lg:col-span-2 p-6 sm:p-8' : 'p-5'}`}
+                style={{
+                  "transition-property": "transform, box-shadow, background-color, border-color",
+                  "--card-accent": `rgba(${f.accentRgb}, 0.1)`,
+                  "--card-accent-border": `rgba(${f.accentRgb}, 0.25)`,
+                }}
+                onMouseEnter={(e: MouseEvent) => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.backgroundColor = `rgba(${f.accentRgb}, 0.08)`;
+                  el.style.borderColor = `rgba(${f.accentRgb}, 0.25)`;
+                }}
+                onMouseLeave={(e: MouseEvent) => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.backgroundColor = '';
+                  el.style.borderColor = '';
+                }}
+              >
+                <div
+                  class={`rounded-lg flex items-center justify-center ${f.hero ? 'w-14 h-14 mb-4' : 'w-10 h-10 mb-3'}`}
+                  style={{ "background": `rgba(${f.accentRgb}, 0.1)`, "color": `rgba(${f.accentRgb}, 1)` }}
+                >
+                  <f.icon size={f.hero ? 28 : 20} />
                 </div>
-                <h3 class="font-bold text-on-surface mb-1 text-sm">{f.title}</h3>
-                <p class="text-xs text-on-surface-muted">{f.description}</p>
+                <h3 class={`font-bold text-on-surface ${f.hero ? 'text-lg mb-2' : 'text-sm mb-1'}`}>{f.title}</h3>
+                <p class={`text-on-surface-muted ${f.hero ? 'text-sm' : 'text-xs'}`}>{f.description}</p>
               </div>
             )}</For>
           </div>
@@ -244,36 +265,59 @@ const LandingPage: Component = () => {
 
 /* ─── Static Data ─────────────────────────────────────────── */
 
-const FEATURES: { title: string; description: string; icon: Component<{ size: number; class?: string }> }[] = [
+interface Feature {
+  title: string;
+  description: string;
+  icon: Component<{ size: number; class?: string }>;
+  accent: string;       // Tailwind color for icon bg/border hover
+  accentRgb: string;    // RGB for hover glow
+  hero?: boolean;       // Large bento card
+}
+
+const FEATURES: Feature[] = [
   {
     title: 'Quick Scoring',
-    description: 'One-tap start, swipe to score, works offline court-side.',
+    description: 'One-tap start, swipe to score, works offline court-side. Get your game going in seconds — no setup, no accounts, just play.',
     icon: Zap,
+    accent: 'emerald',
+    accentRgb: '34, 197, 94',
+    hero: true,
   },
   {
     title: 'Match History & Stats',
-    description: 'Every game saved, win/loss tracking across all your matches.',
+    description: 'Every game saved automatically. Track wins, losses, and streaks across all your matches with detailed breakdowns.',
     icon: Clock,
+    accent: 'amber',
+    accentRgb: '245, 158, 11',
+    hero: true,
   },
   {
     title: 'Tournament Management',
     description: 'Round-robin, elimination, pool-to-bracket formats with full bracket control.',
     icon: Trophy,
+    accent: 'violet',
+    accentRgb: '139, 92, 246',
   },
   {
     title: 'Live Real-Time Scores',
     description: 'Point-by-point updates, live standings, spectator views.',
     icon: Activity,
+    accent: 'cyan',
+    accentRgb: '6, 182, 212',
   },
   {
     title: 'Sharing & QR Codes',
     description: 'Public links, QR codes, instant tournament access for anyone.',
     icon: Share2,
+    accent: 'orange',
+    accentRgb: '249, 115, 22',
   },
   {
     title: 'Player Invitations',
     description: 'Search users, send in-app invites, one-tap accept to join.',
     icon: UserPlus,
+    accent: 'rose',
+    accentRgb: '244, 63, 94',
   },
 ];
 
