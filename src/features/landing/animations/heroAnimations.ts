@@ -33,10 +33,11 @@ export function createHeroEntrance(els: HeroElements) {
   tl.to(els.subtext, { opacity: 1, y: 0, duration: 0.3 }, 0.9);
 
   // CTAs spring in
-  gsap.set(els.ctas, { opacity: 0, scale: 0.8 });
-  tl.to(els.ctas, {
+  gsap.set(els.ctas.children, { opacity: 0, scale: 0.8 });
+  tl.to(els.ctas.children, {
     opacity: 1, scale: 1,
     duration: 0.4, ease: 'elastic.out(1, 0.5)',
+    stagger: 0.15,
   }, 1.1);
 
   return tl;
