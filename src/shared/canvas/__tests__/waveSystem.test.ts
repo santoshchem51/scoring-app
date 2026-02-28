@@ -53,4 +53,23 @@ describe('generateWaves', () => {
     const waves = generateWaves(0, { ...config, count: 4 });
     expect(waves).toHaveLength(4);
   });
+
+  it('returns empty array when count is 0', () => {
+    const waves = generateWaves(0, { ...config, count: 0 });
+    expect(waves).toEqual([]);
+  });
+
+  it('handles zero-size canvas without throwing', () => {
+    expect(() => generateWaves(0, { count: 4, width: 0, height: 0 })).not.toThrow();
+    const waves = generateWaves(0, { count: 4, width: 0, height: 0 });
+    expect(waves).toHaveLength(4);
+  });
+
+  it('generates single wave when count is 1', () => {
+    const waves = generateWaves(0, { ...config, count: 1 });
+    expect(waves).toHaveLength(1);
+    expect(waves[0].points.length).toBeGreaterThan(0);
+    expect(waves[0].points[0].x).toBe(0);
+    expect(waves[0].points[waves[0].points.length - 1].x).toBe(config.width);
+  });
 });

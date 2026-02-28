@@ -4,6 +4,7 @@ export interface WaveConfig {
   count: number;
   width: number;
   height: number;
+  topMargin?: number; // px — waves start below this Y offset
 }
 
 export interface WavePoint {
@@ -26,8 +27,11 @@ export function generateWaves(time: number, config: WaveConfig): WaveLine[] {
   const waves: WaveLine[] = [];
   const t = time * 0.0005;
 
+  const top = config.topMargin ?? 0;
+  const range = height - top;
+
   for (let i = 0; i < count; i++) {
-    const baseY = (height / (count + 1)) * (i + 1);
+    const baseY = top + (range / (count + 1)) * (i + 1);
     const amplitude = height * AMPLITUDE_RATIO;
     const opacity = 0.1 + (i % 3) * 0.04; // varies between 0.10, 0.14, 0.18
     const points: WavePoint[] = [];

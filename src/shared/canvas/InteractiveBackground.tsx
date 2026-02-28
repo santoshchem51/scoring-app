@@ -9,6 +9,7 @@ interface InteractiveBackgroundProps {
   waveOpacity?: number;
   glowIntensity?: number;
   glowRadius?: number;
+  topClearance?: number;
   class?: string;
 }
 
@@ -35,6 +36,7 @@ const InteractiveBackground: Component<InteractiveBackgroundProps> = (props) => 
         waveOpacity={props.waveOpacity}
         glowIntensity={props.glowIntensity}
         glowRadius={props.glowRadius}
+        topClearance={props.topClearance}
         class={props.class}
       />
     </Show>
@@ -53,47 +55,67 @@ const CanvasLayer: Component<InteractiveBackgroundProps> = (props) => {
       waveOpacity: props.waveOpacity ?? 0.15,
       glowIntensity: props.glowIntensity ?? 1,
       glowRadius: props.glowRadius ?? 250,
+      topClearance: props.topClearance,
     });
 
     // Plain mutable cursor — NOT a signal
     const cursor = { x: -1000, y: -1000 };
 
     // --- Resize handling ---
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Fix 7: Cache getBoundingClientRect, invalidated on resize
+    let cachedRect: DOMRect | null = null;
 
+    // Fix 6: Read DPR inside resize() for multi-monitor support
     function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = canvasEl.offsetWidth;
       const h = canvasEl.offsetHeight;
       canvasEl.width = w * dpr;
       canvasEl.height = h * dpr;
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cachedRect = null;
     }
 
+    // Fix 2: rAF-based debounced resize (shared by both static and animated paths)
+    let resizeRafId: number | null = null;
+
     resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvasEl);
 
     // --- Static mode: single render and stop ---
+    // Fix 5: Resize and redraw in static mode
     if (props.mode === 'static') {
-      const w = canvasEl.offsetWidth;
-      const h = canvasEl.offsetHeight;
-      renderer.draw(0, w, h, { x: -1000, y: -1000 });
-      onCleanup(() => ro.disconnect());
+      function resizeAndDraw() {
+        resize();
+        renderer.draw(0, canvasEl.offsetWidth, canvasEl.offsetHeight, { x: -1000, y: -1000 });
+      }
+      resizeAndDraw();
+      const ro = new ResizeObserver(() => {
+        if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
+        resizeRafId = requestAnimationFrame(() => {
+          resizeRafId = null;
+          resizeAndDraw();
+        });
+      });
+      ro.observe(canvasEl);
+      onCleanup(() => {
+        ro.disconnect();
+        if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
+      });
       return;
     }
 
     // --- Animated mode ---
 
-    // Cursor tracking (desktop only — pointer: fine check)
-    const hasPointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    function onMouseMove(e: MouseEvent) {
-      const rect = canvasEl.getBoundingClientRect();
-      cursor.x = e.clientX - rect.left;
-      cursor.y = e.clientY - rect.top;
+    // Fix 2: Debounced ResizeObserver for animated mode
+    function debouncedResize() {
+      if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
+      resizeRafId = requestAnimationFrame(() => {
+        resizeRafId = null;
+        resize();
+      });
     }
-    if (hasPointer) {
-      document.addEventListener('mousemove', onMouseMove, { passive: true });
-    }
+    const ro = new ResizeObserver(debouncedResize);
+    ro.observe(canvasEl);
 
     // Reduced motion check
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -115,7 +137,7 @@ const CanvasLayer: Component<InteractiveBackgroundProps> = (props) => {
       renderer.draw(0, w, h, { x: -1000, y: -1000 });
       onCleanup(() => {
         ro.disconnect();
-        document.removeEventListener('mousemove', onMouseMove);
+        if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
         motionQuery.removeEventListener('change', onMotionChange);
       });
       return;
@@ -136,19 +158,40 @@ const CanvasLayer: Component<InteractiveBackgroundProps> = (props) => {
     // Idle suspension
     let idle = false;
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
-    function onInteraction() {
-      if (idle) idle = false;
-      if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => { idle = true; }, 45_000);
-    }
-    document.addEventListener('mousemove', onInteraction, { passive: true });
-    document.addEventListener('touchstart', onInteraction, { passive: true });
-    document.addEventListener('scroll', onInteraction, { passive: true });
-    onInteraction(); // start timer
 
     // Thermal fallback
     let thermalDropped = false;
     let slowFrameCount = 0;
+
+    // Fix 7: Extract idle timer reset into a helper (also Fix 1: recovery on interaction)
+    function resetIdleTimer() {
+      idle = false;
+      thermalDropped = false;
+      slowFrameCount = 0;
+      clearTimeout(idleTimer!);
+      idleTimer = setTimeout(() => { idle = true; }, 45_000);
+    }
+
+    // Fix 7: Merged onInteraction — mousemove handled by onMouseMove below
+    function onInteraction() {
+      resetIdleTimer();
+    }
+    document.addEventListener('touchstart', onInteraction, { passive: true });
+    document.addEventListener('scroll', onInteraction, { passive: true });
+    resetIdleTimer(); // start timer
+
+    // Cursor tracking (desktop only — pointer: fine check)
+    // Fix 7: Use cached rect and merge idle reset into mousemove
+    const hasPointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    function onMouseMove(e: MouseEvent) {
+      if (!cachedRect) cachedRect = canvasEl.getBoundingClientRect();
+      cursor.x = e.clientX - cachedRect.left;
+      cursor.y = e.clientY - cachedRect.top;
+      resetIdleTimer();
+    }
+    if (hasPointer) {
+      document.addEventListener('mousemove', onMouseMove, { passive: true });
+    }
 
     // rAF loop
     let rafId: number;
@@ -158,16 +201,20 @@ const CanvasLayer: Component<InteractiveBackgroundProps> = (props) => {
     function loop(t: number) {
       rafId = requestAnimationFrame(loop);
 
-      if (tabHidden || offScreen || idle || reducedMotion || thermalDropped) return;
+      // Fix 1: Reset lastFrame before pausing so first frame after resume is clean
+      if (tabHidden || offScreen || idle || reducedMotion || thermalDropped) {
+        lastFrame = 0;
+        return;
+      }
 
       // 30fps throttle
       if (t - lastFrame < FRAME_INTERVAL) return;
 
-      // Thermal monitoring
+      // Fix 3: Thermal monitoring — raised threshold to 66ms, count to 10
       const frameDuration = t - lastFrame;
-      if (lastFrame > 0 && frameDuration > 40) {
+      if (lastFrame > 0 && frameDuration > 66) {
         slowFrameCount++;
-        if (slowFrameCount >= 5) {
+        if (slowFrameCount >= 10) {
           thermalDropped = true;
           // Render one last static frame
           const w = canvasEl.offsetWidth;
@@ -189,11 +236,11 @@ const CanvasLayer: Component<InteractiveBackgroundProps> = (props) => {
 
     onCleanup(() => {
       cancelAnimationFrame(rafId);
+      if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
       ro.disconnect();
       io.disconnect();
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('visibilitychange', onVisChange);
-      document.removeEventListener('mousemove', onInteraction);
       document.removeEventListener('touchstart', onInteraction);
       document.removeEventListener('scroll', onInteraction);
       motionQuery.removeEventListener('change', onMotionChange);
@@ -205,7 +252,6 @@ const CanvasLayer: Component<InteractiveBackgroundProps> = (props) => {
     <canvas
       ref={canvasEl!}
       class={`absolute inset-0 w-full h-full pointer-events-none ${props.class ?? ''}`}
-      style={{ "will-change": "transform" }}
       aria-hidden="true"
     />
   );

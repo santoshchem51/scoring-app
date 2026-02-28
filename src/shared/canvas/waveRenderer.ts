@@ -5,6 +5,7 @@ export interface RendererConfig {
   waveOpacity: number;
   glowIntensity?: number;
   glowRadius?: number;
+  topClearance?: number; // px — waves distributed below this Y offset
 }
 
 interface Cursor {
@@ -46,14 +47,12 @@ export function createWaveRenderer(ctx: CanvasRenderingContext2D, config: Render
         lastGlowY = cursor.y;
       }
 
-      ctx.save();
       ctx.fillStyle = cachedGradient;
       ctx.fillRect(0, 0, w, h);
-      ctx.restore();
     }
 
     // Generate and draw waves
-    const waves = generateWaves(time, { count: config.waveCount, width: w, height: h });
+    const waves = generateWaves(time, { count: config.waveCount, width: w, height: h, topMargin: config.topClearance });
 
     for (const wave of waves) {
       ctx.beginPath();
@@ -76,13 +75,17 @@ export function createWaveRenderer(ctx: CanvasRenderingContext2D, config: Render
       // Calculate opacity — boost near cursor
       let opacity = wave.opacity * (config.waveOpacity / 0.15); // scale to configured opacity
       if (cursorInBounds) {
-        // Find closest point in this wave to cursor
-        let minDist = Infinity;
+        // Find closest point in this wave to cursor (squared distance to avoid sqrt)
+        const glowRadiusSq = glowRadius * glowRadius;
+        let minDistSq = Infinity;
         for (const pt of wave.points) {
-          const d = Math.hypot(pt.x - cursor.x, pt.y - cursor.y);
-          if (d < minDist) minDist = d;
+          const ddx = pt.x - cursor.x;
+          const ddy = pt.y - cursor.y;
+          const dSq = ddx * ddx + ddy * ddy;
+          if (dSq < minDistSq) minDistSq = dSq;
         }
-        if (minDist < glowRadius) {
+        if (minDistSq < glowRadiusSq) {
+          const minDist = Math.sqrt(minDistSq);
           const boost = (1 - minDist / glowRadius) * 0.25;
           opacity = Math.min(opacity + boost, 0.4);
         }

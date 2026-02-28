@@ -76,7 +76,7 @@ const LandingPage: Component = () => {
       {/* Hero */}
       <section class="relative px-4 pt-12 pb-16 md:pt-20 md:pb-24 text-center overflow-hidden">
         <InteractiveBackground mode="animated" />
-        <div class="max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl">
+        <div class="relative z-10 max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl rounded-2xl px-6 py-8" style={{ "background": "radial-gradient(ellipse at center, rgba(15, 17, 24, 0.85) 0%, rgba(15, 17, 24, 0.6) 60%, transparent 100%)" }}>
           <div class="flex justify-center mb-6">
             <Logo size="xl" showIcon />
           </div>
@@ -116,15 +116,15 @@ const LandingPage: Component = () => {
             Everything You Need
           </h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-in">
-            {FEATURES.map((f) => (
-              <div use:tilt={{ maxDeg: 6, scale: 1.03 }} class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-300 hover-lift" style={{ "transition-property": "transform, box-shadow" }}>
+            <For each={FEATURES}>{(f) => (
+              <div use:tilt={{ maxDeg: 6, scale: 1.0 }} class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-300 hover-lift" style={{ "transition-property": "transform, box-shadow" }}>
                 <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 text-primary">
                   <f.icon size={20} />
                 </div>
                 <h3 class="font-bold text-on-surface mb-1 text-sm">{f.title}</h3>
                 <p class="text-xs text-on-surface-muted">{f.description}</p>
               </div>
-            ))}
+            )}</For>
           </div>
         </div>
       </section>
@@ -139,15 +139,15 @@ const LandingPage: Component = () => {
             How It Works
           </h2>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8">
-            {STEPS.map((step, i) => (
-              <div use:tilt={{ maxDeg: 4, scale: 1.02 }} class="text-center" style={{ "transition": "transform 0.3s ease-out" }}>
+            <For each={STEPS}>{(step, i) => (
+              <div use:tilt={{ maxDeg: 4, scale: 1.0 }} class="text-center" style={{ "transition": "transform 0.3s ease-out" }}>
                 <div class="w-10 h-10 rounded-full bg-primary text-surface font-bold text-lg flex items-center justify-center mx-auto mb-3" style={{ "box-shadow": "0 0 20px rgba(34,197,94,0.3)" }}>
-                  {i + 1}
+                  {i() + 1}
                 </div>
                 <h3 class="font-bold text-on-surface mb-1">{step.title}</h3>
                 <p class="text-sm text-on-surface-muted">{step.description}</p>
               </div>
-            ))}
+            )}</For>
           </div>
         </div>
       </section>
