@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createResource, Show, For } from 'solid-js';
+import { createResource, Show, For, onMount, onCleanup } from 'solid-js';
 import { A } from '@solidjs/router';
 import { Zap, Clock, Trophy, Activity, Share2, UserPlus } from 'lucide-solid';
 import TopNav from '../../shared/components/TopNav';
@@ -69,27 +69,66 @@ function TournamentPreview() {
 }
 
 const LandingPage: Component = () => {
+  let logoEl!: HTMLElement;
+  let headlineEl!: HTMLElement;
+  let subtextEl!: HTMLElement;
+  let ctasEl!: HTMLElement;
+  let cardEl!: HTMLElement;
+  let word1El!: HTMLElement;
+  let word2El!: HTMLElement;
+  let word3El!: HTMLElement;
+  let heroSectionEl!: HTMLElement;
+  let featuresEl!: HTMLElement;
+  let stepsEl!: HTMLElement;
+  let finalCtaEl!: HTMLElement;
+
+  onMount(async () => {
+    const { initLenis } = await import('./animations');
+    const { createHeroEntrance } = await import('./animations/heroAnimations');
+    const { setupScrollAnimations } = await import('./animations/scrollAnimations');
+    const lenisCleanup = initLenis();
+    const heroTl = createHeroEntrance({
+      logo: logoEl,
+      headline: headlineEl,
+      subtext: subtextEl,
+      ctas: ctasEl,
+      card: cardEl,
+      headlineWords: [word1El, word2El, word3El],
+    });
+    const scrollCleanup = setupScrollAnimations({
+      features: featuresEl,
+      steps: stepsEl,
+      tournaments: null,
+      finalCta: finalCtaEl,
+      heroSection: heroSectionEl,
+    });
+    onCleanup(() => {
+      heroTl.kill();
+      lenisCleanup();
+      scrollCleanup();
+    });
+  });
+
   return (
     <div class="min-h-screen bg-surface text-on-surface">
       <TopNav variant="landing" />
 
       {/* Hero */}
-      <section class="relative px-4 pt-12 pb-16 md:pt-20 md:pb-24 text-center overflow-hidden">
+      <section ref={heroSectionEl} class="relative px-4 pt-12 pb-16 md:pt-20 md:pb-24 text-center overflow-hidden">
         <InteractiveBackground mode="animated" />
-        <div class="relative z-10 max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl rounded-2xl px-8 py-10 backdrop-blur-md border border-white/5" style={{ "background": "rgba(15, 17, 24, 0.5)" }}>
-          <div class="flex justify-center mb-6">
+        <div ref={cardEl} class="relative z-10 max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl rounded-2xl px-8 py-10 backdrop-blur-md border border-white/5" style={{ "background": "rgba(15, 17, 24, 0.5)" }}>
+          <div ref={logoEl} class="flex justify-center mb-6">
             <Logo size="xl" showIcon />
           </div>
-          <p
-            class="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 text-gradient"
-            style={{ "font-family": "var(--font-score)" }}
-          >
-            Score. Organize. Compete.
+          <p ref={headlineEl} class="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 text-gradient" style={{ "font-family": "var(--font-score)" }}>
+            <span ref={word1El} class="inline-block">Score.&nbsp;</span>
+            <span ref={word2El} class="inline-block">Organize.&nbsp;</span>
+            <span ref={word3El} class="inline-block">Compete.</span>
           </p>
-          <p class="text-on-surface-muted text-lg mb-8 max-w-md mx-auto">
+          <p ref={subtextEl} class="text-on-surface-muted text-lg mb-8 max-w-md mx-auto">
             The all-in-one pickleball app for scoring games, managing tournaments, and sharing live results.
           </p>
-          <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <div ref={ctasEl} class="flex flex-col sm:flex-row gap-3 justify-center">
             <A
               href="/new"
               class="inline-block bg-primary text-surface font-semibold px-8 py-3.5 rounded-xl text-lg active:scale-[0.97] transition-all duration-200 hover-glow-primary"
@@ -107,7 +146,7 @@ const LandingPage: Component = () => {
       </section>
 
       {/* Features */}
-      <section class="px-4 py-12 md:py-16 bg-surface-light/50">
+      <section ref={featuresEl} class="px-4 py-12 md:py-16 bg-surface-light/50">
         <div class="max-w-lg mx-auto md:max-w-3xl lg:max-w-5xl">
           <h2
             class="text-xl md:text-2xl font-bold text-center mb-8 text-gradient-subtle"
@@ -115,7 +154,7 @@ const LandingPage: Component = () => {
           >
             Everything You Need
           </h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-in">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <For each={FEATURES}>{(f) => (
               <div use:tilt={{ maxDeg: 6, scale: 1.0 }} class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-300 hover-lift" style={{ "transition-property": "transform, box-shadow" }}>
                 <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 text-primary">
@@ -130,7 +169,7 @@ const LandingPage: Component = () => {
       </section>
 
       {/* How It Works */}
-      <section class="px-4 py-12 md:py-16">
+      <section ref={stepsEl} class="px-4 py-12 md:py-16">
         <div class="max-w-lg mx-auto md:max-w-3xl lg:max-w-4xl">
           <h2
             class="text-xl md:text-2xl font-bold text-center mb-8 text-gradient-subtle"
@@ -156,7 +195,7 @@ const LandingPage: Component = () => {
       <TournamentPreview />
 
       {/* Final CTA */}
-      <section class="px-4 py-12 md:py-16 bg-surface-light/50 text-center">
+      <section ref={finalCtaEl} class="px-4 py-12 md:py-16 bg-surface-light/50 text-center">
         <div class="max-w-lg mx-auto md:max-w-2xl">
           <h2
             class="text-2xl font-bold mb-4"
