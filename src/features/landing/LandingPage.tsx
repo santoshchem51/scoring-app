@@ -339,12 +339,12 @@ const FEATURES: Feature[] = [
 
 const STEPS = [
   {
-    title: 'Score',
-    description: 'Tap to score, swipe to undo. Works offline.',
-  },
-  {
     title: 'Organize',
     description: 'Create tournaments, invite players, manage brackets.',
+  },
+  {
+    title: 'Score',
+    description: 'Tap to score, swipe to undo. Works offline.',
   },
   {
     title: 'Share',
