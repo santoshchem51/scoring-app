@@ -13,24 +13,52 @@ export function setupScrollAnimations(sections: SectionElements): () => void {
   gsap.registerPlugin(ScrollTrigger);
   const triggers: ScrollTrigger[] = [];
 
-  // Feature cards: per-card trigger so each reveals when it enters viewport
-  const featureCards = sections.features.querySelectorAll(':scope > div > div > div');
-  featureCards.forEach((card, i) => {
-    gsap.set(card, { opacity: 0, y: 60, scale: 0.85, rotateX: 5 });
-    triggers.push(
-      ScrollTrigger.create({
-        trigger: card as HTMLElement,
-        start: 'top 90%',
-        onEnter: () => {
-          gsap.to(card, {
-            opacity: 1, y: 0, scale: 1, rotateX: 0,
-            duration: 0.6, ease: 'power3.out',
-            delay: i * 0.08,
-          });
-        },
-        once: true,
-      })
-    );
+  // Feature cards: hero cards (col-span-2) get dramatic entrance,
+  // compact cards get a clean smooth fade-up
+  const featureCards = Array.from(
+    sections.features.querySelectorAll(':scope > div > div > div')
+  ) as HTMLElement[];
+
+  let compactIndex = 0;
+  featureCards.forEach((card) => {
+    const isHero = card.classList.contains('lg:col-span-2');
+
+    if (isHero) {
+      // Hero cards: scale + rotateX (dramatic)
+      gsap.set(card, { opacity: 0, y: 50, scale: 0.9, rotateX: 4 });
+      triggers.push(
+        ScrollTrigger.create({
+          trigger: card,
+          start: 'top 90%',
+          onEnter: () => {
+            gsap.to(card, {
+              opacity: 1, y: 0, scale: 1, rotateX: 0,
+              duration: 0.7, ease: 'power2.out',
+            });
+          },
+          once: true,
+        })
+      );
+    } else {
+      // Compact cards: simple fade-up, no scale/rotate, smooth stagger
+      const staggerDelay = compactIndex * 0.1;
+      compactIndex++;
+      gsap.set(card, { opacity: 0, y: 30 });
+      triggers.push(
+        ScrollTrigger.create({
+          trigger: card,
+          start: 'top 90%',
+          onEnter: () => {
+            gsap.to(card, {
+              opacity: 1, y: 0,
+              duration: 0.5, ease: 'power2.out',
+              delay: staggerDelay,
+            });
+          },
+          once: true,
+        })
+      );
+    }
   });
 
   // How It Works: alternate slide from left/right, per-card trigger
