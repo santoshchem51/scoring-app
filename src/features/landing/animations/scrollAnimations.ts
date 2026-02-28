@@ -40,18 +40,19 @@ export function setupScrollAnimations(sections: SectionElements): () => void {
         })
       );
     } else {
-      // Compact cards: simple fade-up, no scale/rotate, smooth stagger
-      const staggerDelay = compactIndex * 0.1;
+      // Compact cards: alternating slide from left/right
+      const fromX = compactIndex % 2 === 0 ? -80 : 80;
+      const staggerDelay = compactIndex * 0.12;
       compactIndex++;
-      gsap.set(card, { opacity: 0, y: 30 });
+      gsap.set(card, { opacity: 0, x: fromX });
       triggers.push(
         ScrollTrigger.create({
           trigger: card,
           start: 'top 90%',
           onEnter: () => {
             gsap.to(card, {
-              opacity: 1, y: 0,
-              duration: 0.5, ease: 'power2.out',
+              opacity: 1, x: 0,
+              duration: 0.6, ease: 'back.out(1.2)',
               delay: staggerDelay,
             });
           },
