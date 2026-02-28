@@ -4,9 +4,13 @@ import { A } from '@solidjs/router';
 import { Zap, Clock, Trophy, Activity, Share2, UserPlus } from 'lucide-solid';
 import TopNav from '../../shared/components/TopNav';
 import Logo from '../../shared/components/Logo';
+import { InteractiveBackground } from '../../shared/canvas';
+import { tilt } from '../../shared/directives/tilt';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
 import { filterPublicTournaments } from '../tournaments/engine/discoveryFilters';
 import { formatLabels } from '../tournaments/constants';
+
+const _tilt = tilt; // prevent tree-shaking
 
 function TournamentPreview() {
   const [upcoming] = createResource(async () => {
@@ -71,13 +75,7 @@ const LandingPage: Component = () => {
 
       {/* Hero */}
       <section class="relative px-4 pt-12 pb-16 md:pt-20 md:pb-24 text-center overflow-hidden">
-        {/* Aurora gradient background */}
-        <div
-          class="absolute inset-0 -z-10"
-          style={{
-            background: "radial-gradient(ellipse at 30% 0%, rgba(34,197,94,0.12), transparent 50%), radial-gradient(ellipse at 70% 0%, rgba(249,115,22,0.08), transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(250,204,21,0.06), transparent 50%)"
-          }}
-        />
+        <InteractiveBackground mode="animated" />
         <div class="max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl">
           <div class="flex justify-center mb-6">
             <Logo size="xl" showIcon />
@@ -119,7 +117,7 @@ const LandingPage: Component = () => {
           </h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-in">
             {FEATURES.map((f) => (
-              <div class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-200 hover-lift">
+              <div use:tilt={{ maxDeg: 6, scale: 1.03 }} class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-300 hover-lift" style={{ "transition-property": "transform, box-shadow" }}>
                 <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 text-primary">
                   <f.icon size={20} />
                 </div>
@@ -142,7 +140,7 @@ const LandingPage: Component = () => {
           </h2>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8">
             {STEPS.map((step, i) => (
-              <div class="text-center">
+              <div use:tilt={{ maxDeg: 4, scale: 1.02 }} class="text-center" style={{ "transition": "transform 0.3s ease-out" }}>
                 <div class="w-10 h-10 rounded-full bg-primary text-surface font-bold text-lg flex items-center justify-center mx-auto mb-3" style={{ "box-shadow": "0 0 20px rgba(34,197,94,0.3)" }}>
                   {i + 1}
                 </div>
