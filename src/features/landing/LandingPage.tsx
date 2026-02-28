@@ -76,7 +76,7 @@ const LandingPage: Component = () => {
       {/* Hero */}
       <section class="relative px-4 pt-12 pb-16 md:pt-20 md:pb-24 text-center overflow-hidden">
         <InteractiveBackground mode="animated" />
-        <div class="relative z-10 max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl rounded-2xl px-6 py-8" style={{ "background": "radial-gradient(ellipse at center, rgba(15, 17, 24, 0.85) 0%, rgba(15, 17, 24, 0.6) 60%, transparent 100%)" }}>
+        <div class="relative z-10 max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl rounded-2xl px-8 py-10 backdrop-blur-md border border-white/5" style={{ "background": "rgba(15, 17, 24, 0.5)" }}>
           <div class="flex justify-center mb-6">
             <Logo size="xl" showIcon />
           </div>
