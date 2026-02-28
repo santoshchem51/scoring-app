@@ -8,6 +8,7 @@ import PoolTable from './components/PoolTable';
 import BracketView from './components/BracketView';
 import TournamentResults from './components/TournamentResults';
 import { statusLabels, statusColors, formatLabels } from './constants';
+import { InteractiveBackground } from '../../shared/canvas';
 
 const PublicTournamentPage: Component = () => {
   const params = useParams();
@@ -55,7 +56,9 @@ const PublicTournamentPage: Component = () => {
 
   return (
     <PageLayout title={tournament()?.name ?? 'Tournament'}>
-      <div class="p-4 space-y-6">
+      <div class="relative">
+        <InteractiveBackground mode="static" waveCount={6} waveOpacity={0.1} />
+        <div class="relative z-10 p-4 space-y-6">
         {/* Loading state */}
         <Show when={!resolved.loading} fallback={
           <div class="flex items-center justify-center min-h-[40vh]">
@@ -159,6 +162,7 @@ const PublicTournamentPage: Component = () => {
             )}
           </Show>
         </Show>
+        </div>
       </div>
     </PageLayout>
   );
