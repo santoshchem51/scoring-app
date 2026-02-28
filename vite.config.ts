@@ -3,8 +3,19 @@ import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import path from 'path';
 
 export default defineConfig(({ mode }) => ({
+  server: {
+    fs: {
+      // Allow Vite to serve files from the worktree's own node_modules
+      // and the main project's node_modules (worktree shares some packages)
+      allow: [
+        path.resolve(__dirname),
+        path.resolve(__dirname, '../../..'), // ScoringApp root
+      ],
+    },
+  },
   plugins: [
     solid({ hot: mode !== 'test' }),
     tailwindcss(),
@@ -30,6 +41,14 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ],
+  resolve: {
+    alias: {
+      '@testing-library/jest-dom/vitest': path.resolve(
+        __dirname,
+        'node_modules/@testing-library/jest-dom/dist/vitest.mjs'
+      ),
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,
