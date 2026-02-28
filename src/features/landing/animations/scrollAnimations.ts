@@ -63,7 +63,7 @@ export function setupScrollAnimations(sections: SectionElements): () => void {
   });
 
   // How It Works: alternate slide from left/right, per-card trigger
-  const stepCards = sections.steps.querySelectorAll(':scope > div > div');
+  const stepCards = sections.steps.querySelectorAll(':scope > div > div > div');
   stepCards.forEach((card, i) => {
     const fromX = i % 2 === 0 ? -80 : 80;
     gsap.set(card, { opacity: 0, x: fromX });
