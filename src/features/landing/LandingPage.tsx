@@ -120,10 +120,10 @@ const LandingPage: Component = () => {
           <div ref={logoEl} class="flex justify-center mb-6">
             <Logo size="xl" showIcon />
           </div>
-          <p ref={headlineEl} class="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 text-gradient" style={{ "font-family": "var(--font-score)" }}>
-            <span ref={word1El} class="inline-block">Score.&nbsp;</span>
-            <span ref={word2El} class="inline-block">Organize.&nbsp;</span>
-            <span ref={word3El} class="inline-block">Compete.</span>
+          <p ref={headlineEl} class="text-2xl md:text-3xl lg:text-4xl font-bold mb-3" style={{ "font-family": "var(--font-score)" }}>
+            <span ref={word1El} class="inline-block text-gradient">Score.&nbsp;</span>
+            <span ref={word2El} class="inline-block text-gradient">Organize.&nbsp;</span>
+            <span ref={word3El} class="inline-block text-gradient">Compete.</span>
           </p>
           <p ref={subtextEl} class="text-on-surface-muted text-lg mb-8 max-w-md mx-auto">
             The all-in-one pickleball app for scoring games, managing tournaments, and sharing live results.
