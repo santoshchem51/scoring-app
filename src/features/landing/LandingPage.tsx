@@ -166,7 +166,7 @@ const LandingPage: Component = () => {
           </h2>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <For each={FEATURES}>{(f) => (
-              <div use:tilt={{ maxDeg: 6, scale: 1.0 }} class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-300 hover-lift" style={{ "transition-property": "transform, box-shadow" }}>
+              <div use:tilt={{ maxDeg: 6, scale: 1.0 }} class="bg-surface-light rounded-xl p-5 border border-border transition-all duration-300 hover-lift hover:bg-primary/10 hover:border-primary/20" style={{ "transition-property": "transform, box-shadow, background-color, border-color" }}>
                 <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3 text-primary">
                   <f.icon size={20} />
                 </div>
