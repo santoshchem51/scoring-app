@@ -102,10 +102,17 @@ const LandingPage: Component = () => {
       finalCta: finalCtaEl,
       heroSection: heroSectionEl,
     });
+    const { setupCardSpotlight, setupMagneticButtons, setupCardGlow } = await import('./animations/cursorEffects');
+    const spotlightCleanup = setupCardSpotlight(cardEl);
+    const magneticCleanup = setupMagneticButtons(ctasEl);
+    const cardGlowCleanup = setupCardGlow(featuresEl);
     onCleanup(() => {
       heroTl.kill();
       lenisCleanup();
       scrollCleanup();
+      spotlightCleanup();
+      magneticCleanup();
+      cardGlowCleanup();
     });
   });
 
@@ -145,11 +152,14 @@ const LandingPage: Component = () => {
         </div>
       </section>
 
+      {/* Divider */}
+      <div class="h-px mx-auto max-w-lg md:max-w-3xl lg:max-w-5xl" style={{ "background": "linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.3), rgba(249, 115, 22, 0.2), transparent)" }} />
+
       {/* Features */}
       <section ref={featuresEl} class="px-4 py-12 md:py-16 bg-surface-light/50">
         <div class="max-w-lg mx-auto md:max-w-3xl lg:max-w-5xl">
           <h2
-            class="text-xl md:text-2xl font-bold text-center mb-8 text-gradient-subtle"
+            class="text-xl md:text-2xl font-bold text-center mb-8 text-gradient-animated"
             style={{ "font-family": "var(--font-score)" }}
           >
             Everything You Need
@@ -168,11 +178,14 @@ const LandingPage: Component = () => {
         </div>
       </section>
 
+      {/* Divider */}
+      <div class="h-px mx-auto max-w-lg md:max-w-3xl lg:max-w-5xl" style={{ "background": "linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.3), rgba(249, 115, 22, 0.2), transparent)" }} />
+
       {/* How It Works */}
       <section ref={stepsEl} class="px-4 py-12 md:py-16">
         <div class="max-w-lg mx-auto md:max-w-3xl lg:max-w-4xl">
           <h2
-            class="text-xl md:text-2xl font-bold text-center mb-8 text-gradient-subtle"
+            class="text-xl md:text-2xl font-bold text-center mb-8 text-gradient-animated"
             style={{ "font-family": "var(--font-score)" }}
           >
             How It Works
@@ -190,6 +203,9 @@ const LandingPage: Component = () => {
           </div>
         </div>
       </section>
+
+      {/* Divider */}
+      <div class="h-px mx-auto max-w-lg md:max-w-3xl lg:max-w-5xl" style={{ "background": "linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.3), rgba(249, 115, 22, 0.2), transparent)" }} />
 
       {/* Upcoming Tournaments */}
       <TournamentPreview />

@@ -192,6 +192,22 @@ html.outdoor .text-7xl {
   background-clip: text;
 }
 
+/* Animated gradient shimmer for section headers */
+@keyframes gradient-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.text-gradient-animated {
+  background: linear-gradient(135deg, #22c55e, #4ade80, #facc15, #22c55e);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-shimmer 4s ease infinite;
+}
+
 /* Noise texture overlay */
 body::after {
   content: '';
