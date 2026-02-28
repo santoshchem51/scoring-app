@@ -40,8 +40,8 @@ export function setupScrollAnimations(sections: SectionElements): () => void {
         })
       );
     } else {
-      // Compact cards: alternating slide from left/right
-      const fromX = compactIndex % 2 === 0 ? -80 : 80;
+      // Compact cards: slide in from left
+      const fromX = -80;
       const staggerDelay = compactIndex * 0.12;
       compactIndex++;
       gsap.set(card, { opacity: 0, x: fromX });
