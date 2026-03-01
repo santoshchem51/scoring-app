@@ -3,6 +3,7 @@ import type { Match, StatsSummary, MatchRef } from '../../types';
 
 const {
   mockDoc,
+  mockGetDoc,
   mockGetDocs,
   mockCollection,
   mockRunTransaction,
@@ -19,6 +20,7 @@ const {
   );
   return {
     mockDoc: vi.fn(() => 'mock-doc-ref'),
+    mockGetDoc: vi.fn(),
     mockGetDocs: vi.fn(() => Promise.resolve({ docs: [] })),
     mockCollection: vi.fn(() => 'mock-collection-ref'),
     mockRunTransaction,
@@ -29,6 +31,7 @@ const {
 
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
+  getDoc: mockGetDoc,
   getDocs: mockGetDocs,
   collection: mockCollection,
   runTransaction: mockRunTransaction,
@@ -425,6 +428,37 @@ describe('firestorePlayerStatsRepository', () => {
       // No stats should be written — registration failed, so no participants resolved
       expect(mockTransactionSet).not.toHaveBeenCalled();
       expect(mockRunTransaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getStatsSummary', () => {
+    it('returns stats summary when document exists', async () => {
+      const stats = makeEmptyStats();
+      stats.totalMatches = 10;
+      stats.wins = 7;
+      stats.winRate = 0.7;
+      stats.tier = 'intermediate';
+      mockGetDoc.mockResolvedValueOnce({
+        exists: () => true,
+        data: () => stats,
+      });
+
+      const result = await firestorePlayerStatsRepository.getStatsSummary('user-1');
+
+      expect(mockDoc).toHaveBeenCalledWith(
+        'mock-firestore', 'users', 'user-1', 'stats', 'summary',
+      );
+      expect(result).not.toBeNull();
+      expect(result!.totalMatches).toBe(10);
+      expect(result!.tier).toBe('intermediate');
+    });
+
+    it('returns null when no stats document exists', async () => {
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+
+      const result = await firestorePlayerStatsRepository.getStatsSummary('user-1');
+
+      expect(result).toBeNull();
     });
   });
 });
