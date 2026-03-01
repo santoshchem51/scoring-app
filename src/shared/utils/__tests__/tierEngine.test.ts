@@ -123,3 +123,52 @@ describe('computeTierScore', () => {
     expect(score).toBeGreaterThan(0.2);
   });
 });
+
+// --- computeTier ---
+
+describe('computeTier', () => {
+  it('returns beginner for score below 0.33', () => {
+    expect(computeTier(0.2, 'beginner')).toBe('beginner');
+  });
+
+  it('promotes from beginner to intermediate at 0.33', () => {
+    expect(computeTier(0.34, 'beginner')).toBe('intermediate');
+  });
+
+  it('promotes from intermediate to advanced at 0.53', () => {
+    expect(computeTier(0.54, 'intermediate')).toBe('advanced');
+  });
+
+  it('promotes from advanced to expert at 0.73', () => {
+    expect(computeTier(0.74, 'advanced')).toBe('expert');
+  });
+
+  it('demotes from intermediate to beginner below 0.27', () => {
+    expect(computeTier(0.26, 'intermediate')).toBe('beginner');
+  });
+
+  it('demotes from advanced to intermediate below 0.47', () => {
+    expect(computeTier(0.46, 'advanced')).toBe('intermediate');
+  });
+
+  it('demotes from expert to advanced below 0.67', () => {
+    expect(computeTier(0.66, 'expert')).toBe('advanced');
+  });
+
+  // Hysteresis: stay at current tier in the gap between promote/demote
+  it('stays intermediate at 0.30 (between demote 0.27 and promote 0.33)', () => {
+    expect(computeTier(0.30, 'intermediate')).toBe('intermediate');
+  });
+
+  it('stays advanced at 0.50 (between demote 0.47 and promote 0.53)', () => {
+    expect(computeTier(0.50, 'advanced')).toBe('advanced');
+  });
+
+  it('stays expert at 0.70 (between demote 0.67 and promote 0.73)', () => {
+    expect(computeTier(0.70, 'expert')).toBe('expert');
+  });
+
+  it('defaults to beginner for first-time player', () => {
+    expect(computeTier(0.25, 'beginner')).toBe('beginner');
+  });
+});

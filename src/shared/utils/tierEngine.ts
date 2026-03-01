@@ -53,8 +53,40 @@ export function computeTierScore(results: RecentResult[]): number {
   return Math.max(0, Math.min(1, score));
 }
 
-// Stubs - implemented in Task 3 and Task 4
-export function computeTier(_score: number, currentTier: Tier): Tier {
+// --- Tier Assignment with Hysteresis ---
+
+interface TierThreshold {
+  tier: Tier;
+  promoteAbove: number | null;  // null = can't promote higher
+  demoteBelow: number | null;   // null = can't demote lower
+}
+
+const TIER_THRESHOLDS: TierThreshold[] = [
+  { tier: 'beginner', promoteAbove: 0.33, demoteBelow: null },
+  { tier: 'intermediate', promoteAbove: 0.53, demoteBelow: 0.27 },
+  { tier: 'advanced', promoteAbove: 0.73, demoteBelow: 0.47 },
+  { tier: 'expert', promoteAbove: null, demoteBelow: 0.67 },
+];
+
+const TIER_ORDER: Tier[] = ['beginner', 'intermediate', 'advanced', 'expert'];
+
+export function computeTier(score: number, currentTier: Tier): Tier {
+  const currentIndex = TIER_ORDER.indexOf(currentTier);
+  const current = TIER_THRESHOLDS[currentIndex];
+
+  // Check promotion
+  if (current.promoteAbove !== null && score > current.promoteAbove) {
+    const nextTier = TIER_ORDER[currentIndex + 1];
+    return computeTier(score, nextTier);
+  }
+
+  // Check demotion
+  if (current.demoteBelow !== null && score < current.demoteBelow) {
+    const prevTier = TIER_ORDER[currentIndex - 1];
+    return computeTier(score, prevTier);
+  }
+
+  // Stay at current tier (hysteresis gap)
   return currentTier;
 }
 
