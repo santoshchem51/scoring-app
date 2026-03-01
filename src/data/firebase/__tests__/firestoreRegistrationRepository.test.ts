@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Hoisted mock functions
-const { mockDoc, mockSetDoc, mockGetDocs, mockUpdateDoc, mockCollection, mockQuery, mockWhere, mockServerTimestamp } = vi.hoisted(() => ({
+const { mockDoc, mockSetDoc, mockGetDoc, mockGetDocs, mockUpdateDoc, mockCollection, mockQuery, mockWhere, mockServerTimestamp } = vi.hoisted(() => ({
   mockDoc: vi.fn(() => 'mock-doc-ref'),
   mockSetDoc: vi.fn(),
+  mockGetDoc: vi.fn(),
   mockGetDocs: vi.fn(),
   mockUpdateDoc: vi.fn(),
   mockCollection: vi.fn(() => 'mock-collection-ref'),
@@ -15,12 +16,15 @@ const { mockDoc, mockSetDoc, mockGetDocs, mockUpdateDoc, mockCollection, mockQue
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   setDoc: mockSetDoc,
+  getDoc: mockGetDoc,
   getDocs: mockGetDocs,
   updateDoc: mockUpdateDoc,
   collection: mockCollection,
   query: mockQuery,
   where: mockWhere,
   serverTimestamp: mockServerTimestamp,
+  writeBatch: vi.fn(),
+  increment: vi.fn(),
 }));
 
 vi.mock('../config', () => ({
@@ -73,8 +77,8 @@ describe('firestoreRegistrationRepository', () => {
 
       expect(mockCollection).toHaveBeenCalledWith('mock-firestore', 'tournaments', 't1', 'registrations');
       expect(result).toEqual([
-        { id: 'reg1', userId: 'user1', tournamentId: 't1', paymentStatus: 'paid' },
-        { id: 'reg2', userId: 'user2', tournamentId: 't1', paymentStatus: 'unpaid' },
+        { id: 'reg1', userId: 'user1', tournamentId: 't1', paymentStatus: 'paid', status: 'confirmed', declineReason: null, statusUpdatedAt: null },
+        { id: 'reg2', userId: 'user2', tournamentId: 't1', paymentStatus: 'unpaid', status: 'confirmed', declineReason: null, statusUpdatedAt: null },
       ]);
     });
 
@@ -88,7 +92,21 @@ describe('firestoreRegistrationRepository', () => {
   });
 
   describe('getByUser', () => {
-    it('returns registration when user is found', async () => {
+    it('returns registration via direct doc fetch (new format)', async () => {
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: 'user1',
+        data: () => ({ userId: 'user1', tournamentId: 't1', paymentStatus: 'paid' }),
+      });
+
+      const result = await firestoreRegistrationRepository.getByUser('t1', 'user1');
+
+      expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'tournaments', 't1', 'registrations', 'user1');
+      expect(result).toEqual({ id: 'user1', userId: 'user1', tournamentId: 't1', paymentStatus: 'paid', status: 'confirmed', declineReason: null, statusUpdatedAt: null });
+    });
+
+    it('falls back to query for legacy UUID-keyed doc', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
       mockGetDocs.mockResolvedValue({
         empty: false,
         docs: [
@@ -100,11 +118,11 @@ describe('firestoreRegistrationRepository', () => {
 
       expect(mockCollection).toHaveBeenCalledWith('mock-firestore', 'tournaments', 't1', 'registrations');
       expect(mockWhere).toHaveBeenCalledWith('userId', '==', 'user1');
-      expect(mockQuery).toHaveBeenCalledWith('mock-collection-ref', 'mock-where');
-      expect(result).toEqual({ id: 'reg1', userId: 'user1', tournamentId: 't1', paymentStatus: 'paid' });
+      expect(result).toEqual({ id: 'reg1', userId: 'user1', tournamentId: 't1', paymentStatus: 'paid', status: 'confirmed', declineReason: null, statusUpdatedAt: null });
     });
 
     it('returns undefined when user is not found', async () => {
+      mockGetDoc.mockResolvedValue({ exists: () => false });
       mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
 
       const result = await firestoreRegistrationRepository.getByUser('t1', 'nonexistent');
