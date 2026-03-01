@@ -36,7 +36,8 @@ export class GameSetupPage {
   }
 
   async selectPointsToWin(points: 11 | 15 | 21) {
-    await this.page.getByRole('button', { name: String(points), exact: true }).click();
+    const section = this.page.locator('fieldset', { has: this.page.getByText('Points to Win') });
+    await section.getByRole('button', { name: String(points), exact: true }).click();
   }
 
   async fillTeamName(team: 1 | 2, name: string) {
@@ -44,7 +45,9 @@ export class GameSetupPage {
   }
 
   async selectBestOf(games: 1 | 3 | 5) {
-    await this.page.getByRole('button', { name: String(games), exact: true }).click();
+    const labels: Record<number, string> = { 1: '1 Game', 3: 'Best of 3', 5: 'Best of 5' };
+    const section = this.page.locator('fieldset', { has: this.page.getByText('Match Format') });
+    await section.getByRole('button', { name: labels[games] }).click();
   }
 
   // ── Assertions ──

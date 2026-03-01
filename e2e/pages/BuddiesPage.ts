@@ -15,8 +15,17 @@ export class BuddiesPage {
   }
 
   // ── Actions ──
-  async createGroup(name: string) {
+  async createGroup(
+    name: string,
+    options: { description?: string; location?: string } = {},
+  ) {
     await this.page.locator('#group-name').fill(name);
+    if (options.description) {
+      await this.page.locator('#group-desc').fill(options.description);
+    }
+    if (options.location) {
+      await this.page.locator('#group-location').fill(options.location);
+    }
     await this.page.getByRole('button', { name: /Create Group/i }).click();
   }
 

@@ -38,16 +38,16 @@ export class TournamentBrowsePage {
     await expect(this.page.getByLabel('Filter by status')).toBeVisible();
   }
 
-  async expectTournament(name: string) {
-    await expect(this.page.getByRole('heading', { name })).toBeVisible();
+  async expectTournament(name: string, options?: { timeout?: number }) {
+    await expect(this.page.getByRole('heading', { name })).toBeVisible(options);
   }
 
-  async expectNoTournament(name: string) {
-    await expect(this.page.getByRole('heading', { name })).not.toBeVisible();
+  async expectNoTournament(name: string, options?: { timeout?: number }) {
+    await expect(this.page.getByRole('heading', { name })).not.toBeVisible(options);
   }
 
-  async expectEmpty() {
-    await expect(this.page.getByText('No tournaments yet')).toBeVisible();
+  async expectEmpty(options?: { timeout?: number }) {
+    await expect(this.page.getByText('No tournaments yet')).toBeVisible(options);
   }
 
   async expectTabSwitcher() {

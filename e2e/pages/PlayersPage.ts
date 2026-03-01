@@ -27,16 +27,16 @@ export class PlayersPage {
   }
 
   // ── Assertions ──
-  async expectEmpty() {
-    await expect(this.page.getByText('No Players Yet')).toBeVisible();
+  async expectEmpty(options?: { timeout?: number }) {
+    await expect(this.page.getByText('No Players Yet')).toBeVisible(options);
   }
 
-  async expectPlayer(name: string) {
-    await expect(this.page.getByText(name, { exact: true })).toBeVisible();
+  async expectPlayer(name: string, options?: { timeout?: number }) {
+    await expect(this.page.getByText(name, { exact: true })).toBeVisible(options);
   }
 
-  async expectPlayerGone(name: string) {
-    await expect(this.page.getByText(name, { exact: true })).toBeHidden();
+  async expectPlayerGone(name: string, options?: { timeout?: number }) {
+    await expect(this.page.getByText(name, { exact: true })).toBeHidden(options);
   }
 
   async expectInputCleared() {
