@@ -12,7 +12,7 @@ vi.mock('@solidjs/router', () => ({
 vi.mock('../../../../data/firebase/firestoreTournamentRepository', () => ({
   firestoreTournamentRepository: {
     getByOrganizer: vi.fn().mockResolvedValue([]),
-    getByParticipant: vi.fn().mockResolvedValue([]),
+    getByParticipant: vi.fn().mockResolvedValue({ tournamentIds: [], registrationStatuses: new Map() }),
     getByScorekeeper: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(undefined),
   },

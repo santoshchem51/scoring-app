@@ -4,7 +4,7 @@ import {
   limit as firestoreLimit, startAfter,
 } from 'firebase/firestore';
 import { firestore } from './config';
-import type { Tournament, TournamentAccessMode, TournamentStatus } from '../types';
+import type { Tournament, TournamentAccessMode, TournamentStatus, RegistrationStatus } from '../types';
 import { normalizeTournament } from './tournamentNormalizer';
 
 export const firestoreTournamentRepository = {
@@ -79,11 +79,23 @@ export const firestoreTournamentRepository = {
     return { tournaments, lastDoc };
   },
 
-  async getByParticipant(userId: string): Promise<string[]> {
+  async getByParticipant(userId: string): Promise<{
+    tournamentIds: string[];
+    registrationStatuses: Map<string, RegistrationStatus>;
+  }> {
     const q = query(collectionGroup(firestore, 'registrations'), where('userId', '==', userId));
     const snap = await getDocs(q);
-    const ids = snap.docs.map((d) => d.ref.parent.parent!.id);
-    return [...new Set(ids)];
+    const idSet = new Set<string>();
+    const statusMap = new Map<string, RegistrationStatus>();
+    for (const d of snap.docs) {
+      const tournamentId = d.ref.parent.parent!.id;
+      idSet.add(tournamentId);
+      const data = d.data();
+      if (data.status) {
+        statusMap.set(tournamentId, data.status as RegistrationStatus);
+      }
+    }
+    return { tournamentIds: [...idSet], registrationStatuses: statusMap };
   },
 
   async getByScorekeeper(userId: string): Promise<Tournament[]> {

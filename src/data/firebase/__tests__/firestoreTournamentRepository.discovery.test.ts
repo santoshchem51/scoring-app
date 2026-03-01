@@ -129,8 +129,8 @@ describe('firestoreTournamentRepository discovery methods', () => {
     it('uses collection group query on registrations subcollection', async () => {
       mockGetDocs.mockResolvedValue({
         docs: [
-          { ref: { parent: { parent: { id: 't1' } } } },
-          { ref: { parent: { parent: { id: 't2' } } } },
+          { ref: { parent: { parent: { id: 't1' } } }, data: () => ({ status: 'confirmed' }) },
+          { ref: { parent: { parent: { id: 't2' } } }, data: () => ({ status: 'pending' }) },
         ],
       });
 
@@ -139,21 +139,23 @@ describe('firestoreTournamentRepository discovery methods', () => {
       expect(mockCollectionGroup).toHaveBeenCalledWith('mock-firestore', 'registrations');
       expect(mockWhere).toHaveBeenCalledWith('userId', '==', 'user1');
       expect(mockQuery).toHaveBeenCalledWith('mock-collection-group-ref', 'mock-where');
-      expect(result).toEqual(['t1', 't2']);
+      expect(result.tournamentIds).toEqual(['t1', 't2']);
+      expect(result.registrationStatuses.get('t1')).toBe('confirmed');
+      expect(result.registrationStatuses.get('t2')).toBe('pending');
     });
 
     it('deduplicates tournament IDs', async () => {
       mockGetDocs.mockResolvedValue({
         docs: [
-          { ref: { parent: { parent: { id: 't1' } } } },
-          { ref: { parent: { parent: { id: 't1' } } } },
-          { ref: { parent: { parent: { id: 't2' } } } },
+          { ref: { parent: { parent: { id: 't1' } } }, data: () => ({ status: 'confirmed' }) },
+          { ref: { parent: { parent: { id: 't1' } } }, data: () => ({ status: 'confirmed' }) },
+          { ref: { parent: { parent: { id: 't2' } } }, data: () => ({ status: 'pending' }) },
         ],
       });
 
       const result = await firestoreTournamentRepository.getByParticipant('user1');
 
-      expect(result).toEqual(['t1', 't2']);
+      expect(result.tournamentIds).toEqual(['t1', 't2']);
     });
 
     it('handles empty results', async () => {
@@ -161,7 +163,8 @@ describe('firestoreTournamentRepository discovery methods', () => {
 
       const result = await firestoreTournamentRepository.getByParticipant('loner');
 
-      expect(result).toEqual([]);
+      expect(result.tournamentIds).toEqual([]);
+      expect(result.registrationStatuses.size).toBe(0);
     });
   });
 

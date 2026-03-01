@@ -591,6 +591,11 @@ const TournamentDashboardPage: Component = () => {
                   <span class={`inline-block mt-1 text-sm font-bold px-3 py-1 rounded-full ${statusColors[t().status] ?? ''}`}>
                     {statusLabels[t().status] ?? t().status}
                   </span>
+                  <Show when={(t().registrationCounts?.pending ?? 0) > 0}>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                      {t().registrationCounts?.pending ?? 0} pending
+                    </span>
+                  </Show>
                 </div>
                 <div class="flex items-center gap-2">
                   <Show when={isOrganizer()}>
