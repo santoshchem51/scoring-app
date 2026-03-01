@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { signInAsTestUser, seedFirestoreDocAdmin } from '../helpers/emulator-auth';
 import { makeTournament } from '../helpers/factories';
 import { TournamentBrowsePage } from '../pages/TournamentBrowsePage';
+import { randomUUID } from 'crypto';
 
 // Run all tests in this file serially so they share the same emulator state
 test.describe.configure({ mode: 'serial' });
@@ -85,13 +86,12 @@ test.describe('Browse tab - seeded tournaments', () => {
     await expect(page.getByText('Central Park Courts')).toBeVisible();
     await expect(page.getByText('Beach Arena')).toBeVisible();
 
-    // Check format badges (use locator scoped to card links, not dropdown options)
-    const cards = page.locator('a[href^="/t/"]');
-    await expect(cards.filter({ hasText: 'Round Robin' }).first()).toBeVisible();
-    await expect(cards.filter({ hasText: 'Single Elimination' })).toBeVisible();
+    // Check format badges (scoped to card links, not dropdown options)
+    await browse.expectCardWithText('Round Robin');
+    await browse.expectCardWithText('Single Elimination');
 
     // Check status badges
-    await expect(cards.filter({ hasText: 'Registration Open' }).first()).toBeVisible();
+    await browse.expectCardWithText('Registration Open');
   });
 
   test('cards link to /t/:shareCode', async ({ page }) => {
@@ -211,7 +211,7 @@ test.describe('Tab switcher - logged in', () => {
   test('tab switcher is visible with Browse and My Tournaments tabs', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
-    await signInAsTestUser(page, { email: 'tabs-test@test.com' });
+    await signInAsTestUser(page, { email: `tabs-${randomUUID().slice(0, 8)}@test.com` });
 
     const browse = new TournamentBrowsePage(page);
     await browse.goto();
@@ -223,7 +223,7 @@ test.describe('Tab switcher - logged in', () => {
   test('Browse tab is selected by default for new user', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
-    await signInAsTestUser(page, { email: 'tabs-test2@test.com' });
+    await signInAsTestUser(page, { email: `tabs-${randomUUID().slice(0, 8)}@test.com` });
 
     const browse = new TournamentBrowsePage(page);
     await browse.goto();

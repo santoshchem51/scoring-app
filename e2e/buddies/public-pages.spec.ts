@@ -3,11 +3,15 @@ import {
   signInAsTestUser,
   seedFirestoreDocAdmin,
 } from '../helpers/emulator-auth';
+import { makeGameSession, makeBuddyGroup } from '../helpers/factories';
+import { randomUUID } from 'crypto';
 
 test.describe('Public Session Page', () => {
+  const testEmail = () => `public-${randomUUID().slice(0, 8)}@test.com`;
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await signInAsTestUser(page, { email: 'public-test@test.com' });
+    await signInAsTestUser(page, { email: testEmail() });
   });
 
   test('invalid share code shows not found', async ({ page }) => {
@@ -18,31 +22,18 @@ test.describe('Public Session Page', () => {
   });
 
   test('valid share code shows session details', async ({ page }) => {
-    // Seed a game session via admin API (bypasses security rules)
-    const sessionId = 'e2e-public-session';
-    const shareCode = 'PUBTEST1';
-    await seedFirestoreDocAdmin('gameSessions', sessionId, {
+    const sessionId = `e2e-pub-${randomUUID().slice(0, 8)}`;
+    const shareCode = `PUB${randomUUID().slice(0, 5).toUpperCase()}`;
+    await seedFirestoreDocAdmin('gameSessions', sessionId, makeGameSession({
       id: sessionId,
       createdBy: 'other-user',
-      groupId: null,
       title: 'Saturday Pickup',
-      scheduledDate: Date.now() + 86400000,
       location: 'Riverside Courts',
-      courtsAvailable: 2,
       spotsTotal: 8,
       spotsConfirmed: 3,
-      minPlayers: 4,
-      status: 'proposed',
       visibility: 'open',
       shareCode,
-      rsvpDeadline: null,
-      confirmedSlot: null,
-      timeSlots: [],
-      votingDeadline: null,
-      schedulingMode: 'fixed',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    }));
 
     await page.goto(`/s/${shareCode}`);
 
@@ -58,9 +49,11 @@ test.describe('Public Session Page', () => {
 });
 
 test.describe('Group Invite Page', () => {
+  const testEmail = () => `invite-${randomUUID().slice(0, 8)}@test.com`;
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await signInAsTestUser(page, { email: 'invite-test@test.com' });
+    await signInAsTestUser(page, { email: testEmail() });
   });
 
   test('invalid share code shows not found', async ({ page }) => {
@@ -71,10 +64,9 @@ test.describe('Group Invite Page', () => {
   });
 
   test('valid share code shows group invite', async ({ page }) => {
-    // Seed a buddy group via admin API (bypasses security rules)
-    const groupId = 'e2e-public-group';
-    const shareCode = 'GRPTEST1';
-    await seedFirestoreDocAdmin('buddyGroups', groupId, {
+    const groupId = `e2e-grp-${randomUUID().slice(0, 8)}`;
+    const shareCode = `GRP${randomUUID().slice(0, 5).toUpperCase()}`;
+    await seedFirestoreDocAdmin('buddyGroups', groupId, makeBuddyGroup({
       id: groupId,
       name: 'Weekend Warriors',
       description: 'Competitive weekend play',
@@ -85,9 +77,7 @@ test.describe('Group Invite Page', () => {
       memberCount: 5,
       visibility: 'private',
       shareCode,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    }));
 
     await page.goto(`/g/${shareCode}`);
 

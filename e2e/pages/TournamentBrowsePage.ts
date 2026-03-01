@@ -67,4 +67,13 @@ export class TournamentBrowsePage {
   async expectCardLink(shareCode: string) {
     await expect(this.page.locator(`a[href="/t/${shareCode}"]`)).toBeVisible();
   }
+
+  /** Locator scoped to tournament card links — use for badge/content assertions within cards. */
+  get cards() {
+    return this.page.locator('a[href^="/t/"]');
+  }
+
+  async expectCardWithText(text: string) {
+    await expect(this.cards.filter({ hasText: text }).first()).toBeVisible();
+  }
 }

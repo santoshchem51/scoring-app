@@ -3,31 +3,34 @@ import {
   signInAsTestUser,
   seedFirestoreDocAdmin,
 } from '../helpers/emulator-auth';
+import { makeGameSession } from '../helpers/factories';
+import { BuddiesPage } from '../pages/BuddiesPage';
+import { randomUUID } from 'crypto';
 
 test.describe('Session RSVP Journey', () => {
+  const testEmail = () => `session-${randomUUID().slice(0, 8)}@test.com`;
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await signInAsTestUser(page, { email: 'session-test@test.com' });
+    await signInAsTestUser(page, { email: testEmail() });
   });
 
   test('create session from group and RSVP', async ({ page }) => {
-    // First create a group via the UI
-    await page.goto('/buddies/new');
+    const buddies = new BuddiesPage(page);
+    await buddies.gotoNewGroup();
     await expect(
       page.getByRole('button', { name: 'Create Group' }),
     ).toBeVisible({ timeout: 10000 });
 
-    await page.locator('#group-name').fill('Session Test Group');
-    await page.locator('#group-location').fill('Test Courts');
-    await page.getByRole('button', { name: 'Create Group' }).click();
+    await buddies.createGroup('Session Test Group', { location: 'Test Courts' });
 
     // Wait for redirect to group detail
-    await page.waitForURL(/\/buddies\//, { timeout: 15000 });
+    await buddies.expectOnGroupDetail();
     await expect(
       page.getByRole('heading', { name: 'Session Test Group' }),
     ).toBeVisible({ timeout: 10000 });
 
-    // Click the "New Session" floating action button (exact name match)
+    // Click the "New Session" floating action button
     await page.getByRole('link', { name: 'New Session', exact: true }).click();
 
     // Fill in session details
@@ -48,32 +51,19 @@ test.describe('Session RSVP Journey', () => {
   });
 
   test('RSVP to a seeded session', async ({ page }) => {
-    // Seed a session via admin API (bypasses security rules)
-    const sessionId = 'e2e-rsvp-session';
-    await seedFirestoreDocAdmin('gameSessions', sessionId, {
+    const sessionId = `e2e-rsvp-${randomUUID().slice(0, 8)}`;
+    await seedFirestoreDocAdmin('gameSessions', sessionId, makeGameSession({
       id: sessionId,
       createdBy: 'other-user',
-      groupId: null,
       title: 'Evening Pickup',
-      scheduledDate: Date.now() + 86400000,
       location: 'Park Courts',
       courtsAvailable: 1,
       spotsTotal: 4,
       spotsConfirmed: 1,
-      minPlayers: 4,
-      status: 'proposed',
       visibility: 'open',
-      shareCode: 'RSVPTEST',
-      rsvpDeadline: null,
-      confirmedSlot: null,
-      timeSlots: [],
+      shareCode: `RSVP${randomUUID().slice(0, 4).toUpperCase()}`,
       rsvpStyle: 'simple',
-      autoOpenOnDropout: false,
-      schedulingMode: 'fixed',
-      votingDeadline: null,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    }));
 
     // Navigate to session detail
     await page.goto(`/session/${sessionId}`);
