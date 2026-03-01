@@ -33,3 +33,4 @@ ui-debug.log
 # Test reports & screenshots
 playwright-report/
 screenshots/
+.worktrees/
