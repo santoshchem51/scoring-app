@@ -82,6 +82,10 @@ export interface UserProfile {
   email: string;
   photoURL: string | null;
   createdAt: number;
+  // Layer 7 Wave A additions (optional for backward compat)
+  bio?: string;
+  profileVisibility?: 'public' | 'private';
+  updatedAt?: number;
 }
 
 // --- Player Stats types (Layer 7 Wave A) ---

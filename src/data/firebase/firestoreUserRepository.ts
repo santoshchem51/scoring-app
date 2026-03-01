@@ -39,6 +39,9 @@ export const firestoreUserRepository = {
       email: data.email ?? '',
       photoURL: data.photoURL ?? null,
       createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? Date.now(),
+      bio: data.bio,
+      profileVisibility: data.profileVisibility,
+      updatedAt: data.updatedAt?.toMillis?.() ?? data.updatedAt,
     };
   },
 
@@ -61,6 +64,9 @@ export const firestoreUserRepository = {
         email: data.email ?? '',
         photoURL: data.photoURL ?? null,
         createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? Date.now(),
+        bio: data.bio,
+        profileVisibility: data.profileVisibility,
+        updatedAt: data.updatedAt?.toMillis?.() ?? data.updatedAt,
       };
     });
   },
@@ -84,6 +90,9 @@ export const firestoreUserRepository = {
         email: data.email ?? '',
         photoURL: data.photoURL ?? null,
         createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? Date.now(),
+        bio: data.bio,
+        profileVisibility: data.profileVisibility,
+        updatedAt: data.updatedAt?.toMillis?.() ?? data.updatedAt,
       };
     });
   },
