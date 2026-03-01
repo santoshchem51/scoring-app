@@ -90,6 +90,13 @@ export function computeTier(score: number, currentTier: Tier): Tier {
   return currentTier;
 }
 
-export function computeTierConfidence(_matchCount: number, _uniqueOpponents: number): TierConfidence {
+// --- Confidence ---
+
+export function computeTierConfidence(
+  matchCount: number,
+  uniqueOpponents: number,
+): TierConfidence {
+  if (matchCount >= 20 && uniqueOpponents >= 6) return 'high';
+  if (matchCount >= 8 && uniqueOpponents >= 3) return 'medium';
   return 'low';
 }

@@ -172,3 +172,35 @@ describe('computeTier', () => {
     expect(computeTier(0.25, 'beginner')).toBe('beginner');
   });
 });
+
+// --- computeTierConfidence ---
+
+describe('computeTierConfidence', () => {
+  it('returns low for fewer than 8 matches', () => {
+    expect(computeTierConfidence(5, 2)).toBe('low');
+  });
+
+  it('returns low for 8 matches but only 2 unique opponents', () => {
+    expect(computeTierConfidence(8, 2)).toBe('low');
+  });
+
+  it('returns medium for 8 matches and 3 unique opponents', () => {
+    expect(computeTierConfidence(8, 3)).toBe('medium');
+  });
+
+  it('returns medium for 19 matches and 5 unique opponents', () => {
+    expect(computeTierConfidence(19, 5)).toBe('medium');
+  });
+
+  it('returns high for 20 matches and 6 unique opponents', () => {
+    expect(computeTierConfidence(20, 6)).toBe('high');
+  });
+
+  it('returns high for 50 matches and 10 unique opponents', () => {
+    expect(computeTierConfidence(50, 10)).toBe('high');
+  });
+
+  it('returns low for 0 matches', () => {
+    expect(computeTierConfidence(0, 0)).toBe('low');
+  });
+});
