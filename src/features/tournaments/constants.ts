@@ -23,3 +23,24 @@ export const formatLabels: Record<string, string> = {
   'single-elimination': 'Single Elimination',
   'pool-bracket': 'Pool Play + Bracket',
 };
+
+export const accessModeLabels: Record<string, string> = {
+  open: 'Open',
+  approval: 'Approval Required',
+  'invite-only': 'Invite Only',
+  group: 'Buddy Group',
+};
+
+export const accessModeBadgeColors: Record<string, string> = {
+  approval: 'bg-amber-500/20 text-amber-400',
+  'invite-only': 'bg-purple-500/20 text-purple-400',
+  group: 'bg-blue-500/20 text-blue-400',
+};
+
+export const registrationStatusLabels: Record<string, string> = {
+  confirmed: 'Confirmed',
+  pending: 'Pending',
+  declined: 'Declined',
+  withdrawn: 'Withdrawn',
+  expired: 'Expired',
+};
