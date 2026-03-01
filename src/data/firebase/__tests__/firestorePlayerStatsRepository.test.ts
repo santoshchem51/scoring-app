@@ -5,19 +5,28 @@ const {
   mockDoc,
   mockSetDoc,
   mockGetDoc,
+  mockGetDocs,
   mockCollection,
+  mockQuery,
+  mockWhere,
 } = vi.hoisted(() => ({
   mockDoc: vi.fn(() => 'mock-doc-ref'),
   mockSetDoc: vi.fn(),
   mockGetDoc: vi.fn(),
+  mockGetDocs: vi.fn(() => Promise.resolve({ docs: [] })),
   mockCollection: vi.fn(() => 'mock-collection-ref'),
+  mockQuery: vi.fn(() => 'mock-query'),
+  mockWhere: vi.fn(() => 'mock-where'),
 }));
 
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   setDoc: mockSetDoc,
   getDoc: mockGetDoc,
+  getDocs: mockGetDocs,
   collection: mockCollection,
+  query: mockQuery,
+  where: mockWhere,
 }));
 
 vi.mock('../config', () => ({
@@ -271,6 +280,71 @@ describe('firestorePlayerStatsRepository', () => {
       expect(stats.doubles.matches).toBe(1);
       expect(stats.doubles.wins).toBe(1);
       expect(stats.singles.matches).toBe(0);
+    });
+  });
+
+  describe('processMatchCompletion', () => {
+    it('writes stats for scorer only on casual match', async () => {
+      // matchRef check (not exists) + stats check (not exists) for scorer
+      mockGetDoc
+        .mockResolvedValueOnce({ exists: () => false })  // matchRef
+        .mockResolvedValueOnce({ exists: () => false }); // stats
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const match = makeMatch();
+      await firestorePlayerStatsRepository.processMatchCompletion(
+        match, 'scorer-uid',
+      );
+
+      // Only scorer gets stats (casual match = no tournament)
+      // 2 setDoc calls: matchRef + stats for scorer
+      expect(mockSetDoc).toHaveBeenCalledTimes(2);
+    });
+
+    it('writes stats for all tournament participants', async () => {
+      // Mock registration lookup: 2 registrations mapping to teams
+      mockGetDocs.mockResolvedValueOnce({
+        docs: [
+          { id: 'reg-1', data: () => ({ userId: 'uid-A', teamId: 'team-A' }) },
+          { id: 'reg-2', data: () => ({ userId: 'uid-B', teamId: 'team-B' }) },
+        ],
+      });
+
+      // For each of the 2 UIDs resolved: matchRef check + stats check
+      mockGetDoc
+        .mockResolvedValueOnce({ exists: () => false })  // uid-A matchRef
+        .mockResolvedValueOnce({ exists: () => false })  // uid-A stats
+        .mockResolvedValueOnce({ exists: () => false })  // uid-B matchRef
+        .mockResolvedValueOnce({ exists: () => false }); // uid-B stats
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const match = makeMatch({
+        tournamentId: 'tourn-1',
+        tournamentTeam1Id: 'team-A',
+        tournamentTeam2Id: 'team-B',
+      });
+
+      await firestorePlayerStatsRepository.processMatchCompletion(
+        match, 'scorer-uid',
+      );
+
+      // 2 participants x 2 writes each (matchRef + stats) = 4 setDoc calls
+      expect(mockSetDoc).toHaveBeenCalledTimes(4);
+    });
+
+    it('swallows errors for individual players without blocking others', async () => {
+      // First player fails, second succeeds
+      mockGetDoc
+        .mockRejectedValueOnce(new Error('Firestore error'))  // uid-1 fails
+        .mockResolvedValueOnce({ exists: () => false })        // uid-2 matchRef
+        .mockResolvedValueOnce({ exists: () => false });       // uid-2 stats
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const match = makeMatch();
+      // Should not throw
+      await expect(
+        firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid'),
+      ).resolves.not.toThrow();
     });
   });
 });

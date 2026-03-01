@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, collection } from 'firebase/firestore';
 import { firestore } from './config';
 import type { Match, MatchRef, StatsSummary, RecentResult, Tier } from '../types';
 import { computeTierScore, computeTier, computeTierConfidence } from '../../shared/utils/tierEngine';
@@ -77,6 +77,47 @@ function estimateUniqueOpponents(matchCount: number): number {
   return Math.ceil(matchCount * 0.7);
 }
 
+async function resolveParticipantUids(
+  match: Match,
+  scorerUid: string,
+): Promise<Array<{ uid: string; playerTeam: 1 | 2; result: 'win' | 'loss' }>> {
+  const participants: Array<{ uid: string; playerTeam: 1 | 2; result: 'win' | 'loss' }> = [];
+
+  if (match.tournamentId && (match.tournamentTeam1Id || match.tournamentTeam2Id)) {
+    // Tournament match: look up registrations to find UIDs
+    try {
+      const regsSnapshot = await getDocs(
+        collection(firestore, 'tournaments', match.tournamentId, 'registrations'),
+      );
+      const registrations = regsSnapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as Array<{ id: string; userId: string; teamId: string }>;
+
+      for (const reg of registrations) {
+        if (!reg.userId) continue;
+        const isTeam1 = reg.teamId === match.tournamentTeam1Id;
+        const isTeam2 = reg.teamId === match.tournamentTeam2Id;
+        if (!isTeam1 && !isTeam2) continue;
+
+        const playerTeam: 1 | 2 = isTeam1 ? 1 : 2;
+        const result: 'win' | 'loss' = match.winningSide === playerTeam ? 'win' : 'loss';
+        participants.push({ uid: reg.userId, playerTeam, result });
+      }
+    } catch (err) {
+      console.warn('Failed to resolve tournament participant UIDs:', err);
+    }
+  }
+
+  // Casual match: only scorer gets stats
+  if (participants.length === 0) {
+    const result: 'win' | 'loss' = match.winningSide === 1 ? 'win' : 'loss';
+    participants.push({ uid: scorerUid, playerTeam: 1, result });
+  }
+
+  return participants;
+}
+
 export const firestorePlayerStatsRepository = {
   async updatePlayerStats(
     uid: string,
@@ -144,5 +185,20 @@ export const firestorePlayerStatsRepository = {
 
     // 5. Write updated stats
     await setDoc(statsDoc, stats);
+  },
+
+  async processMatchCompletion(
+    match: Match,
+    scorerUid: string,
+  ): Promise<void> {
+    const participants = await resolveParticipantUids(match, scorerUid);
+
+    await Promise.all(
+      participants.map(({ uid, playerTeam, result }) =>
+        this.updatePlayerStats(uid, match, playerTeam, result).catch((err) => {
+          console.warn('Stats update failed for user:', uid, err);
+        }),
+      ),
+    );
   },
 };
