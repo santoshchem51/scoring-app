@@ -6,6 +6,8 @@ import { useAuth } from '../../shared/hooks/useAuth';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
 import { firestoreTeamRepository } from '../../data/firebase/firestoreTeamRepository';
 import { firestoreRegistrationRepository } from '../../data/firebase/firestoreRegistrationRepository';
+import { firestoreInvitationRepository } from '../../data/firebase/firestoreInvitationRepository';
+import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
 import { firestorePoolRepository } from '../../data/firebase/firestorePoolRepository';
 import { firestoreBracketRepository } from '../../data/firebase/firestoreBracketRepository';
 import { generatePools } from './engine/poolGenerator';
@@ -93,6 +95,36 @@ const TournamentDashboardPage: Component = () => {
     (source) => {
       if (!source) return Promise.resolve(undefined);
       return firestoreRegistrationRepository.getByUser(source.tournamentId, source.userId);
+    },
+  );
+
+  // Check if user is invited to this tournament
+  const [isInvited] = createResource(
+    () => {
+      const u = user();
+      const t = live.tournament();
+      if (!u || !t || t.accessMode !== 'invite-only') return null;
+      return { tournamentId: t.id, userId: u.uid };
+    },
+    async (source) => {
+      if (!source) return false;
+      const invitations = await firestoreInvitationRepository.getByTournament(source.tournamentId);
+      return invitations.some((inv) => inv.invitedUserId === source.userId);
+    },
+  );
+
+  // Check if user is a member of the tournament's buddy group
+  const [isGroupMember] = createResource(
+    () => {
+      const u = user();
+      const t = live.tournament();
+      if (!u || !t || t.accessMode !== 'group' || !t.buddyGroupId) return null;
+      return { groupId: t.buddyGroupId, userId: u.uid };
+    },
+    async (source) => {
+      if (!source) return false;
+      const member = await firestoreBuddyGroupRepository.getMember(source.groupId, source.userId);
+      return member !== null;
     },
   );
 
@@ -640,6 +672,8 @@ const TournamentDashboardPage: Component = () => {
                     tournament={t()}
                     existingRegistration={existingRegistration()}
                     onRegistered={handleRegistered}
+                    isInvited={isInvited() ?? false}
+                    isGroupMember={isGroupMember() ?? false}
                   />
                 </div>
               </Show>
