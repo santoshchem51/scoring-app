@@ -84,6 +84,55 @@ export interface UserProfile {
   createdAt: number;
 }
 
+// --- Player Stats types (Layer 7 Wave A) ---
+
+export type Tier = 'beginner' | 'intermediate' | 'advanced' | 'expert';
+export type TierConfidence = 'low' | 'medium' | 'high';
+
+export interface RecentResult {
+  result: 'win' | 'loss';
+  opponentTier: Tier;
+  completedAt: number;
+  gameType: 'singles' | 'doubles';
+}
+
+export interface MatchRef {
+  matchId: string;
+  startedAt: number;
+  completedAt: number;
+  gameType: 'singles' | 'doubles';
+  scoringMode: 'sideout' | 'rally';
+  result: 'win' | 'loss';
+  scores: string;
+  gameScores: number[][];
+  playerTeam: 1 | 2;
+  opponentNames: string[];
+  opponentIds: string[];
+  partnerName: string | null;
+  partnerId: string | null;
+  ownerId: string;
+  tournamentId: string | null;
+  tournamentName: string | null;
+}
+
+export interface StatsSummary {
+  schemaVersion: number;
+  totalMatches: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  currentStreak: { type: 'W' | 'L'; count: number };
+  bestWinStreak: number;
+  singles: { matches: number; wins: number; losses: number };
+  doubles: { matches: number; wins: number; losses: number };
+  recentResults: RecentResult[];
+  tier: Tier;
+  tierConfidence: TierConfidence;
+  tierUpdatedAt: number;
+  lastPlayedAt: number;
+  updatedAt: number;
+}
+
 // --- Tournament types (Layer 2) ---
 
 export type TournamentVisibility = 'private' | 'public';
