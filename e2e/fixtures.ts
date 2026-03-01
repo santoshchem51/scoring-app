@@ -20,10 +20,6 @@ export const test = base.extend<E2EFixtures>({
 
   authenticatedPage: async ({ page, testUserEmail }, use) => {
     await page.goto('/');
-    await page.waitForFunction(
-      () => (window as any).__TEST_FIREBASE__,
-      { timeout: 10000 },
-    );
     await signInAsTestUser(page, { email: testUserEmail });
     await use(page);
   },

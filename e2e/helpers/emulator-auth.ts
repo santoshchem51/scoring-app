@@ -8,11 +8,15 @@ export async function clearEmulators() {
   await Promise.all([
     fetch(`${AUTH_EMULATOR}/emulator/v1/projects/${PROJECT_ID}/accounts`, {
       method: 'DELETE',
-    }).catch(() => {}),
+    }).catch(() => {
+      console.warn('[clearEmulators] Auth emulator not reachable — skipping');
+    }),
     fetch(
       `${FIRESTORE_EMULATOR}/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`,
       { method: 'DELETE' },
-    ).catch(() => {}),
+    ).catch(() => {
+      console.warn('[clearEmulators] Firestore emulator not reachable — skipping');
+    }),
   ]);
 }
 
