@@ -160,9 +160,13 @@ service cloud.firestore {
           || (request.resource.data.accessMode in ['open', 'approval', 'invite-only', 'group']
               && request.resource.data.listed is bool
               && (request.resource.data.listed == true ? request.resource.data.visibility == 'public' : request.resource.data.visibility == 'private'))
-          // Allow counter-only updates (registration changes) — only registrationCounts changed
-          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registrationCounts', 'updatedAt'])
         );
+
+      // Counter-only update: any authenticated user (for atomic registration batches)
+      allow update: if request.auth != null
+        && request.resource.data.organizerId == resource.data.organizerId
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['registrationCounts', 'updatedAt']);
 
       // Only the organizer can delete a tournament
       allow delete: if request.auth != null && request.auth.uid == resource.data.organizerId;

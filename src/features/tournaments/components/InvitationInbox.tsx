@@ -44,7 +44,7 @@ const InvitationInbox: Component<Props> = (props) => {
   const handleAccept = async (item: InvitationWithContext) => {
     await firestoreInvitationRepository.updateStatus(
       item.invitation.tournamentId,
-      item.invitation.id,
+      item.invitation.invitedUserId,
       'accepted',
     );
     navigate(`/tournaments/${item.invitation.tournamentId}`);
@@ -53,7 +53,7 @@ const InvitationInbox: Component<Props> = (props) => {
   const handleDecline = async (item: InvitationWithContext) => {
     await firestoreInvitationRepository.updateStatus(
       item.invitation.tournamentId,
-      item.invitation.id,
+      item.invitation.invitedUserId,
       'declined',
     );
     refetch();
