@@ -268,16 +268,11 @@ import { doc, getDoc, getDocs, collection, query, orderBy, limit as fbLimit, sta
     maxResults: number = 10,
     startAfterTimestamp?: number,
   ): Promise<MatchRef[]> {
-    const constraints = [
-      orderBy('completedAt', 'desc'),
-      fbLimit(maxResults),
-    ];
-    if (startAfterTimestamp !== undefined) {
-      constraints.splice(1, 0, startAfter(startAfterTimestamp));
-    }
     const q = query(
       collection(firestore, 'users', uid, 'matchRefs'),
-      ...constraints,
+      orderBy('completedAt', 'desc'),
+      ...(startAfterTimestamp !== undefined ? [startAfter(startAfterTimestamp)] : []),
+      fbLimit(maxResults),
     );
     const snap = await getDocs(q);
     return snap.docs.map((d) => d.data() as MatchRef);
@@ -326,26 +321,22 @@ import { getTierColor, getConfidenceDots } from '../components/TierBadge';
 describe('getTierColor', () => {
   it('returns slate classes for beginner', () => {
     const color = getTierColor('beginner');
-    expect(color.bg).toContain('slate');
-    expect(color.text).toContain('slate');
+    expect(color).toEqual({ bg: 'bg-slate-500/20', text: 'text-slate-400', dot: 'bg-slate-400' });
   });
 
   it('returns green classes for intermediate', () => {
     const color = getTierColor('intermediate');
-    expect(color.bg).toContain('green');
-    expect(color.text).toContain('green');
+    expect(color).toEqual({ bg: 'bg-green-500/20', text: 'text-green-400', dot: 'bg-green-400' });
   });
 
   it('returns orange classes for advanced', () => {
     const color = getTierColor('advanced');
-    expect(color.bg).toContain('orange');
-    expect(color.text).toContain('orange');
+    expect(color).toEqual({ bg: 'bg-orange-400/20', text: 'text-orange-400', dot: 'bg-orange-400' });
   });
 
   it('returns yellow classes for expert', () => {
     const color = getTierColor('expert');
-    expect(color.bg).toContain('yellow');
-    expect(color.text).toContain('yellow');
+    expect(color).toEqual({ bg: 'bg-yellow-500/20', text: 'text-yellow-400', dot: 'bg-yellow-400' });
   });
 });
 
@@ -934,6 +925,18 @@ describe('fetchProfileBundle', () => {
 
     expect(result.lastCompletedAt).toBeNull();
   });
+
+  it('returns null profile when profile fetch fails', async () => {
+    mockGetProfile.mockRejectedValueOnce(new Error('not-found'));
+    mockGetStatsSummary.mockResolvedValueOnce(makeStats());
+    mockGetRecentMatchRefs.mockResolvedValueOnce([]);
+
+    const result = await fetchProfileBundle('user-1');
+
+    expect(result.profile).toBeNull();
+    expect(result.errors.profile).not.toBeNull();
+    expect(result.stats).not.toBeNull();
+  });
 });
 ```
 
@@ -997,11 +1000,22 @@ export function useProfileData(userId: Accessor<string | undefined>) {
   const [extraMatches, setExtraMatches] = createSignal<MatchRef[]>([]);
   const [lastCursor, setLastCursor] = createSignal<number | null>(null);
   const [loadingMore, setLoadingMore] = createSignal(false);
+  const [hasMorePages, setHasMorePages] = createSignal(true);
 
   // Sync cursor from initial fetch
   createEffect(on(() => data(), (d) => {
-    if (d) setLastCursor(d.lastCompletedAt);
+    if (d) {
+      setLastCursor(d.lastCompletedAt);
+      setHasMorePages(d.matches.length >= 10);
+    }
   }));
+
+  // Reset pagination state when userId changes (e.g., sign-out/sign-in as different user)
+  createEffect(on(userId, () => {
+    setExtraMatches([]);
+    setLastCursor(null);
+    setHasMorePages(true);
+  }, { defer: true }));
 
   const allMatches = createMemo<MatchRef[]>(() => {
     const initial = data()?.matches ?? [];
@@ -1009,13 +1023,7 @@ export function useProfileData(userId: Accessor<string | undefined>) {
     return [...initial, ...extra];
   });
 
-  const hasMore = createMemo(() => {
-    // If we got exactly 10 results, there might be more
-    const initial = data()?.matches ?? [];
-    const extra = extraMatches();
-    const lastBatch = extra.length > 0 ? extra : initial;
-    return lastBatch.length >= 10;
-  });
+  const hasMore = createMemo(() => hasMorePages() && lastCursor() !== null);
 
   const loadMore = async () => {
     const cursor = lastCursor();
@@ -1028,8 +1036,9 @@ export function useProfileData(userId: Accessor<string | undefined>) {
       if (nextPage.length > 0) {
         setExtraMatches((prev) => [...prev, ...nextPage]);
         setLastCursor(nextPage[nextPage.length - 1].completedAt);
+        if (nextPage.length < 10) setHasMorePages(false);
       } else {
-        setLastCursor(null); // No more results
+        setHasMorePages(false);
       }
     } catch (err) {
       console.warn('Failed to load more matches:', err);
@@ -1132,15 +1141,17 @@ const ProfilePage: Component = () => {
       <Show when={!data.loading} fallback={<ProfileSkeleton />}>
         {/* Header always shows (Google info available) */}
         <Show when={data()?.profile}>
-          <ProfileHeader
-            displayName={data()!.profile!.displayName}
-            email={data()!.profile!.email}
-            photoURL={data()!.profile!.photoURL}
-            createdAt={data()!.profile!.createdAt}
-            tier={data()?.stats?.tier}
-            tierConfidence={data()?.stats?.tierConfidence}
-            hasStats={hasStats()}
-          />
+          {(profile) => (
+            <ProfileHeader
+              displayName={profile().displayName}
+              email={profile().email}
+              photoURL={profile().photoURL}
+              createdAt={profile().createdAt}
+              tier={data()?.stats?.tier}
+              tierConfidence={data()?.stats?.tierConfidence}
+              hasStats={hasStats()}
+            />
+          )}
         </Show>
 
         {/* Stats + Matches or Empty State */}
@@ -1157,7 +1168,7 @@ const ProfilePage: Component = () => {
           }
         >
           <div class="space-y-6 mt-4">
-            <StatsOverview stats={data()!.stats!} />
+            <StatsOverview stats={data()!.stats!} />{/* safe: hasStats() guards non-null */}
 
             <Show when={allMatches().length > 0}>
               <RecentMatches
@@ -1348,12 +1359,16 @@ import { Plus, Clock, Users, Sparkles, Heart } from 'lucide-solid';
         </A>
 ```
 
-**Step 2: Run type check**
+**Step 2: Update E2E tests that reference Settings in BottomNav**
+
+Check `e2e/navigation.spec.ts` and `e2e/settings.spec.ts` for any tests that click the Settings tab in the bottom nav. Update those to navigate via URL (`page.goto('/settings')`) or via the TopNav dropdown menu instead. If no E2E tests reference the Settings bottom tab, skip this step.
+
+**Step 3: Run type check**
 
 Run: `npx tsc --noEmit`
 Expected: PASS
 
-**Step 3: Commit**
+**Step 4: Commit**
 
 ```bash
 git add src/shared/components/BottomNav.tsx
@@ -1444,12 +1459,12 @@ Expected: Clean series of `feat:` commits, one per task
 | 4 | ProfileHeader component | 0 (presentation) |
 | 5 | StatsOverview component | 0 (presentation) |
 | 6 | RecentMatches component | 0 (presentation) |
-| 7 | useProfileData hook + fetchProfileBundle | ~5 |
+| 7 | useProfileData hook + fetchProfileBundle | ~6 |
 | 8 | ProfilePage orchestration | 0 (verified by type check) |
 | 9 | TopNav avatar dropdown menu | 0 (verified by type check) |
 | 10 | BottomNav remove Settings tab | 0 (verified by type check) |
 | 11 | Router add /profile route | 0 (verified by type check) |
 | 12 | Final verification | 0 (run existing) |
 
-**Estimated new tests: ~18**
+**Estimated new tests: ~19**
 **Total after: ~590+**
