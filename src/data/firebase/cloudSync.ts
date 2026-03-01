@@ -3,6 +3,7 @@ import { firestoreMatchRepository } from './firestoreMatchRepository';
 import { firestoreScoreEventRepository } from './firestoreScoreEventRepository';
 import { firestoreTournamentRepository } from './firestoreTournamentRepository';
 import { firestoreUserRepository } from './firestoreUserRepository';
+import { firestorePlayerStatsRepository } from './firestorePlayerStatsRepository';
 import { matchRepository } from '../repositories/matchRepository';
 import type { Match, ScoreEvent, Tournament } from '../types';
 
@@ -133,5 +134,18 @@ export const cloudSync = {
       console.warn('Failed to pull tournaments:', err);
       return [];
     }
+  },
+
+  /**
+   * Fire-and-forget: update match refs and stats for all signed-in participants.
+   */
+  syncPlayerStatsAfterMatch(match: Match): void {
+    const user = auth.currentUser;
+    if (!user) return;
+    firestorePlayerStatsRepository
+      .processMatchCompletion(match, user.uid)
+      .catch((err) => {
+        console.warn('Stats sync failed:', match.id, err);
+      });
   },
 };
