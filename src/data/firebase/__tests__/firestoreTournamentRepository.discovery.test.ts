@@ -72,8 +72,16 @@ describe('firestoreTournamentRepository discovery methods', () => {
         'mock-limit',
       );
       expect(result.tournaments).toEqual([
-        { id: 't1', name: 'Open Championship', visibility: 'public', date: 2000 },
-        { id: 't2', name: 'Spring Slam', visibility: 'public', date: 1000 },
+        {
+          id: 't1', name: 'Open Championship', visibility: 'public', date: 2000,
+          accessMode: 'open', listed: true, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
+        {
+          id: 't2', name: 'Spring Slam', visibility: 'public', date: 1000,
+          accessMode: 'open', listed: true, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
       ]);
       expect(result.lastDoc).toBeDefined();
     });
@@ -177,8 +185,16 @@ describe('firestoreTournamentRepository discovery methods', () => {
         'mock-orderby',
       );
       expect(result).toEqual([
-        { id: 't1', name: 'Tournament A', scorekeeperIds: ['sk1'] },
-        { id: 't2', name: 'Tournament B', scorekeeperIds: ['sk1', 'sk2'] },
+        {
+          id: 't1', name: 'Tournament A', scorekeeperIds: ['sk1'],
+          accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
+        {
+          id: 't2', name: 'Tournament B', scorekeeperIds: ['sk1', 'sk2'],
+          accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
       ]);
     });
 

@@ -4,7 +4,8 @@ import {
   limit as firestoreLimit, startAfter,
 } from 'firebase/firestore';
 import { firestore } from './config';
-import type { Tournament, TournamentStatus } from '../types';
+import type { Tournament, TournamentAccessMode, TournamentStatus } from '../types';
+import { normalizeTournament } from './tournamentNormalizer';
 
 export const firestoreTournamentRepository = {
   async save(tournament: Tournament): Promise<void> {
@@ -21,7 +22,7 @@ export const firestoreTournamentRepository = {
     const ref = doc(firestore, 'tournaments', id);
     const snap = await getDoc(ref);
     if (!snap.exists()) return undefined;
-    return { id: snap.id, ...snap.data() } as Tournament;
+    return normalizeTournament({ id: snap.id, ...snap.data() });
   },
 
   async getByOrganizer(organizerId: string): Promise<Tournament[]> {
@@ -31,19 +32,18 @@ export const firestoreTournamentRepository = {
       orderBy('date', 'desc'),
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
+    return snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }));
   },
 
   async getByShareCode(shareCode: string): Promise<Tournament | undefined> {
     const q = query(
       collection(firestore, 'tournaments'),
       where('shareCode', '==', shareCode),
-      where('visibility', '==', 'public'),
     );
     const snapshot = await getDocs(q);
     if (snapshot.empty) return undefined;
     const d = snapshot.docs[0];
-    return { id: d.id, ...d.data() } as Tournament;
+    return normalizeTournament({ id: d.id, ...d.data() });
   },
 
   async updateStatus(id: string, status: TournamentStatus, options?: { reason?: string; pausedFrom?: TournamentStatus | null }): Promise<void> {
@@ -74,7 +74,7 @@ export const firestoreTournamentRepository = {
     }
     const q = query(collection(firestore, 'tournaments'), ...constraints);
     const snapshot = await getDocs(q);
-    const tournaments = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
+    const tournaments = snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }));
     const lastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
     return { tournaments, lastDoc };
   },
@@ -93,6 +93,25 @@ export const firestoreTournamentRepository = {
       orderBy('date', 'desc'),
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
+    return snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }));
+  },
+
+  async updateAccessMode(
+    id: string,
+    accessMode: TournamentAccessMode,
+    listed: boolean,
+    buddyGroupId: string | null,
+    buddyGroupName: string | null,
+  ): Promise<void> {
+    const ref = doc(firestore, 'tournaments', id);
+    const visibility = listed ? 'public' : 'private';
+    await updateDoc(ref, {
+      accessMode,
+      listed,
+      visibility,
+      buddyGroupId,
+      buddyGroupName,
+      updatedAt: serverTimestamp(),
+    });
   },
 };
