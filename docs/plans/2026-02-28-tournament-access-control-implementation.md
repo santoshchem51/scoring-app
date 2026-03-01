@@ -1,4 +1,4 @@
-# Tournament Access Control — Implementation Plan
+# Tournament Access Control — Implementation Plan (Revised)
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -9,6 +9,12 @@
 **Tech Stack:** SolidJS 1.9 + TypeScript + Firestore + Tailwind CSS v4 (no new dependencies)
 
 **Design doc:** `docs/plans/2026-02-28-tournament-access-control-design.md`
+
+**Revision notes:** Incorporates all findings from architecture + UI specialist reviews. Changes from v1:
+- **5 blockers fixed:** security rules, invitation backfill, getByShareCode, handleWithdraw, truncation test
+- **9 important issues fixed:** partial registrationCounts normalization, batch limits, BrowseCard prop cleanup, OptionCard reuse, missing imports, Decline All, full-tournament state, group help text, handleAddPlayer
+- **6 new tasks added:** buddy group query (T4), invitation backfill (T7), lazy expiry (T17), InvitationInbox update (T21), isInvited/isGroupMember wiring (T18), player pending badges (T22)
+- **Deferred to follow-up:** tournament edit page integration, mode-change confirmation dialogs, Firestore emulator rule tests
 
 ---
 
@@ -40,6 +46,7 @@
 - **Dashboard:** `src/features/tournaments/TournamentDashboardPage.tsx`
 - **My Tournaments tab:** `src/features/tournaments/components/MyTournamentsTab.tsx`
 - **BottomNav:** `src/shared/components/BottomNav.tsx`
+- **OptionCard:** `src/shared/components/OptionCard.tsx` (reuse for AccessModeSelector)
 
 ### Test Commands
 - **Run all tests:** `npx vitest run`
@@ -50,6 +57,7 @@
 ### Existing Patterns
 - **writeBatch:** See `firestoreBuddyGroupRepository.ts:addMember()` — batch.set + batch.update with increment()
 - **Mocks:** Use `vi.hoisted()` for mock functions, `vi.mock()` for modules, import after mocks
+- **OptionCard:** `src/shared/components/OptionCard.tsx` — has `aria-pressed`, `bg-primary/20 border-2 border-primary` selected style
 - **Registration doc path:** `tournaments/{tournamentId}/registrations/{docId}`
 - **Invitation doc path:** `tournaments/{tournamentId}/invitations/{docId}`
 
@@ -83,14 +91,14 @@ Expected: `On branch feature/tournament-access-control, nothing to commit`
 
 **Step 1: Add new types and update interfaces**
 
-Add below the existing `TournamentVisibility` type (line 89):
+Add below the existing `TournamentVisibility` type (around line 89):
 
 ```typescript
 export type TournamentAccessMode = 'open' | 'approval' | 'invite-only' | 'group';
 export type RegistrationStatus = 'confirmed' | 'pending' | 'declined' | 'withdrawn' | 'expired';
 ```
 
-Add new fields to the `Tournament` interface (after `shareCode: string | null;` on line 144):
+Add new fields to the `Tournament` interface (after `shareCode: string | null;`):
 
 ```typescript
   accessMode: TournamentAccessMode;
@@ -100,7 +108,7 @@ Add new fields to the `Tournament` interface (after `shareCode: string | null;` 
   registrationCounts: { confirmed: number; pending: number };
 ```
 
-Add new fields to the `TournamentRegistration` interface (after `registeredAt: number;` on line 208):
+Add new fields to the `TournamentRegistration` interface (after `registeredAt: number;`):
 
 ```typescript
   status: RegistrationStatus;
@@ -183,11 +191,29 @@ describe('normalizeTournament', () => {
     expect(result.registrationCounts).toEqual({ confirmed: 0, pending: 0 });
   });
 
+  it('fills missing pending field in partial registrationCounts', () => {
+    const raw = { id: 't1', registrationCounts: { confirmed: 5 } };
+    const result = normalizeTournament(raw as any);
+    expect(result.registrationCounts).toEqual({ confirmed: 5, pending: 0 });
+  });
+
+  it('fills missing confirmed field in partial registrationCounts', () => {
+    const raw = { id: 't1', registrationCounts: { pending: 3 } };
+    const result = normalizeTournament(raw as any);
+    expect(result.registrationCounts).toEqual({ confirmed: 0, pending: 3 });
+  });
+
   it('defaults buddyGroupId and buddyGroupName to null when missing', () => {
     const raw = { id: 't1' };
     const result = normalizeTournament(raw as any);
     expect(result.buddyGroupId).toBeNull();
     expect(result.buddyGroupName).toBeNull();
+  });
+
+  it('handles listed explicitly set with visibility missing', () => {
+    const raw = { id: 't1', listed: true };
+    const result = normalizeTournament(raw as any);
+    expect(result.listed).toBe(true);
   });
 });
 
@@ -235,13 +261,17 @@ import type { Tournament, TournamentRegistration } from '../types';
 
 export function normalizeTournament(raw: Record<string, unknown>): Tournament {
   const t = raw as Partial<Tournament> & { id: string };
+  const rawCounts = t.registrationCounts as { confirmed?: number; pending?: number } | undefined;
   return {
     ...t,
     accessMode: t.accessMode ?? 'open',
     listed: t.listed ?? (t.visibility === 'public'),
     buddyGroupId: t.buddyGroupId ?? null,
     buddyGroupName: t.buddyGroupName ?? null,
-    registrationCounts: t.registrationCounts ?? { confirmed: 0, pending: 0 },
+    registrationCounts: {
+      confirmed: rawCounts?.confirmed ?? 0,
+      pending: rawCounts?.pending ?? 0,
+    },
   } as Tournament;
 }
 
@@ -262,7 +292,7 @@ export function normalizeRegistration(raw: Record<string, unknown>): TournamentR
 npx vitest run src/data/firebase/__tests__/tournamentNormalizer.test.ts
 ```
 
-Expected: All 10 tests PASS.
+Expected: All 13 tests PASS.
 
 **Step 5: Commit**
 
@@ -270,13 +300,52 @@ Expected: All 10 tests PASS.
 git add src/data/firebase/tournamentNormalizer.ts src/data/firebase/__tests__/tournamentNormalizer.test.ts
 git commit -m "feat: add backward-compat normalization for tournament and registration docs
 
-Runtime defaults for missing accessMode, listed, registrationCounts,
-status, declineReason, statusUpdatedAt fields."
+Runtime defaults for missing fields. Handles partial registrationCounts
+objects (e.g. missing pending sub-field)."
 ```
 
 ---
 
-## Task 4: Update Tournament Repository
+## Task 4: Add getGroupsByUser to Buddy Group Repository
+
+**Files:**
+- Modify: `src/data/firebase/firestoreBuddyGroupRepository.ts`
+
+**Why:** Task 15 (TournamentCreatePage) needs to load the user's buddy groups with `id` and `name`. The existing `getGroupsForUser()` returns only group IDs. We need a method that returns full group objects.
+
+**Step 1: Add getGroupsByUser method**
+
+Add to `firestoreBuddyGroupRepository` (after `getGroupsForUser`):
+
+```typescript
+  async getGroupsByUser(userId: string): Promise<BuddyGroup[]> {
+    const groupIds = await this.getGroupsForUser(userId);
+    if (groupIds.length === 0) return [];
+    const groups = await Promise.all(
+      groupIds.map((id) => this.get(id)),
+    );
+    return groups.filter((g): g is BuddyGroup => g !== null);
+  },
+```
+
+**Step 2: Run tests**
+
+```bash
+npx vitest run && npx tsc --noEmit
+```
+
+**Step 3: Commit**
+
+```bash
+git add src/data/firebase/firestoreBuddyGroupRepository.ts
+git commit -m "feat: add getGroupsByUser to buddy group repository
+
+Returns full BuddyGroup objects for a user (uses getGroupsForUser + batch get)."
+```
+
+---
+
+## Task 5: Update Tournament Repository
 
 **Files:**
 - Modify: `src/data/firebase/firestoreTournamentRepository.ts`
@@ -289,15 +358,34 @@ Add import at top:
 import { normalizeTournament } from './tournamentNormalizer';
 ```
 
-Update every method that reads tournament docs to use the normalizer. Replace all occurrences of `{ id: d.id, ...d.data() } as Tournament` with `normalizeTournament({ id: d.id, ...d.data() })`. This affects:
+Update every method that reads tournament docs. Replace all `{ id: d.id, ...d.data() } as Tournament` with `normalizeTournament({ id: d.id, ...d.data() })`. This affects:
 
-- `getById` (line ~23): `return normalizeTournament({ id: snap.id, ...snap.data() });`
-- `getByOrganizer` (line ~33): `snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }))`
-- `getByShareCode` (line ~44): `return normalizeTournament({ id: snap.docs[0].id, ...snap.docs[0].data() });`
-- `getPublicTournaments` (line ~75): `snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }))`
-- `getByScorekeeper` (line ~94): `snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }))`
+- `getById` (~line 23): `return normalizeTournament({ id: snap.id, ...snap.data() });`
+- `getByOrganizer` (~line 33): `snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }))`
+- `getByShareCode` (~line 46): `return normalizeTournament({ id: snap.docs[0].id, ...snap.docs[0].data() });`
+- `getPublicTournaments` (~line 77): `snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }))`
+- `getByScorekeeper` (~line 96): `snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }))`
 
-**Step 2: Add updateAccessMode method**
+**Step 2: Fix getByShareCode — remove visibility filter** *(BLOCKER FIX)*
+
+The current code has `where('visibility', '==', 'public')` which blocks unlisted invite-only/group tournaments from being accessed via share link. Remove it:
+
+```typescript
+  async getByShareCode(shareCode: string): Promise<Tournament | undefined> {
+    const q = query(
+      collection(firestore, 'tournaments'),
+      where('shareCode', '==', shareCode),
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return undefined;
+    const d = snapshot.docs[0];
+    return normalizeTournament({ id: d.id, ...d.data() });
+  },
+```
+
+This is safe because share codes are randomly generated and unguessable.
+
+**Step 3: Add updateAccessMode method**
 
 Add to the repository object:
 
@@ -322,26 +410,27 @@ Add to the repository object:
   },
 ```
 
-**Step 3: Run full test suite + type check**
+**Step 4: Run full test suite + type check**
 
 ```bash
 npx vitest run && npx tsc --noEmit
 ```
 
-Note: Type errors may still exist in other files that construct Tournament objects. That's expected.
+Note: Type errors may still exist in other files. That's expected.
 
-**Step 4: Commit**
+**Step 5: Commit**
 
 ```bash
 git add src/data/firebase/firestoreTournamentRepository.ts
 git commit -m "feat: integrate normalizer into tournament repository reads
 
-All read paths now normalize legacy docs. Added updateAccessMode method."
+All read paths now normalize legacy docs. Removed visibility filter from
+getByShareCode (share links work for all modes). Added updateAccessMode."
 ```
 
 ---
 
-## Task 5: Update Registration Repository (userId-keyed docs + status)
+## Task 6: Update Registration Repository (userId-keyed docs + status)
 
 **Files:**
 - Modify: `src/data/firebase/firestoreRegistrationRepository.ts`
@@ -354,24 +443,23 @@ Create `src/data/firebase/__tests__/firestoreRegistrationRepository.access.test.
 ```typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockDoc, mockSetDoc, mockGetDoc, mockGetDocs, mockUpdateDoc, mockCollection, mockQuery, mockWhere, mockWriteBatch } = vi.hoisted(() => {
-  const batchInstance = {
-    set: vi.fn(),
-    update: vi.fn(),
-    commit: vi.fn().mockResolvedValue(undefined),
-  };
-  return {
-    mockDoc: vi.fn((...args: unknown[]) => ({ _doc: args })),
-    mockSetDoc: vi.fn().mockResolvedValue(undefined),
-    mockGetDoc: vi.fn(),
-    mockGetDocs: vi.fn(),
-    mockUpdateDoc: vi.fn().mockResolvedValue(undefined),
-    mockCollection: vi.fn((...args: unknown[]) => ({ _collection: args })),
-    mockQuery: vi.fn((...args: unknown[]) => ({ _query: args })),
-    mockWhere: vi.fn((...args: unknown[]) => ({ _where: args })),
-    mockWriteBatch: vi.fn(() => batchInstance),
-  };
-});
+const batchInstance = vi.hoisted(() => ({
+  set: vi.fn(),
+  update: vi.fn(),
+  commit: vi.fn().mockResolvedValue(undefined),
+}));
+
+const { mockDoc, mockSetDoc, mockGetDoc, mockGetDocs, mockUpdateDoc, mockCollection, mockQuery, mockWhere, mockWriteBatch } = vi.hoisted(() => ({
+  mockDoc: vi.fn((...args: unknown[]) => ({ _doc: args })),
+  mockSetDoc: vi.fn().mockResolvedValue(undefined),
+  mockGetDoc: vi.fn(),
+  mockGetDocs: vi.fn(),
+  mockUpdateDoc: vi.fn().mockResolvedValue(undefined),
+  mockCollection: vi.fn((...args: unknown[]) => ({ _collection: args })),
+  mockQuery: vi.fn((...args: unknown[]) => ({ _query: args })),
+  mockWhere: vi.fn((...args: unknown[]) => ({ _where: args })),
+  mockWriteBatch: vi.fn(() => batchInstance),
+}));
 
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
@@ -392,10 +480,15 @@ vi.mock('../config', () => ({ firestore: 'mock-firestore' }));
 import { firestoreRegistrationRepository } from '../firestoreRegistrationRepository';
 
 describe('firestoreRegistrationRepository - access control', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    batchInstance.set.mockClear();
+    batchInstance.update.mockClear();
+    batchInstance.commit.mockClear().mockResolvedValue(undefined);
+  });
 
   describe('saveWithStatus', () => {
-    it('uses userId as doc ID and includes status field', async () => {
+    it('uses userId as doc ID', async () => {
       const reg = {
         id: 'old-uuid',
         tournamentId: 't1',
@@ -409,20 +502,8 @@ describe('firestoreRegistrationRepository - access control', () => {
 
       await firestoreRegistrationRepository.saveWithStatus(reg as any, 't1');
 
+      // Doc path uses userId, not the reg.id
       expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'tournaments', 't1', 'registrations', 'user-1');
-    });
-
-    it('increments confirmed count for confirmed status', async () => {
-      const reg = {
-        tournamentId: 't1',
-        userId: 'user-1',
-        status: 'confirmed' as const,
-      };
-      const batchInstance = mockWriteBatch();
-
-      await firestoreRegistrationRepository.saveWithStatus(reg as any, 't1');
-
-      expect(batchInstance.update).toHaveBeenCalled();
     });
 
     it('increments pending count for pending status', async () => {
@@ -431,23 +512,70 @@ describe('firestoreRegistrationRepository - access control', () => {
         userId: 'user-1',
         status: 'pending' as const,
       };
-      const batchInstance = mockWriteBatch();
 
       await firestoreRegistrationRepository.saveWithStatus(reg as any, 't1');
 
-      expect(batchInstance.update).toHaveBeenCalled();
+      // batch.set for the reg doc
+      expect(batchInstance.set).toHaveBeenCalledTimes(1);
+      // batch.update for the tournament counter
+      expect(batchInstance.update).toHaveBeenCalledTimes(1);
+      expect(batchInstance.update).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ 'registrationCounts.pending': { _increment: 1 } }),
+      );
+      expect(batchInstance.commit).toHaveBeenCalled();
+    });
+
+    it('increments confirmed count for confirmed status', async () => {
+      const reg = {
+        tournamentId: 't1',
+        userId: 'user-1',
+        status: 'confirmed' as const,
+      };
+
+      await firestoreRegistrationRepository.saveWithStatus(reg as any, 't1');
+
+      expect(batchInstance.update).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ 'registrationCounts.confirmed': { _increment: 1 } }),
+      );
     });
   });
 
-  describe('updateStatus', () => {
+  describe('updateRegistrationStatus', () => {
     it('updates status and adjusts counts in a batch', async () => {
-      const batchInstance = mockWriteBatch();
-
       await firestoreRegistrationRepository.updateRegistrationStatus(
         't1', 'user-1', 'pending', 'confirmed',
       );
 
-      expect(batchInstance.update).toHaveBeenCalledTimes(2); // reg doc + tournament doc
+      // 2 updates: reg doc + tournament counter
+      expect(batchInstance.update).toHaveBeenCalledTimes(2);
+      expect(batchInstance.commit).toHaveBeenCalled();
+    });
+
+    it('includes declineReason when provided', async () => {
+      await firestoreRegistrationRepository.updateRegistrationStatus(
+        't1', 'user-1', 'pending', 'declined', 'Tournament is full',
+      );
+
+      expect(batchInstance.update).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          status: 'declined',
+          declineReason: 'Tournament is full',
+        }),
+      );
+    });
+  });
+
+  describe('batchUpdateStatus', () => {
+    it('updates all userIds and adjusts counts', async () => {
+      await firestoreRegistrationRepository.batchUpdateStatus(
+        't1', ['u1', 'u2', 'u3'], 'pending', 'confirmed',
+      );
+
+      // 3 reg updates + 1 tournament counter = 4
+      expect(batchInstance.update).toHaveBeenCalledTimes(4);
       expect(batchInstance.commit).toHaveBeenCalled();
     });
   });
@@ -464,14 +592,41 @@ Expected: FAIL — `saveWithStatus` and `updateRegistrationStatus` don't exist.
 
 **Step 3: Add new methods to registration repository**
 
-Add imports to `src/data/firebase/firestoreRegistrationRepository.ts`:
+Update imports in `src/data/firebase/firestoreRegistrationRepository.ts`:
 
 ```typescript
-import { doc, setDoc, getDocs, updateDoc, collection, query, where, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, updateDoc, collection, query, where, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
 import { normalizeRegistration } from './tournamentNormalizer';
+import type { TournamentRegistration, PaymentStatus, RegistrationStatus } from '../types';
 ```
 
-Add these methods to the repository object:
+Update existing `getByTournament` and `getByUser` to use normalizer:
+
+```typescript
+  async getByTournament(tournamentId: string): Promise<TournamentRegistration[]> {
+    const snapshot = await getDocs(collection(firestore, 'tournaments', tournamentId, 'registrations'));
+    return snapshot.docs.map((d) => normalizeRegistration({ id: d.id, ...d.data() }));
+  },
+
+  async getByUser(tournamentId: string, userId: string): Promise<TournamentRegistration | undefined> {
+    // Try userId-keyed doc first (new format)
+    const directRef = doc(firestore, 'tournaments', tournamentId, 'registrations', userId);
+    const directSnap = await getDoc(directRef);
+    if (directSnap.exists()) {
+      return normalizeRegistration({ id: directSnap.id, ...directSnap.data() });
+    }
+    // Fallback: query for legacy UUID-keyed doc
+    const q = query(
+      collection(firestore, 'tournaments', tournamentId, 'registrations'),
+      where('userId', '==', userId),
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return undefined;
+    return normalizeRegistration({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() });
+  },
+```
+
+Add new methods:
 
 ```typescript
   async saveWithStatus(reg: TournamentRegistration, tournamentId: string): Promise<void> {
@@ -479,7 +634,7 @@ Add these methods to the repository object:
     const regRef = doc(firestore, 'tournaments', tournamentId, 'registrations', reg.userId);
     const tournamentRef = doc(firestore, 'tournaments', tournamentId);
 
-    batch.set(regRef, { ...reg, updatedAt: serverTimestamp() });
+    batch.set(regRef, { ...reg, id: reg.userId, updatedAt: serverTimestamp() });
 
     if (reg.status === 'confirmed') {
       batch.update(tournamentRef, {
@@ -518,19 +673,13 @@ Add these methods to the repository object:
     batch.update(regRef, regUpdate);
 
     // Adjust counters
-    const decrements: Record<string, unknown> = {};
-    const increments: Record<string, unknown> = {};
+    const counterUpdates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    if (fromStatus === 'confirmed') counterUpdates['registrationCounts.confirmed'] = increment(-1);
+    if (fromStatus === 'pending') counterUpdates['registrationCounts.pending'] = increment(-1);
+    if (toStatus === 'confirmed') counterUpdates['registrationCounts.confirmed'] = increment(1);
+    if (toStatus === 'pending') counterUpdates['registrationCounts.pending'] = increment(1);
 
-    if (fromStatus === 'confirmed') decrements['registrationCounts.confirmed'] = increment(-1);
-    if (fromStatus === 'pending') decrements['registrationCounts.pending'] = increment(-1);
-    if (toStatus === 'confirmed') increments['registrationCounts.confirmed'] = increment(1);
-    if (toStatus === 'pending') increments['registrationCounts.pending'] = increment(1);
-
-    batch.update(tournamentRef, {
-      ...decrements,
-      ...increments,
-      updatedAt: serverTimestamp(),
-    });
+    batch.update(tournamentRef, counterUpdates);
 
     await batch.commit();
   },
@@ -541,52 +690,33 @@ Add these methods to the repository object:
     fromStatus: RegistrationStatus,
     toStatus: RegistrationStatus,
   ): Promise<void> {
-    const batch = writeBatch(firestore);
-    const tournamentRef = doc(firestore, 'tournaments', tournamentId);
+    // Firestore batches are limited to 500 ops. Reserve 1 for tournament counter.
+    const CHUNK_SIZE = 499;
 
-    for (const userId of userIds) {
-      const regRef = doc(firestore, 'tournaments', tournamentId, 'registrations', userId);
-      batch.update(regRef, {
-        status: toStatus,
-        statusUpdatedAt: Date.now(),
-        updatedAt: serverTimestamp(),
-      });
+    for (let i = 0; i < userIds.length; i += CHUNK_SIZE) {
+      const chunk = userIds.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(firestore);
+      const tournamentRef = doc(firestore, 'tournaments', tournamentId);
+
+      for (const userId of chunk) {
+        const regRef = doc(firestore, 'tournaments', tournamentId, 'registrations', userId);
+        batch.update(regRef, {
+          status: toStatus,
+          statusUpdatedAt: Date.now(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      const counterUpdates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+      if (fromStatus === 'pending') counterUpdates['registrationCounts.pending'] = increment(-chunk.length);
+      if (fromStatus === 'confirmed') counterUpdates['registrationCounts.confirmed'] = increment(-chunk.length);
+      if (toStatus === 'confirmed') counterUpdates['registrationCounts.confirmed'] = increment(chunk.length);
+      if (toStatus === 'pending') counterUpdates['registrationCounts.pending'] = increment(chunk.length);
+
+      batch.update(tournamentRef, counterUpdates);
+      await batch.commit();
     }
-
-    const countAdjustments: Record<string, unknown> = {};
-    if (fromStatus === 'pending') countAdjustments['registrationCounts.pending'] = increment(-userIds.length);
-    if (fromStatus === 'confirmed') countAdjustments['registrationCounts.confirmed'] = increment(-userIds.length);
-    if (toStatus === 'confirmed') countAdjustments['registrationCounts.confirmed'] = increment(userIds.length);
-    if (toStatus === 'pending') countAdjustments['registrationCounts.pending'] = increment(userIds.length);
-
-    batch.update(tournamentRef, { ...countAdjustments, updatedAt: serverTimestamp() });
-    await batch.commit();
   },
-```
-
-Also update existing `getByTournament` and `getByUser` to use the normalizer:
-
-```typescript
-  async getByTournament(tournamentId: string): Promise<TournamentRegistration[]> {
-    const snapshot = await getDocs(collection(firestore, 'tournaments', tournamentId, 'registrations'));
-    return snapshot.docs.map((d) => normalizeRegistration({ id: d.id, ...d.data() }));
-  },
-
-  async getByUser(tournamentId: string, userId: string): Promise<TournamentRegistration | undefined> {
-    const q = query(
-      collection(firestore, 'tournaments', tournamentId, 'registrations'),
-      where('userId', '==', userId),
-    );
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return undefined;
-    return normalizeRegistration({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() });
-  },
-```
-
-Add import for `RegistrationStatus`:
-
-```typescript
-import type { TournamentRegistration, RegistrationStatus } from '../types';
 ```
 
 **Step 4: Run tests to verify they pass**
@@ -604,28 +734,30 @@ git add src/data/firebase/firestoreRegistrationRepository.ts src/data/firebase/_
 git commit -m "feat: add status-aware registration methods with writeBatch
 
 saveWithStatus uses userId as doc ID, increments counters atomically.
-updateRegistrationStatus and batchUpdateStatus for status transitions."
+updateRegistrationStatus and batchUpdateStatus for status transitions.
+getByUser tries direct doc fetch first, falls back to query for legacy.
+Batch chunking for 500-op Firestore limit."
 ```
 
 ---
 
-## Task 6: Update Invitation Repository (userId-keyed docs)
+## Task 7: Update Invitation Repository (userId-keyed docs + backfill)
 
 **Files:**
 - Modify: `src/data/firebase/firestoreInvitationRepository.ts`
 
 **Step 1: Update create method to use userId as doc ID**
 
-Change the `create` method to use `invitation.invitedUserId` as the doc ID:
-
 ```typescript
   async create(invitation: TournamentInvitation): Promise<void> {
     const ref = doc(firestore, 'tournaments', invitation.tournamentId, 'invitations', invitation.invitedUserId);
-    await setDoc(ref, { ...invitation, updatedAt: serverTimestamp() });
+    await setDoc(ref, { ...invitation, id: invitation.invitedUserId, updatedAt: serverTimestamp() });
   },
 ```
 
-**Step 2: Update updateStatus to use userId path**
+**Step 2: Update updateStatus to accept userId**
+
+Change parameter name from `invitationId` to `userId` and add legacy fallback:
 
 ```typescript
   async updateStatus(tournamentId: string, userId: string, status: 'accepted' | 'declined'): Promise<void> {
@@ -634,27 +766,61 @@ Change the `create` method to use `invitation.invitedUserId` as the doc ID:
   },
 ```
 
-**Step 3: Run tests**
+**Step 3: Add backfill helper for legacy UUID-keyed docs**
+
+This is critical — without it, legacy invitations break `exists(invitations/{uid})` security rules.
+
+Add imports:
+
+```typescript
+import { doc, setDoc, getDocs, getDoc, updateDoc, deleteDoc, collection, collectionGroup, query, where, serverTimestamp, writeBatch } from 'firebase/firestore';
+```
+
+Add method:
+
+```typescript
+  async backfillToUserIdKeys(tournamentId: string): Promise<number> {
+    const invitations = await this.getByTournament(tournamentId);
+    let migrated = 0;
+
+    for (const inv of invitations) {
+      // If doc ID already equals invitedUserId, skip
+      if (inv.id === inv.invitedUserId) continue;
+
+      const batch = writeBatch(firestore);
+      // Create new doc keyed by userId
+      const newRef = doc(firestore, 'tournaments', tournamentId, 'invitations', inv.invitedUserId);
+      batch.set(newRef, { ...inv, id: inv.invitedUserId, updatedAt: serverTimestamp() });
+      // Delete old UUID-keyed doc
+      const oldRef = doc(firestore, 'tournaments', tournamentId, 'invitations', inv.id);
+      batch.delete(oldRef);
+      await batch.commit();
+      migrated++;
+    }
+    return migrated;
+  },
+```
+
+**Step 4: Run tests**
 
 ```bash
 npx vitest run && npx tsc --noEmit
 ```
 
-Note: Existing callers of `updateStatus` that pass `invitationId` need to be updated to pass `userId`. Check `InvitationInbox.tsx` and fix the call site.
-
-**Step 4: Commit**
+**Step 5: Commit**
 
 ```bash
 git add src/data/firebase/firestoreInvitationRepository.ts
-git commit -m "feat: key invitation docs by userId instead of UUID
+git commit -m "feat: key invitation docs by userId + add backfill helper
 
 Breaking change: invitation doc ID is now invitedUserId. Enables
-exists() checks in Firestore security rules."
+exists() checks in Firestore security rules. backfillToUserIdKeys()
+migrates legacy UUID-keyed docs on demand."
 ```
 
 ---
 
-## Task 7: Update Constants
+## Task 8: Update Constants
 
 **Files:**
 - Modify: `src/features/tournaments/constants.ts`
@@ -693,13 +859,13 @@ git commit -m "feat: add access mode and registration status constants"
 
 ---
 
-## Task 8: Update Discovery Filter Engine
+## Task 9: Update Discovery Filter Engine
 
 **Files:**
 - Modify: `src/features/tournaments/engine/discoveryFilters.ts`
 - Modify: `src/features/tournaments/engine/__tests__/discoveryFilters.test.ts`
 
-**Step 1: Write failing tests for access mode awareness**
+**Step 1: Write failing test for access mode filter**
 
 Add to the existing test file:
 
@@ -714,14 +880,38 @@ describe('filterPublicTournaments - access mode', () => {
     const result = filterPublicTournaments(tournaments, {});
     expect(result).toHaveLength(3);
   });
+
+  it('filters by accessMode when provided', () => {
+    const tournaments = [
+      makeTournament({ id: 't1', accessMode: 'open', listed: true }),
+      makeTournament({ id: 't2', accessMode: 'approval', listed: true }),
+    ];
+    const result = filterPublicTournaments(tournaments, { accessMode: 'approval' });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('t2');
+  });
 });
 ```
 
-Note: Since `filterPublicTournaments` doesn't filter by accessMode (it filters the already-fetched public tournaments), this test should already pass once the Tournament type has `accessMode`. The main change is to `BrowseFilters` and `MyTournamentEntry` types.
+Update the `makeTournament` helper to include new required fields:
 
-**Step 2: Update the types to include accessMode awareness**
+```typescript
+accessMode: 'open' as const,
+listed: true,
+buddyGroupId: null,
+buddyGroupName: null,
+registrationCounts: { confirmed: 0, pending: 0 },
+```
 
-In `discoveryFilters.ts`, add `accessMode` to `BrowseFilters` (optional, for future use):
+**Step 2: Update the filter engine**
+
+Add import:
+
+```typescript
+import type { TournamentAccessMode } from '../../../data/types';
+```
+
+Add `accessMode` to `BrowseFilters`:
 
 ```typescript
 export interface BrowseFilters {
@@ -732,7 +922,7 @@ export interface BrowseFilters {
 }
 ```
 
-Add the `accessMode` filter branch in `filterPublicTournaments`:
+Add the filter branch in `filterPublicTournaments`:
 
 ```typescript
     // Access mode filter
@@ -756,14 +946,14 @@ git commit -m "feat: add accessMode filter support to discovery engine"
 
 ---
 
-## Task 9: Update Firestore Indexes
+## Task 10: Update Firestore Indexes
 
 **Files:**
 - Modify: `firestore.indexes.json`
 
 **Step 1: Add new indexes**
 
-Add to the `indexes` array:
+Add to the `indexes` array (keep existing indexes unchanged):
 
 ```json
 {
@@ -783,14 +973,6 @@ Add to the `indexes` array:
   ]
 },
 {
-  "collectionGroup": "tournaments",
-  "queryScope": "COLLECTION",
-  "fields": [
-    { "fieldPath": "listed", "order": "ASCENDING" },
-    { "fieldPath": "date", "order": "DESCENDING" }
-  ]
-},
-{
   "collectionGroup": "invitations",
   "queryScope": "COLLECTION_GROUP",
   "fields": [
@@ -800,6 +982,10 @@ Add to the `indexes` array:
 }
 ```
 
+Note: Do NOT remove the existing single-field `registrations` collection group index on `userId` — it is still used by `getByParticipant`.
+
+Note: The existing `(visibility, date)` index already covers the Browse query. No `(listed, date)` index needed.
+
 **Step 2: Commit**
 
 ```bash
@@ -807,111 +993,164 @@ git add firestore.indexes.json
 git commit -m "chore: add Firestore indexes for access control queries
 
 Approval queue (registrations status+registeredAt), player pending
-registrations (collection group userId+status), listed tournaments,
-invitation inbox (collection group invitedUserId+status)."
+registrations (collection group userId+status), invitation inbox
+(collection group invitedUserId+status)."
 ```
 
 ---
 
-## Task 10: Update Firestore Security Rules
+## Task 11: Update Firestore Security Rules
 
 **Files:**
 - Modify: `firestore.rules`
 
-**Step 1: Add tournament data helper function**
+This is the most critical task. Changes are detailed and must be applied precisely.
 
-Add at the top of the rules file (after the `match /databases/{database}/documents` block opens):
+**Step 1: Add tournamentData helper function**
+
+Add right after `match /tournaments/{tournamentId} {` opens (line 92), before the read rules:
 
 ```
-    // Helper: read tournament data (cached per rule evaluation)
-    function tournamentData(tournamentId) {
-      return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
-    }
+      // Helper: read tournament data (cached per rule evaluation)
+      function tournamentData() {
+        return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
+      }
 ```
 
-**Step 2: Update tournament create rules**
+**Step 2: Update tournament CREATE rule**
 
-Add the new fields to the tournament create validation (after existing field checks):
+Add after existing `&& request.resource.data.visibility in ['private', 'public'];` (line 116). Replace the closing `;` with `&&` and add:
 
 ```
         && request.resource.data.accessMode in ['open', 'approval', 'invite-only', 'group']
         && request.resource.data.listed is bool
         && (request.resource.data.accessMode in ['open', 'approval'] ? request.resource.data.listed == true : true)
         && (request.resource.data.listed == true ? request.resource.data.visibility == 'public' : request.resource.data.visibility == 'private')
+        && request.resource.data.registrationCounts.confirmed == 0
+        && request.resource.data.registrationCounts.pending == 0
         && (request.resource.data.accessMode != 'group'
             || (request.resource.data.buddyGroupId is string
                 && exists(/databases/$(database)/documents/buddyGroups/$(request.resource.data.buddyGroupId))
-                && exists(/databases/$(database)/documents/buddyGroups/$(request.resource.data.buddyGroupId)/members/$(request.auth.uid))))
+                && exists(/databases/$(database)/documents/buddyGroups/$(request.resource.data.buddyGroupId)/members/$(request.auth.uid))));
 ```
 
-**Step 3: Update registration create rules**
+**Step 3: Update tournament UPDATE rule**
 
-Replace the existing registration create rule with mode-aware logic:
+Add to the existing update rule (after the status transition block, around line 139) within the outer `&&`:
 
 ```
-      // Registration create: mode-aware
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.visibility in ['private', 'public']
         && (
-          // OPEN mode: anyone, status must be confirmed
-          (tournamentData(tournamentId).accessMode == 'open'
-            && request.resource.data.status == 'confirmed')
-          // APPROVAL mode: anyone, status must be pending
-          || (tournamentData(tournamentId).accessMode == 'approval'
-            && request.resource.data.status == 'pending')
-          // INVITE-ONLY: only invited users, confirmed
-          || (tournamentData(tournamentId).accessMode == 'invite-only'
-            && exists(/databases/$(database)/documents/tournaments/$(tournamentId)/invitations/$(request.auth.uid))
-            && request.resource.data.status == 'confirmed')
-          // GROUP: only group members, confirmed
-          || (tournamentData(tournamentId).accessMode == 'group'
-            && exists(/databases/$(database)/documents/buddyGroups/$(tournamentData(tournamentId).buddyGroupId)/members/$(request.auth.uid))
-            && request.resource.data.status == 'confirmed')
-          // LEGACY: no accessMode field, fallback to visibility
-          || (!('accessMode' in tournamentData(tournamentId))
-            && tournamentData(tournamentId).visibility == 'public'
-            && request.resource.data.status == 'confirmed')
-        );
+          // If accessMode hasn't changed, allow (backward compat for old tournaments)
+          !('accessMode' in resource.data) && !('accessMode' in request.resource.data)
+          // If accessMode is present, validate invariants
+          || (request.resource.data.accessMode in ['open', 'approval', 'invite-only', 'group']
+              && request.resource.data.listed is bool
+              && (request.resource.data.listed == true ? request.resource.data.visibility == 'public' : request.resource.data.visibility == 'private'))
+          // Allow counter-only updates (registration changes) — only registrationCounts changed
+          || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registrationCounts', 'updatedAt'])
+        )
 ```
 
-**Step 4: Update registration update rules**
+**Step 4: Replace registration CREATE rules (lines 231-246)**
+
+Replace both existing registration create rules with:
 
 ```
-      // Registration update: status transitions
-      allow update: if request.auth != null
-        && (
-          // Organizer can approve/decline/withdraw
-          (request.auth.uid == tournamentData(tournamentId).organizerId
-            && request.resource.data.status in ['confirmed', 'declined', 'withdrawn'])
-          // Player can withdraw own registration
-          || (request.auth.uid == resource.data.userId
-            && request.resource.data.status == 'withdrawn'
-            && resource.data.status in ['confirmed', 'pending'])
-          // Player can re-confirm declined registration IF invited
-          || (request.auth.uid == resource.data.userId
-            && resource.data.status == 'declined'
-            && request.resource.data.status == 'confirmed'
-            && exists(/databases/$(database)/documents/tournaments/$(tournamentId)/invitations/$(request.auth.uid)))
-        );
+        // Player self-registration: mode-aware
+        allow create: if request.auth != null
+          && regId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.tournamentId == tournamentId
+          && tournamentData().status in ['setup', 'registration']
+          && (
+            // OPEN mode: anyone, status must be confirmed
+            (tournamentData().accessMode == 'open'
+              && request.resource.data.status == 'confirmed')
+            // APPROVAL mode: anyone, status must be pending
+            || (tournamentData().accessMode == 'approval'
+              && request.resource.data.status == 'pending')
+            // INVITE-ONLY: only invited users, confirmed
+            || (tournamentData().accessMode == 'invite-only'
+              && exists(/databases/$(database)/documents/tournaments/$(tournamentId)/invitations/$(request.auth.uid))
+              && request.resource.data.status == 'confirmed')
+            // GROUP: only group members, confirmed
+            || (tournamentData().accessMode == 'group'
+              && exists(/databases/$(database)/documents/buddyGroups/$(tournamentData().buddyGroupId)/members/$(request.auth.uid))
+              && request.resource.data.status == 'confirmed')
+            // LEGACY: no accessMode field, fallback to existing behavior
+            || (!('accessMode' in tournamentData())
+              && request.resource.data.status == 'confirmed')
+          );
 
-      // Registration delete: never (use withdrawn status)
-      allow delete: if false;
+        // Organizer can add players on their behalf (manual registration)
+        allow create: if request.auth != null
+          && tournamentData().organizerId == request.auth.uid
+          && request.resource.data.tournamentId == tournamentId
+          && request.resource.data.status == 'confirmed'
+          && tournamentData().status in ['setup', 'registration'];
 ```
 
-**Step 5: Commit**
+**Step 5: Replace registration UPDATE rules (lines 249-260)**
+
+Replace both existing update rules with:
+
+```
+        // Organizer: approve, decline, expire, or withdraw any registration
+        allow update: if request.auth != null
+          && tournamentData().organizerId == request.auth.uid
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.tournamentId == resource.data.tournamentId
+          && (
+            // Approve: pending -> confirmed
+            (resource.data.status == 'pending' && request.resource.data.status == 'confirmed')
+            // Decline: pending -> declined
+            || (resource.data.status == 'pending' && request.resource.data.status == 'declined')
+            // Expire: pending -> expired
+            || (resource.data.status == 'pending' && request.resource.data.status == 'expired')
+            // Withdraw anyone
+            || request.resource.data.status == 'withdrawn'
+            // Payment updates (backward compat) — status unchanged
+            || (request.resource.data.status == resource.data.status
+                && request.resource.data.paymentStatus in ['unpaid', 'paid', 'waived'])
+          );
+
+        // Player: withdraw own registration or update own profile fields
+        allow update: if request.auth != null
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.tournamentId == resource.data.tournamentId
+          && (
+            // Withdraw: confirmed or pending -> withdrawn
+            (request.resource.data.status == 'withdrawn'
+              && resource.data.status in ['confirmed', 'pending'])
+            // Profile updates: status unchanged, payment unchanged
+            || (request.resource.data.status == resource.data.status
+                && request.resource.data.paymentStatus == resource.data.paymentStatus
+                && request.resource.data.paymentNote == resource.data.paymentNote)
+          );
+
+        // Registration delete: never (use withdrawn status)
+        allow delete: if false;
+```
+
+Note: This removes the old delete rule. Registrations are now soft-deleted via `withdrawn` status.
+
+**Step 6: Commit**
 
 ```bash
 git add firestore.rules
 git commit -m "feat: add mode-aware Firestore security rules for registrations
 
-Registration creates validated per access mode. Status transitions
-restricted to organizer (approve/decline) and player (withdraw).
-Re-invitation flow: declined->confirmed with invitation exists check."
+Registration creates validated per access mode with regId==uid enforcement.
+Status transitions restricted: organizer (approve/decline/expire/withdraw),
+player (withdraw own, profile updates). Legacy backward compat preserved.
+Tournament create/update validate new access control fields."
 ```
 
 ---
 
-## Task 11: AccessModeBadge Component
+## Task 12: AccessModeBadge Component
 
 **Files:**
 - Create: `src/features/tournaments/components/AccessModeBadge.tsx`
@@ -947,14 +1186,20 @@ describe('AccessModeBadge', () => {
     expect(screen.getByText('Tuesday Crew')).toBeTruthy();
   });
 
-  it('truncates long group names', () => {
+  it('truncates long group names at 20 chars', () => {
     render(() => <AccessModeBadge accessMode="group" groupName="Wednesday Night Warriors League" />);
+    // 20 chars max: "Wednesday Night W..." (17 + "...")
     expect(screen.getByText('Wednesday Night W...')).toBeTruthy();
   });
 
   it('falls back to "Group" when no group name', () => {
     render(() => <AccessModeBadge accessMode="group" />);
     expect(screen.getByText('Group')).toBeTruthy();
+  });
+
+  it('has aria-label with full group name on truncated badge', () => {
+    render(() => <AccessModeBadge accessMode="group" groupName="Wednesday Night Warriors League" />);
+    expect(screen.getByLabelText('Group: Wednesday Night Warriors League')).toBeTruthy();
   });
 });
 ```
@@ -982,7 +1227,7 @@ interface Props {
   groupName?: string;
 }
 
-const MAX_GROUP_NAME_LENGTH = 18;
+const MAX_GROUP_NAME_LENGTH = 20;
 
 function truncate(str: string, max: number): string {
   return str.length > max ? str.slice(0, max - 3) + '...' : str;
@@ -999,12 +1244,20 @@ const AccessModeBadge: Component<Props> = (props) => {
     return null;
   };
 
+  const fullLabel = () => {
+    if (props.accessMode === 'group' && props.groupName) return `Group: ${props.groupName}`;
+    return undefined;
+  };
+
   const colorClass = () => accessModeBadgeColors[props.accessMode] ?? '';
 
   return (
     <Show when={label()}>
       {(text) => (
-        <span class={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${colorClass()}`}>
+        <span
+          class={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${colorClass()}`}
+          aria-label={fullLabel()}
+        >
           {text()}
         </span>
       )}
@@ -1021,7 +1274,7 @@ export default AccessModeBadge;
 npx vitest run src/features/tournaments/components/__tests__/AccessModeBadge.test.tsx
 ```
 
-Expected: All 6 tests PASS.
+Expected: All 7 tests PASS.
 
 **Step 5: Commit**
 
@@ -1032,15 +1285,25 @@ git commit -m "feat: add AccessModeBadge component for BrowseCard"
 
 ---
 
-## Task 12: Update BrowseCard with Access Mode Badge
+## Task 13: Update BrowseCard with Access Mode Badge
 
 **Files:**
 - Modify: `src/features/tournaments/components/BrowseCard.tsx`
 - Modify: `src/features/tournaments/components/__tests__/BrowseCard.test.tsx`
 
-**Step 1: Add failing test**
+**Step 1: Update test helper and add failing tests**
 
-Add to existing BrowseCard tests:
+Update the `makeTournament` helper in the test to include new required fields:
+
+```typescript
+accessMode: 'open' as const,
+listed: true,
+buddyGroupId: null,
+buddyGroupName: null,
+registrationCounts: { confirmed: 0, pending: 0 },
+```
+
+Add new tests:
 
 ```typescript
   it('shows access mode badge for approval tournaments', () => {
@@ -1064,14 +1327,12 @@ Add to existing BrowseCard tests:
   });
 ```
 
-Update `makeTournament` helper in the test to include the new required fields:
+If `renderCard` doesn't exist yet, define it:
 
 ```typescript
-    accessMode: 'open' as const,
-    listed: true,
-    buddyGroupId: null,
-    buddyGroupName: null,
-    registrationCounts: { confirmed: 0, pending: 0 },
+function renderCard(tournament: Tournament) {
+  return render(() => <BrowseCard tournament={tournament} />);
+}
 ```
 
 **Step 2: Run tests to verify they fail**
@@ -1088,7 +1349,9 @@ Add import:
 import AccessModeBadge from './AccessModeBadge';
 ```
 
-Update the registration label logic:
+Remove the old `registrationCount?: number` prop from the BrowseCard props interface (if present). Remove any `registrationText()` function that uses it.
+
+Add new registration label logic:
 
 ```typescript
   const registrationLabel = () => {
@@ -1111,11 +1374,17 @@ Update the registration label logic:
 
 Add the AccessModeBadge in the badges row (after the format badge):
 
-```typescript
+```tsx
 <AccessModeBadge
   accessMode={props.tournament.accessMode ?? 'open'}
   groupName={props.tournament.buddyGroupName ?? undefined}
 />
+```
+
+Replace the old registration count display with:
+
+```tsx
+<p class="text-xs text-on-surface-muted mt-2">{registrationLabel()}</p>
 ```
 
 **Step 4: Run tests**
@@ -1130,12 +1399,15 @@ Expected: All tests PASS.
 
 ```bash
 git add src/features/tournaments/components/BrowseCard.tsx src/features/tournaments/components/__tests__/BrowseCard.test.tsx
-git commit -m "feat: add access mode badge and adapted count copy to BrowseCard"
+git commit -m "feat: add access mode badge and adapted count copy to BrowseCard
+
+Removed old registrationCount prop. Count label adapts per mode
+(shows pending for approval, 'invited' for invite-only)."
 ```
 
 ---
 
-## Task 13: AccessModeSelector Component
+## Task 14: AccessModeSelector Component
 
 **Files:**
 - Create: `src/features/tournaments/components/AccessModeSelector.tsx`
@@ -1147,7 +1419,7 @@ Create `src/features/tournaments/components/__tests__/AccessModeSelector.test.ts
 
 ```typescript
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@solidjs/testing-library';
+import { render, screen } from '@solidjs/testing-library';
 import AccessModeSelector from '../AccessModeSelector';
 
 describe('AccessModeSelector', () => {
@@ -1168,6 +1440,12 @@ describe('AccessModeSelector', () => {
     expect(screen.getByText('Approval Required')).toBeTruthy();
     expect(screen.getByText('Invite Only')).toBeTruthy();
     expect(screen.getByText('Buddy Group')).toBeTruthy();
+  });
+
+  it('marks open as selected with aria-pressed', () => {
+    render(() => <AccessModeSelector {...defaultProps} accessMode="open" />);
+    const openButton = screen.getByText('Open').closest('button');
+    expect(openButton?.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('does not show listed toggle for open mode', () => {
@@ -1269,7 +1547,7 @@ const AccessModeSelector: Component<Props> = (props) => {
         Who Can Join?
       </legend>
 
-      {/* 2x2 OptionCard grid */}
+      {/* 2x2 grid — matches OptionCard selected/unselected styles */}
       <div class="grid grid-cols-2 gap-3">
         <For each={modes}>
           {(mode) => {
@@ -1278,11 +1556,12 @@ const AccessModeSelector: Component<Props> = (props) => {
             return (
               <button
                 type="button"
+                aria-pressed={isSelected()}
                 onClick={() => props.onAccessModeChange(mode.value)}
-                class={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-center transition-all ${
+                class={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 text-center transition-all active:scale-[0.97] hover-lift ${
                   isSelected()
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-surface-light text-on-surface-muted hover:border-on-surface-muted/50'
+                    ? 'border-primary bg-primary/20 text-on-surface'
+                    : 'border-surface-lighter bg-surface-light text-on-surface-muted hover:border-on-surface-muted'
                 }`}
               >
                 <Icon size={20} />
@@ -1294,9 +1573,9 @@ const AccessModeSelector: Component<Props> = (props) => {
         </For>
       </div>
 
-      {/* Conditional: Group selector (appears first for group mode) */}
+      {/* Conditional: Group selector */}
       <Show when={showGroupSelector()}>
-        <div class="bg-surface-lighter rounded-lg p-3 border-l-4 border-blue-400 space-y-2">
+        <div class="bg-surface-light rounded-lg p-3 border-l-4 border-blue-400 space-y-2">
           <Show
             when={props.buddyGroups.length > 0}
             fallback={
@@ -1350,7 +1629,7 @@ const AccessModeSelector: Component<Props> = (props) => {
 
       {/* Conditional: Listed toggle */}
       <Show when={showListedToggle()}>
-        <div class="bg-surface-lighter rounded-lg p-3 border-l-4 border-primary/50">
+        <div class="bg-surface-light rounded-lg p-3 border-l-4 border-primary/50">
           <label class="flex items-center justify-between cursor-pointer">
             <div>
               <span class="text-sm font-semibold text-on-surface">Let players find this</span>
@@ -1362,7 +1641,7 @@ const AccessModeSelector: Component<Props> = (props) => {
               type="checkbox"
               checked={props.listed}
               onChange={(e) => props.onListedChange(e.currentTarget.checked)}
-              class="w-10 h-5 rounded-full appearance-none bg-surface-lighter border border-border checked:bg-primary relative cursor-pointer
+              class="w-10 h-5 rounded-full appearance-none bg-surface border border-border checked:bg-primary relative cursor-pointer
                 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:rounded-full after:bg-white after:transition-transform
                 checked:after:translate-x-5"
             />
@@ -1382,7 +1661,7 @@ export default AccessModeSelector;
 npx vitest run src/features/tournaments/components/__tests__/AccessModeSelector.test.tsx
 ```
 
-Expected: All 5 tests PASS.
+Expected: All 6 tests PASS.
 
 **Step 5: Commit**
 
@@ -1390,20 +1669,29 @@ Expected: All 5 tests PASS.
 git add src/features/tournaments/components/AccessModeSelector.tsx src/features/tournaments/components/__tests__/AccessModeSelector.test.tsx
 git commit -m "feat: add AccessModeSelector component
 
-2x2 OptionCard grid with conditional reveals for listed toggle
-and group selector. Inline group creation for zero-group state."
+2x2 grid with aria-pressed, matches OptionCard selected/unselected styles.
+Conditional listed toggle and group selector with inline group creation."
 ```
 
 ---
 
-## Task 14: Update TournamentCreatePage
+## Task 15: Update TournamentCreatePage
 
 **Files:**
 - Modify: `src/features/tournaments/TournamentCreatePage.tsx`
 
-**Step 1: Add access mode state signals**
+**Step 1: Add imports**
 
-Add after existing signals (around line 37):
+```typescript
+import { createSignal, createResource, Show } from 'solid-js';
+import type { TournamentAccessMode } from '../../data/types';
+import AccessModeSelector from './components/AccessModeSelector';
+import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
+```
+
+**Step 2: Add access mode state signals**
+
+Add after existing signals:
 
 ```typescript
 const [accessMode, setAccessMode] = createSignal<TournamentAccessMode>('open');
@@ -1413,27 +1701,21 @@ const [buddyGroupName, setBuddyGroupName] = createSignal<string | null>(null);
 const [buddyGroups, setBuddyGroups] = createSignal<Array<{ id: string; name: string }>>([]);
 ```
 
-Add import for the type and component:
-
-```typescript
-import type { TournamentAccessMode } from '../../data/types';
-import AccessModeSelector from './components/AccessModeSelector';
-```
-
-**Step 2: Load buddy groups on mount**
+**Step 3: Load buddy groups on mount**
 
 ```typescript
 createResource(
   () => user()?.uid,
   async (uid) => {
-    if (!uid) return;
-    const groups = await firestoreBuddyGroupRepository.getByCreator(uid);
+    const groups = await firestoreBuddyGroupRepository.getGroupsByUser(uid);
     setBuddyGroups(groups.map((g) => ({ id: g.id, name: g.name })));
   },
 );
 ```
 
-**Step 3: Handle accessMode changes**
+Note: `createResource` skips the fetcher when source is falsy (undefined), so no `if (!uid)` guard needed.
+
+**Step 4: Handle accessMode changes**
 
 ```typescript
 const handleAccessModeChange = (mode: TournamentAccessMode) => {
@@ -1448,7 +1730,18 @@ const handleAccessModeChange = (mode: TournamentAccessMode) => {
 };
 ```
 
-**Step 4: Add the selector to the form (after Location, before Format)**
+**Step 5: Add group validation to submit handler**
+
+In the existing `handleCreate` function, add before tournament save:
+
+```typescript
+if (accessMode() === 'group' && !buddyGroupId()) {
+  setError('Select a group before continuing.');
+  return;
+}
+```
+
+**Step 6: Add the selector to the form (after Location, before Format)**
 
 ```tsx
 {/* Access section divider */}
@@ -1469,7 +1762,7 @@ const handleAccessModeChange = (mode: TournamentAccessMode) => {
 <div class="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mt-6 mb-2">Game Rules</div>
 ```
 
-**Step 5: Update tournament assembly on save** (around line 59-85)
+**Step 7: Update tournament assembly on save**
 
 Add the new fields to the tournament object:
 
@@ -1485,25 +1778,26 @@ Add the new fields to the tournament object:
 
 Note: `shareCode` is now always generated (not null), and `visibility` is derived from `listed`.
 
-**Step 6: Run type check + tests**
+**Step 8: Run type check + tests**
 
 ```bash
 npx tsc --noEmit && npx vitest run
 ```
 
-**Step 7: Commit**
+**Step 9: Commit**
 
 ```bash
 git add src/features/tournaments/TournamentCreatePage.tsx
 git commit -m "feat: integrate AccessModeSelector into tournament create page
 
 Access mode selection with listed toggle, group selector, and inline
-group creation. Tournament assembly includes all new fields."
+group creation. Group validation at submit. Tournament assembly includes
+all new fields."
 ```
 
 ---
 
-## Task 15: ApprovalQueue Component
+## Task 16: ApprovalQueue Component
 
 **Files:**
 - Create: `src/features/tournaments/components/ApprovalQueue.tsx`
@@ -1550,6 +1844,7 @@ describe('ApprovalQueue', () => {
     onApprove: vi.fn(),
     onDecline: vi.fn(),
     onApproveAll: vi.fn(),
+    onDeclineAll: vi.fn(),
   };
 
   it('renders pending count header', () => {
@@ -1569,12 +1864,13 @@ describe('ApprovalQueue', () => {
     expect(approveButtons).toHaveLength(2);
   });
 
-  it('shows Approve All when 5+ pending', () => {
+  it('shows Approve All and Decline All when 5+ pending', () => {
     const manyRegs = Array.from({ length: 6 }, (_, i) =>
       makePendingReg(`u${i}`, `Player ${i}`, i),
     );
     render(() => <ApprovalQueue {...defaultProps} pendingRegistrations={manyRegs} />);
     expect(screen.getByText('Approve All')).toBeTruthy();
+    expect(screen.getByText('Decline All')).toBeTruthy();
   });
 
   it('renders nothing when no pending registrations', () => {
@@ -1589,8 +1885,6 @@ describe('ApprovalQueue', () => {
 ```bash
 npx vitest run src/features/tournaments/components/__tests__/ApprovalQueue.test.tsx
 ```
-
-Expected: FAIL — module not found.
 
 **Step 3: Implement ApprovalQueue**
 
@@ -1608,6 +1902,7 @@ interface Props {
   onApprove: (userId: string) => void;
   onDecline: (userId: string, reason?: string) => void;
   onApproveAll: () => void;
+  onDeclineAll?: () => void;
 }
 
 const MAX_VISIBLE = 10;
@@ -1625,6 +1920,7 @@ const ApprovalQueue: Component<Props> = (props) => {
   const [expanded, setExpanded] = createSignal(false);
   const [decliningUserId, setDecliningUserId] = createSignal<string | null>(null);
   const [declineReason, setDeclineReason] = createSignal('');
+  const [processingUserId, setProcessingUserId] = createSignal<string | null>(null);
 
   const visibleRegs = () => {
     const all = props.pendingRegistrations;
@@ -1632,10 +1928,24 @@ const ApprovalQueue: Component<Props> = (props) => {
     return all.slice(0, MAX_VISIBLE);
   };
 
-  const handleDeclineConfirm = (userId: string) => {
-    props.onDecline(userId, declineReason().trim() || undefined);
-    setDecliningUserId(null);
-    setDeclineReason('');
+  const handleApprove = async (userId: string) => {
+    setProcessingUserId(userId);
+    try {
+      await Promise.resolve(props.onApprove(userId));
+    } finally {
+      setProcessingUserId(null);
+    }
+  };
+
+  const handleDeclineConfirm = async (userId: string) => {
+    setProcessingUserId(userId);
+    try {
+      await Promise.resolve(props.onDecline(userId, declineReason().trim() || undefined));
+    } finally {
+      setProcessingUserId(null);
+      setDecliningUserId(null);
+      setDeclineReason('');
+    }
   };
 
   return (
@@ -1646,14 +1956,25 @@ const ApprovalQueue: Component<Props> = (props) => {
             Pending Requests ({props.pendingRegistrations.length})
           </h3>
           <Show when={props.pendingRegistrations.length >= 5}>
-            <div class="flex gap-2">
+            <div class="flex gap-3">
               <button
                 type="button"
                 onClick={() => props.onApproveAll()}
-                class="text-xs font-semibold text-primary hover:underline"
+                disabled={processingUserId() !== null}
+                class="text-xs font-semibold text-primary hover:underline disabled:opacity-50"
               >
                 Approve All
               </button>
+              <Show when={props.onDeclineAll}>
+                <button
+                  type="button"
+                  onClick={() => props.onDeclineAll?.()}
+                  disabled={processingUserId() !== null}
+                  class="text-xs font-semibold text-on-surface-muted hover:underline disabled:opacity-50"
+                >
+                  Decline All
+                </button>
+              </Show>
             </div>
           </Show>
         </div>
@@ -1674,22 +1995,24 @@ const ApprovalQueue: Component<Props> = (props) => {
                   <div class="flex gap-1.5">
                     <button
                       type="button"
-                      onClick={() => props.onApprove(reg.userId)}
-                      class="flex items-center gap-1 px-2.5 py-1 bg-green-500/20 text-green-400 text-xs font-semibold rounded-lg active:scale-95 transition-transform"
+                      onClick={() => handleApprove(reg.userId)}
+                      disabled={processingUserId() !== null}
+                      class="flex items-center gap-1 px-2.5 py-1 bg-green-500/20 text-green-400 text-xs font-semibold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
                     >
                       <Check size={12} /> Approve
                     </button>
                     <button
                       type="button"
                       onClick={() => setDecliningUserId(reg.userId)}
-                      class="flex items-center gap-1 px-2.5 py-1 bg-surface-lighter text-on-surface-muted text-xs font-semibold rounded-lg active:scale-95 transition-transform"
+                      disabled={processingUserId() !== null}
+                      class="flex items-center gap-1 px-2.5 py-1 bg-surface text-on-surface-muted text-xs font-semibold rounded-lg active:scale-95 transition-transform disabled:opacity-50"
                     >
                       <X size={12} /> Decline
                     </button>
                   </div>
                 </div>
 
-                {/* Decline reason inline (shown when declining this player) */}
+                {/* Decline reason inline */}
                 <Show when={decliningUserId() === reg.userId}>
                   <div class="mt-2 flex gap-2">
                     <input
@@ -1703,7 +2026,8 @@ const ApprovalQueue: Component<Props> = (props) => {
                     <button
                       type="button"
                       onClick={() => handleDeclineConfirm(reg.userId)}
-                      class="px-3 py-1.5 bg-red-500/20 text-red-400 text-xs font-semibold rounded-lg"
+                      disabled={processingUserId() !== null}
+                      class="px-3 py-1.5 bg-red-500/20 text-red-400 text-xs font-semibold rounded-lg disabled:opacity-50"
                     >
                       Decline
                     </button>
@@ -1753,26 +2077,139 @@ git add src/features/tournaments/components/ApprovalQueue.tsx src/features/tourn
 git commit -m "feat: add ApprovalQueue component for organizer dashboard
 
 Pending requests with approve/decline per row, inline decline reason,
-Approve All shortcut at 5+, capped at 10 visible with expand."
+Approve All + Decline All at 5+, loading states, capped at 10 with expand."
 ```
 
 ---
 
-## Task 16: Update RegistrationForm (Mode-Aware CTA + States)
+## Task 17: Add Lazy Expiry Processing
+
+**Files:**
+- Create: `src/features/tournaments/engine/registrationExpiry.ts`
+- Create: `src/features/tournaments/engine/__tests__/registrationExpiry.test.ts`
+
+**Step 1: Write failing tests**
+
+Create `src/features/tournaments/engine/__tests__/registrationExpiry.test.ts`:
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { getExpiredRegistrationUserIds, EXPIRY_DAYS } from '../registrationExpiry';
+import type { TournamentRegistration } from '../../../../data/types';
+
+function makeReg(userId: string, daysAgo: number, status: string): TournamentRegistration {
+  return {
+    id: userId,
+    tournamentId: 't1',
+    userId,
+    playerName: `Player ${userId}`,
+    teamId: null,
+    paymentStatus: 'unpaid',
+    paymentNote: '',
+    lateEntry: false,
+    skillRating: null,
+    partnerId: null,
+    partnerName: null,
+    profileComplete: false,
+    registeredAt: Date.now() - daysAgo * 86400000,
+    status: status as any,
+    declineReason: null,
+    statusUpdatedAt: null,
+  };
+}
+
+describe('getExpiredRegistrationUserIds', () => {
+  it('returns pending registrations older than 14 days', () => {
+    const regs = [
+      makeReg('u1', 15, 'pending'),
+      makeReg('u2', 1, 'pending'),
+      makeReg('u3', 20, 'pending'),
+    ];
+    const expired = getExpiredRegistrationUserIds(regs);
+    expect(expired).toEqual(['u1', 'u3']);
+  });
+
+  it('ignores non-pending registrations', () => {
+    const regs = [
+      makeReg('u1', 20, 'confirmed'),
+      makeReg('u2', 20, 'declined'),
+    ];
+    const expired = getExpiredRegistrationUserIds(regs);
+    expect(expired).toEqual([]);
+  });
+
+  it('returns empty array when no expired', () => {
+    const regs = [
+      makeReg('u1', 5, 'pending'),
+    ];
+    const expired = getExpiredRegistrationUserIds(regs);
+    expect(expired).toEqual([]);
+  });
+
+  it('exports EXPIRY_DAYS as 14', () => {
+    expect(EXPIRY_DAYS).toBe(14);
+  });
+});
+```
+
+**Step 2: Run tests to verify they fail**
+
+```bash
+npx vitest run src/features/tournaments/engine/__tests__/registrationExpiry.test.ts
+```
+
+**Step 3: Implement**
+
+Create `src/features/tournaments/engine/registrationExpiry.ts`:
+
+```typescript
+import type { TournamentRegistration } from '../../../data/types';
+
+export const EXPIRY_DAYS = 14;
+const EXPIRY_MS = EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+
+export function getExpiredRegistrationUserIds(registrations: TournamentRegistration[]): string[] {
+  const now = Date.now();
+  return registrations
+    .filter((r) => r.status === 'pending' && (now - r.registeredAt) > EXPIRY_MS)
+    .map((r) => r.userId);
+}
+```
+
+**Step 4: Run tests**
+
+```bash
+npx vitest run src/features/tournaments/engine/__tests__/registrationExpiry.test.ts
+```
+
+Expected: All 4 tests PASS.
+
+**Step 5: Commit**
+
+```bash
+git add src/features/tournaments/engine/registrationExpiry.ts src/features/tournaments/engine/__tests__/registrationExpiry.test.ts
+git commit -m "feat: add lazy expiry detection for pending registrations
+
+Pure function: getExpiredRegistrationUserIds filters pending regs
+older than 14 days. Called from OrganizerPlayerManager on load."
+```
+
+---
+
+## Task 18: Update RegistrationForm (Mode-Aware CTA + States)
 
 **Files:**
 - Modify: `src/features/tournaments/components/RegistrationForm.tsx`
 
-**Step 1: Add accessMode awareness to the form**
+**Step 1: Update imports**
 
-The form needs to:
-1. Show different CTA text based on mode + eligibility
-2. Show different success states (confirmed vs pending)
-3. Show restriction messages for ineligible users
-4. Show "full tournament" state
-5. Show decline/withdrawal/expiration states for returning players
+```typescript
+import { createSignal, Show, Switch, Match } from 'solid-js';
+import type { Component } from 'solid-js';
+import type { TournamentRegistration, Tournament } from '../../../data/types';
+```
 
-Add the new props:
+**Step 2: Update Props interface**
 
 ```typescript
 interface Props {
@@ -1784,195 +2221,284 @@ interface Props {
 }
 ```
 
-Update the CTA button text:
+**Step 3: Add mode-aware computed values**
+
+Add inside the component:
 
 ```typescript
+  const accessMode = () => props.tournament.accessMode ?? 'open';
+
   const ctaText = () => {
-    const mode = props.tournament.accessMode ?? 'open';
+    const mode = accessMode();
     if (mode === 'approval') return 'Ask to Join';
-    if (mode === 'invite-only' && props.isInvited) return 'Join Tournament';
-    if (mode === 'group' && props.isGroupMember) return 'Join Tournament';
     return 'Join Tournament';
   };
 
   const registrationStatus = () => {
-    const mode = props.tournament.accessMode ?? 'open';
-    if (mode === 'open') return 'confirmed' as const;
+    const mode = accessMode();
     if (mode === 'approval') return 'pending' as const;
-    if (mode === 'invite-only') return 'confirmed' as const;
-    if (mode === 'group') return 'confirmed' as const;
     return 'confirmed' as const;
   };
-```
 
-Update the registration object to include status:
+  const isFull = () => {
+    const max = props.tournament.maxPlayers;
+    if (!max) return false;
+    const confirmed = props.tournament.registrationCounts?.confirmed ?? 0;
+    return confirmed >= max;
+  };
 
-```typescript
-    status: registrationStatus(),
-    declineReason: null,
-    statusUpdatedAt: null,
-```
-
-Change doc ID from `crypto.randomUUID()` to `currentUser.uid`:
-
-```typescript
-    id: currentUser.uid,
-```
-
-Add restriction message for ineligible users:
-
-```typescript
   const restrictionMessage = () => {
-    const mode = props.tournament.accessMode ?? 'open';
+    const mode = accessMode();
     if (mode === 'invite-only' && !props.isInvited) {
-      return `This tournament is invite only. Organized by ${props.tournament.organizerName ?? 'the organizer'}.`;
+      return 'This tournament is invite only.';
     }
     if (mode === 'group' && !props.isGroupMember) {
-      return `This tournament is open to members of ${props.tournament.buddyGroupName ?? 'a buddy group'}. Organized by ${props.tournament.organizerName ?? 'the organizer'}.`;
+      return `This tournament is open to members of ${props.tournament.buddyGroupName ?? 'a buddy group'}.`;
     }
     return null;
   };
-```
 
-Update the success/status display for existing registrations:
+  const canRegister = () => {
+    const mode = accessMode();
+    if (mode === 'open' || mode === 'approval') return true;
+    if (mode === 'invite-only') return !!props.isInvited;
+    if (mode === 'group') return !!props.isGroupMember;
+    return true;
+  };
 
-```typescript
-  // Show different states for existing registrations
   const existingStatus = () => props.existingRegistration?.status;
-
-  // In the JSX, replace the existing "You're Registered" fallback:
-  <Switch>
-    <Match when={existingStatus() === 'confirmed'}>
-      <div class="text-center py-6">
-        <p class="text-green-400 font-bold text-lg">You're In!</p>
-        {/* payment status etc */}
-      </div>
-    </Match>
-    <Match when={existingStatus() === 'pending'}>
-      <div class="text-center py-6">
-        <p class="text-amber-400 font-bold text-lg">Request Submitted</p>
-        <p class="text-sm text-on-surface-muted mt-1">Check back here for updates from the organizer.</p>
-        <button
-          type="button"
-          onClick={handleWithdraw}
-          class="mt-3 text-xs text-on-surface-muted hover:underline"
-        >
-          Withdraw Request
-        </button>
-      </div>
-    </Match>
-    <Match when={existingStatus() === 'declined'}>
-      <div class="text-center py-6">
-        <p class="text-red-400 font-bold">Your request was not approved.</p>
-        <Show when={props.existingRegistration?.declineReason}>
-          <p class="text-sm text-on-surface-muted mt-1">{props.existingRegistration!.declineReason}</p>
-        </Show>
-      </div>
-    </Match>
-    <Match when={existingStatus() === 'withdrawn'}>
-      <div class="text-center py-6">
-        <p class="text-on-surface-muted">You withdrew your request.</p>
-        <button type="button" onClick={() => {/* re-show form */}} class="mt-2 text-primary text-sm font-semibold">
-          Ask to Join
-        </button>
-      </div>
-    </Match>
-    <Match when={existingStatus() === 'expired'}>
-      <div class="text-center py-6">
-        <p class="text-on-surface-muted">Your request expired. You can ask to join again.</p>
-        <button type="button" onClick={() => {/* re-show form */}} class="mt-2 text-primary text-sm font-semibold">
-          Ask to Join
-        </button>
-      </div>
-    </Match>
-  </Switch>
 ```
 
-Use `saveWithStatus` instead of `save`:
+**Step 4: Add handleWithdraw function**
 
 ```typescript
-await firestoreRegistrationRepository.saveWithStatus(reg, props.tournament.id);
+  const handleWithdraw = async () => {
+    const currentUser = user();
+    if (!currentUser || saving()) return;
+    setSaving(true);
+    try {
+      await firestoreRegistrationRepository.updateRegistrationStatus(
+        props.tournament.id, currentUser.uid,
+        existingStatus()!,
+        'withdrawn',
+      );
+      props.onRegistered();
+    } catch (err) {
+      console.error('Withdraw failed:', err);
+      setError('Failed to withdraw. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 ```
 
-**Step 2: Run tests + type check**
+**Step 5: Update handleRegister**
+
+Change the registration object to use userId as doc ID and include status:
+
+```typescript
+      const reg: TournamentRegistration = {
+        id: currentUser.uid,
+        tournamentId: props.tournament.id,
+        userId: currentUser.uid,
+        playerName: currentUser.displayName || null,
+        teamId: null,
+        paymentStatus: 'unpaid',
+        paymentNote: '',
+        lateEntry: false,
+        skillRating: skillRating() ? parseFloat(skillRating()) : null,
+        partnerId: null,
+        partnerName: partnerName().trim() || null,
+        profileComplete: !!(skillRating() && (props.tournament.teamFormation !== 'byop' || partnerName().trim())),
+        registeredAt: Date.now(),
+        status: registrationStatus(),
+        declineReason: null,
+        statusUpdatedAt: null,
+      };
+      await firestoreRegistrationRepository.saveWithStatus(reg, props.tournament.id);
+```
+
+**Step 6: Replace the JSX with status-aware rendering**
+
+Replace the existing `Show when={!isAlreadyRegistered()} fallback={...}` block with:
+
+```tsx
+    <div class="bg-surface-light rounded-xl p-4 space-y-4">
+      {/* Existing registration states */}
+      <Show when={isAlreadyRegistered()}>
+        <Switch>
+          <Match when={existingStatus() === 'confirmed'}>
+            <div class="text-center py-4">
+              <div class="text-primary font-bold text-lg mb-1">You're In!</div>
+              <div class="text-sm text-on-surface-muted">
+                Payment: {props.existingRegistration?.paymentStatus}
+              </div>
+            </div>
+          </Match>
+          <Match when={existingStatus() === 'pending'}>
+            <div class="text-center py-6">
+              <p class="text-amber-400 font-bold text-lg">Request Submitted</p>
+              <p class="text-sm text-on-surface-muted mt-1">Check back here for updates from the organizer.</p>
+              <button
+                type="button"
+                onClick={handleWithdraw}
+                disabled={saving()}
+                class="mt-3 text-xs text-on-surface-muted hover:underline disabled:opacity-50"
+              >
+                {saving() ? 'Withdrawing...' : 'Withdraw Request'}
+              </button>
+            </div>
+          </Match>
+          <Match when={existingStatus() === 'declined'}>
+            <div class="text-center py-6">
+              <p class="text-red-400 font-bold">Your request was not approved.</p>
+              <Show when={props.existingRegistration?.declineReason}>
+                {(reason) => <p class="text-sm text-on-surface-muted mt-1">{reason()}</p>}
+              </Show>
+            </div>
+          </Match>
+          <Match when={existingStatus() === 'withdrawn'}>
+            <div class="text-center py-6">
+              <p class="text-on-surface-muted">You withdrew your registration.</p>
+            </div>
+          </Match>
+          <Match when={existingStatus() === 'expired'}>
+            <div class="text-center py-6">
+              <p class="text-on-surface-muted">Your request expired.</p>
+            </div>
+          </Match>
+        </Switch>
+      </Show>
+
+      {/* New registration flow */}
+      <Show when={!isAlreadyRegistered()}>
+        <Show when={isFull()}>
+          <div class="text-center py-6">
+            <p class="text-on-surface-muted font-semibold">This tournament is full.</p>
+          </div>
+        </Show>
+
+        <Show when={!isFull()}>
+          <Show when={restrictionMessage()}>
+            {(msg) => <p class="text-sm text-on-surface-muted text-center py-4">{msg()}</p>}
+          </Show>
+
+          <Show when={canRegister()}>
+            <Show
+              when={user()}
+              fallback={
+                <div class="space-y-3">
+                  <p class="text-sm text-on-surface-muted">Sign in to register for this tournament.</p>
+                  <button type="button" onClick={() => signIn()}
+                    class="w-full bg-white text-gray-800 font-semibold text-sm py-3 rounded-lg active:scale-95 transition-transform">
+                    Sign in with Google
+                  </button>
+                </div>
+              }
+            >
+              <Show
+                when={isRegistrationOpen()}
+                fallback={<p class="text-sm text-on-surface-muted text-center py-2">Registration is not open.</p>}
+              >
+                {/* ...existing skill rating, partner name fields... */}
+
+                <Show when={error()}>
+                  <p class="text-red-500 text-sm text-center mb-2">{error()}</p>
+                </Show>
+
+                <button type="button" onClick={handleRegister}
+                  disabled={saving()}
+                  class={`w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl transition-transform ${!saving() ? 'active:scale-95' : 'opacity-50 cursor-not-allowed'}`}>
+                  {saving() ? 'Registering...' : ctaText()}
+                </button>
+              </Show>
+            </Show>
+          </Show>
+        </Show>
+      </Show>
+    </div>
+```
+
+**Step 7: Run tests + type check**
 
 ```bash
 npx tsc --noEmit && npx vitest run
 ```
 
-**Step 3: Commit**
+**Step 8: Commit**
 
 ```bash
 git add src/features/tournaments/components/RegistrationForm.tsx
 git commit -m "feat: mode-aware RegistrationForm with status states
 
-CTA adapts per mode (Join/Ask to Join), success states for
-confirmed/pending/declined/withdrawn/expired. userId-keyed doc IDs.
-Restriction messages for ineligible users."
+CTA adapts per mode (Join/Ask to Join). Status display for
+confirmed/pending/declined/withdrawn/expired. Full-tournament state.
+Restriction messages for ineligible users. Withdraw support."
 ```
 
 ---
 
-## Task 17: Update ShareTournamentModal
+## Task 19: Wire isInvited/isGroupMember to RegistrationForm from Dashboard
 
 **Files:**
-- Modify: `src/features/tournaments/components/ShareTournamentModal.tsx`
+- Modify: `src/features/tournaments/TournamentDashboardPage.tsx`
 
-**Step 1: Replace visibility toggle with contextual help text**
+**Step 1: Add resource fetches for invitation and group membership**
 
-Remove the `onToggleVisibility` prop and the toggle button. Replace with access mode context.
-
-Update props:
+Add imports:
 
 ```typescript
-interface Props {
-  open: boolean;
-  tournamentId: string;
-  tournamentName: string;
-  tournamentDate: string;
-  tournamentLocation: string;
-  accessMode: TournamentAccessMode;
-  shareCode: string | null;
-  organizerId: string;
-  registeredUserIds: string[];
-  onClose: () => void;
-}
+import { firestoreInvitationRepository } from '../../data/firebase/firestoreInvitationRepository';
+import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
 ```
 
-Add contextual help text map:
+Add resources after the existing `existingRegistration` resource (~line 97):
 
 ```typescript
-const accessModeHelpText: Record<TournamentAccessMode, string> = {
-  open: 'Anyone with this link can join immediately.',
-  approval: 'Anyone with this link can request to join. You\'ll approve each one.',
-  'invite-only': 'Only players you invite can join. Others will see this is invite-only.',
-  group: 'Only group members can join.',
-};
+  // Check if user is invited to this tournament
+  const [isInvited] = createResource(
+    () => {
+      const u = user();
+      const t = live.tournament();
+      if (!u || !t || t.accessMode !== 'invite-only') return null;
+      return { tournamentId: t.id, userId: u.uid };
+    },
+    async (source) => {
+      if (!source) return false;
+      const invitations = await firestoreInvitationRepository.getByTournament(source.tournamentId);
+      return invitations.some((inv) => inv.invitedUserId === source.userId);
+    },
+  );
+
+  // Check if user is a member of the tournament's buddy group
+  const [isGroupMember] = createResource(
+    () => {
+      const u = user();
+      const t = live.tournament();
+      if (!u || !t || t.accessMode !== 'group' || !t.buddyGroupId) return null;
+      return { groupId: t.buddyGroupId, userId: u.uid };
+    },
+    async (source) => {
+      if (!source) return false;
+      const member = await firestoreBuddyGroupRepository.getMember(source.groupId, source.userId);
+      return member !== null;
+    },
+  );
 ```
 
-Replace the visibility toggle section with:
+**Step 2: Update RegistrationForm call site**
+
+Change the RegistrationForm props (around line 639-643):
 
 ```tsx
-<div class="bg-surface-lighter rounded-lg p-3 text-sm text-on-surface-muted">
-  {accessModeHelpText[props.accessMode ?? 'open']}
-</div>
+                  <RegistrationForm
+                    tournament={t()}
+                    existingRegistration={existingRegistration()}
+                    onRegistered={handleRegistered}
+                    isInvited={isInvited() ?? false}
+                    isGroupMember={isGroupMember() ?? false}
+                  />
 ```
-
-Always show the share link and QR code (remove `<Show when={props.visibility === 'public' && shareUrl()}>` guards).
-
-Always show the PlayerSearch section (remove visibility guard).
-
-Add "Change access settings" link at bottom:
-
-```tsx
-<A href={`/tournaments/${props.tournamentId}`} class="text-xs text-primary hover:underline">
-  Change access settings →
-</A>
-```
-
-**Step 2: Update all callers of ShareTournamentModal**
-
-In `TournamentDashboardPage.tsx`, update the props passed to the modal to use `accessMode` instead of `visibility` and remove `onToggleVisibility`.
 
 **Step 3: Run tests + type check**
 
@@ -1983,156 +2509,414 @@ npx tsc --noEmit && npx vitest run
 **Step 4: Commit**
 
 ```bash
-git add src/features/tournaments/components/ShareTournamentModal.tsx src/features/tournaments/TournamentDashboardPage.tsx
-git commit -m "feat: update ShareTournamentModal for access control
+git add src/features/tournaments/TournamentDashboardPage.tsx
+git commit -m "feat: wire isInvited/isGroupMember to RegistrationForm
 
-Remove visibility toggle. Always show share link, QR, and player
-search. Add contextual help text per access mode."
+Dashboard fetches invitation status and group membership for the current
+user, passes to RegistrationForm for eligibility checks."
 ```
 
 ---
 
-## Task 18: Integrate ApprovalQueue into OrganizerPlayerManager
+## Task 20: Update ShareTournamentModal
 
 **Files:**
-- Modify: `src/features/tournaments/components/OrganizerPlayerManager.tsx`
+- Modify: `src/features/tournaments/components/ShareTournamentModal.tsx`
+- Modify: `src/features/tournaments/TournamentDashboardPage.tsx`
 
-**Step 1: Add ApprovalQueue above existing player list**
+**Step 1: Update ShareTournamentModal props**
 
-Import and add the component:
-
-```typescript
-import ApprovalQueue from './ApprovalQueue';
-```
-
-Split registrations by status:
+Replace the Props interface:
 
 ```typescript
-const pendingRegs = () => props.registrations.filter((r) => r.status === 'pending');
-const confirmedRegs = () => props.registrations.filter((r) => (r.status ?? 'confirmed') === 'confirmed');
+import type { TournamentAccessMode } from '../../../data/types';
+
+interface Props {
+  open: boolean;
+  tournamentId: string;
+  tournamentName: string;
+  tournamentDate: string;
+  tournamentLocation: string;
+  accessMode: TournamentAccessMode;
+  buddyGroupName: string | null;
+  shareCode: string | null;
+  organizerId: string;
+  registeredUserIds: string[];
+  onClose: () => void;
+}
 ```
 
-Add handlers:
+**Step 2: Replace visibility toggle with help text**
+
+Remove `handleToggleVisibility` function and `toggling` signal.
+
+Add reactive help text:
 
 ```typescript
-const handleApprove = async (userId: string) => {
-  await firestoreRegistrationRepository.updateRegistrationStatus(
-    props.tournament.id, userId, 'pending', 'confirmed',
-  );
-  props.onUpdated();
-};
-
-const handleDecline = async (userId: string, reason?: string) => {
-  await firestoreRegistrationRepository.updateRegistrationStatus(
-    props.tournament.id, userId, 'pending', 'declined', reason,
-  );
-  props.onUpdated();
-};
-
-const handleApproveAll = async () => {
-  const userIds = pendingRegs().map((r) => r.userId);
-  await firestoreRegistrationRepository.batchUpdateStatus(
-    props.tournament.id, userIds, 'pending', 'confirmed',
-  );
-  props.onUpdated();
-};
+  const helpText = () => {
+    const mode = props.accessMode ?? 'open';
+    if (mode === 'open') return 'Anyone with this link can join immediately.';
+    if (mode === 'approval') return "Anyone with this link can request to join. You'll approve each one.";
+    if (mode === 'invite-only') return 'Only players you invite can join. Others will see this is invite-only.';
+    if (mode === 'group') return `Only members of ${props.buddyGroupName ?? 'the group'} can join.`;
+    return '';
+  };
 ```
 
-Add in the JSX (before the existing player list):
+Replace the Visibility section (Section 1) with:
 
 ```tsx
-<ApprovalQueue
-  tournamentId={props.tournament.id}
-  pendingRegistrations={pendingRegs()}
-  onApprove={handleApprove}
-  onDecline={handleDecline}
-  onApproveAll={handleApproveAll}
-/>
-
-<h3 class="text-sm font-bold text-on-surface mb-2">
-  Registered Players ({confirmedRegs().length})
-</h3>
+            {/* Section 1: Access Mode Info */}
+            <div class="bg-surface-light rounded-lg p-3 text-sm text-on-surface-muted">
+              {helpText()}
+            </div>
 ```
 
-Update the existing player list to use `confirmedRegs()` instead of `props.registrations`.
+**Step 3: Always show share link, QR, and PlayerSearch**
 
-**Step 2: Run tests + type check**
+Remove the `<Show when={props.visibility === 'public' && shareUrl()}>` guards on Sections 2, 3, and 4. Keep the content, but wrap in `<Show when={shareUrl()}>` (link is available when shareCode exists).
+
+**Step 4: Update dashboard call site**
+
+In `TournamentDashboardPage.tsx`, update the ShareTournamentModal props (~line 752):
+
+```tsx
+                  <ShareTournamentModal
+                    open={showShareModal()}
+                    tournamentId={t().id}
+                    tournamentName={t().name}
+                    tournamentDate={new Date(t().date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    tournamentLocation={t().location || 'TBD'}
+                    accessMode={t().accessMode ?? 'open'}
+                    buddyGroupName={t().buddyGroupName ?? null}
+                    shareCode={t().shareCode ?? null}
+                    organizerId={t().organizerId}
+                    registeredUserIds={live.registrations().map((r) => r.userId)}
+                    onClose={() => setShowShareModal(false)}
+                  />
+```
+
+Remove the `handleToggleVisibility` function from the dashboard (~line 455-466).
+
+**Step 5: Run tests + type check**
 
 ```bash
 npx tsc --noEmit && npx vitest run
 ```
 
-**Step 3: Commit**
+**Step 6: Commit**
 
 ```bash
-git add src/features/tournaments/components/OrganizerPlayerManager.tsx
-git commit -m "feat: integrate ApprovalQueue into OrganizerPlayerManager
+git add src/features/tournaments/components/ShareTournamentModal.tsx src/features/tournaments/TournamentDashboardPage.tsx
+git commit -m "feat: update ShareTournamentModal for access control
 
-Pending requests shown above confirmed players with approve/decline
-actions. Approve All for batch approval."
+Remove visibility toggle. Always show share link, QR, and player
+search. Add contextual help text per access mode with group name."
 ```
 
 ---
 
-## Task 19: Add Pending Badge to Dashboard Status Card
+## Task 21: Integrate ApprovalQueue + Expiry into OrganizerPlayerManager
 
 **Files:**
-- Modify: `src/features/tournaments/TournamentDashboardPage.tsx`
+- Modify: `src/features/tournaments/components/OrganizerPlayerManager.tsx`
 
-**Step 1: Add amber pending pill next to status badge**
+**Step 1: Add imports**
 
-Find the status badge area and add:
+```typescript
+import ApprovalQueue from './ApprovalQueue';
+import { getExpiredRegistrationUserIds } from '../engine/registrationExpiry';
+import type { RegistrationStatus } from '../../../data/types';
+```
+
+**Step 2: Split registrations by status and process expiry**
+
+Add computed values:
+
+```typescript
+  const pendingRegs = () => props.registrations.filter((r) => r.status === 'pending');
+  const confirmedRegs = () => props.registrations.filter((r) => (r.status ?? 'confirmed') === 'confirmed');
+```
+
+Add expiry processing on load (runs once when registrations first load):
+
+```typescript
+  // Lazy expiry: batch-expire stale pending registrations on load
+  const [expiryProcessed, setExpiryProcessed] = createSignal(false);
+  createEffect(() => {
+    if (expiryProcessed()) return;
+    const expired = getExpiredRegistrationUserIds(props.registrations);
+    if (expired.length > 0) {
+      firestoreRegistrationRepository.batchUpdateStatus(
+        props.tournament.id, expired, 'pending', 'expired',
+      ).then(() => {
+        setExpiryProcessed(true);
+        props.onUpdated();
+      });
+    } else {
+      setExpiryProcessed(true);
+    }
+  });
+```
+
+Add `createEffect` to imports:
+
+```typescript
+import { createSignal, createEffect, Show, For } from 'solid-js';
+```
+
+**Step 3: Add approval handlers**
+
+```typescript
+  const handleApprove = async (userId: string) => {
+    try {
+      await firestoreRegistrationRepository.updateRegistrationStatus(
+        props.tournament.id, userId, 'pending', 'confirmed',
+      );
+      props.onUpdated();
+    } catch (err) {
+      console.error('Failed to approve registration:', err);
+    }
+  };
+
+  const handleDecline = async (userId: string, reason?: string) => {
+    try {
+      await firestoreRegistrationRepository.updateRegistrationStatus(
+        props.tournament.id, userId, 'pending', 'declined', reason,
+      );
+      props.onUpdated();
+    } catch (err) {
+      console.error('Failed to decline registration:', err);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    try {
+      const userIds = pendingRegs().map((r) => r.userId);
+      await firestoreRegistrationRepository.batchUpdateStatus(
+        props.tournament.id, userIds, 'pending', 'confirmed',
+      );
+      props.onUpdated();
+    } catch (err) {
+      console.error('Failed to approve all:', err);
+    }
+  };
+
+  const handleDeclineAll = async () => {
+    try {
+      const userIds = pendingRegs().map((r) => r.userId);
+      await firestoreRegistrationRepository.batchUpdateStatus(
+        props.tournament.id, userIds, 'pending', 'declined',
+      );
+      props.onUpdated();
+    } catch (err) {
+      console.error('Failed to decline all:', err);
+    }
+  };
+```
+
+**Step 4: Update handleAddPlayer to use saveWithStatus**
+
+Change the registration object in `handleAddPlayer`:
+
+```typescript
+      const manualId = `manual-${crypto.randomUUID()}`;
+      const reg: TournamentRegistration = {
+        id: manualId,
+        tournamentId: props.tournament.id,
+        userId: manualId,
+        playerName: name,
+        teamId: null,
+        paymentStatus: 'unpaid',
+        paymentNote: '',
+        lateEntry: false,
+        skillRating: skillRating() ? parseFloat(skillRating()) : null,
+        partnerId: null,
+        partnerName: partnerName().trim() || null,
+        profileComplete: !!(skillRating() && (props.tournament.teamFormation !== 'byop' || partnerName().trim())),
+        registeredAt: Date.now(),
+        status: 'confirmed',
+        declineReason: null,
+        statusUpdatedAt: null,
+      };
+      await firestoreRegistrationRepository.saveWithStatus(reg, props.tournament.id);
+```
+
+**Step 5: Update JSX — add ApprovalQueue above player list**
 
 ```tsx
-<Show when={(t().registrationCounts?.pending ?? 0) > 0}>
-  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
-    {t().registrationCounts!.pending} pending
-  </span>
-</Show>
+      <ApprovalQueue
+        tournamentId={props.tournament.id}
+        pendingRegistrations={pendingRegs()}
+        onApprove={handleApprove}
+        onDecline={handleDecline}
+        onApproveAll={handleApproveAll}
+        onDeclineAll={handleDeclineAll}
+      />
+
+      {/* Registered Players List */}
+      <div class="bg-surface-light rounded-xl p-4">
+        <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-3">
+          Registered Players ({confirmedRegs().length})
+        </div>
 ```
+
+Update the existing player list to use `confirmedRegs()` instead of `props.registrations`.
+
+**Step 6: Run tests + type check**
+
+```bash
+npx tsc --noEmit && npx vitest run
+```
+
+**Step 7: Commit**
+
+```bash
+git add src/features/tournaments/components/OrganizerPlayerManager.tsx
+git commit -m "feat: integrate ApprovalQueue and lazy expiry into player manager
+
+Pending requests shown above confirmed players. Approve/decline per row
+and in batch. Lazy expiry processes stale pending regs on load.
+Manual add player uses saveWithStatus."
+```
+
+---
+
+## Task 22: Update InvitationInbox (call site fix)
+
+**Files:**
+- Modify: `src/features/tournaments/components/InvitationInbox.tsx`
+
+**Step 1: Fix updateStatus call site** *(BLOCKER FIX)*
+
+The existing code passes `item.invitation.id` (which is the doc ID). For legacy UUID-keyed docs, this is the UUID. For new userId-keyed docs, this is the userId.
+
+Since we want to work with both old and new docs, change to pass `item.invitation.invitedUserId`:
+
+In `handleAccept` (~line 44-51):
+
+```typescript
+  const handleAccept = async (item: InvitationWithContext) => {
+    await firestoreInvitationRepository.updateStatus(
+      item.invitation.tournamentId,
+      item.invitation.invitedUserId,
+      'accepted',
+    );
+    navigate(`/tournaments/${item.invitation.tournamentId}`);
+  };
+```
+
+In `handleDecline` (~line 53-60):
+
+```typescript
+  const handleDecline = async (item: InvitationWithContext) => {
+    await firestoreInvitationRepository.updateStatus(
+      item.invitation.tournamentId,
+      item.invitation.invitedUserId,
+      'declined',
+    );
+    refetch();
+  };
+```
+
+Wait — for legacy docs where `doc.id !== invitedUserId`, this will try to update `invitations/{userId}` which doesn't exist yet (the old doc is at `invitations/{uuid}`). We need the backfill (Task 7) to have run, OR we need a fallback.
+
+For safety, use the doc ID directly (it works for both old and new):
+
+```typescript
+  const handleAccept = async (item: InvitationWithContext) => {
+    await firestoreInvitationRepository.updateStatus(
+      item.invitation.tournamentId,
+      item.invitation.id,  // doc ID — works for both UUID and userId-keyed
+      'accepted',
+    );
+    navigate(`/tournaments/${item.invitation.tournamentId}`);
+  };
+
+  const handleDecline = async (item: InvitationWithContext) => {
+    await firestoreInvitationRepository.updateStatus(
+      item.invitation.tournamentId,
+      item.invitation.id,  // doc ID
+      'declined',
+    );
+    refetch();
+  };
+```
+
+This is safe because `invitation.id` is the actual Firestore doc ID — it's the UUID for old docs and the userId for new docs. The `updateStatus` method just needs the doc ID to build the ref.
 
 **Step 2: Run tests**
 
 ```bash
-npx vitest run
+npx vitest run && npx tsc --noEmit
 ```
 
 **Step 3: Commit**
 
 ```bash
-git add src/features/tournaments/TournamentDashboardPage.tsx
-git commit -m "feat: add pending request count pill to dashboard status card"
+git add src/features/tournaments/components/InvitationInbox.tsx
+git commit -m "fix: InvitationInbox uses doc ID for updateStatus
+
+Works correctly for both legacy UUID-keyed and new userId-keyed docs."
 ```
 
 ---
 
-## Task 20: Update MyTournamentsTab with Pending Badges
+## Task 23: Add Pending Badges to Dashboard + MyTournamentsTab
 
 **Files:**
+- Modify: `src/features/tournaments/TournamentDashboardPage.tsx`
 - Modify: `src/features/tournaments/components/MyTournamentsTab.tsx`
 
-**Step 1: Add pending badge to tournament cards**
+**Step 1: Add amber pending pill to dashboard status card**
 
-In the tournament card rendering, check for pending registrations and show an amber badge:
+Find the status badge area in the dashboard and add:
 
 ```tsx
-<Show when={(entry.tournament.registrationCounts?.pending ?? 0) > 0 && entry.role === 'organizer'}>
-  <span class="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
-    {entry.tournament.registrationCounts!.pending} pending
+<Show when={(t().registrationCounts?.pending ?? 0) > 0}>
+  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+    {t().registrationCounts?.pending ?? 0} pending
   </span>
 </Show>
 ```
 
-**Step 2: Commit**
+**Step 2: Add pending badge to MyTournamentsTab for BOTH organizers and players**
+
+For organizer cards:
+
+```tsx
+<Show when={(entry.tournament.registrationCounts?.pending ?? 0) > 0 && entry.role === 'organizer'}>
+  <span class="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+    {entry.tournament.registrationCounts?.pending ?? 0} pending
+  </span>
+</Show>
+```
+
+For player cards with pending registration status:
+
+```tsx
+<Show when={entry.role === 'player' && entry.registrationStatus === 'pending'}>
+  <span class="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+    Pending
+  </span>
+</Show>
+```
+
+Note: `entry.registrationStatus` may need to be plumbed through from the MyTournamentEntry type. If the existing type doesn't have this field, add it as an optional `registrationStatus?: RegistrationStatus` and populate it during the merge step in `mergeTournamentEntries`.
+
+**Step 3: Commit**
 
 ```bash
-git add src/features/tournaments/components/MyTournamentsTab.tsx
-git commit -m "feat: show pending request badge on organizer's tournament cards"
+git add src/features/tournaments/TournamentDashboardPage.tsx src/features/tournaments/components/MyTournamentsTab.tsx
+git commit -m "feat: show pending badges on dashboard and My Tournaments
+
+Organizer sees pending count on their tournaments. Players see
+'Pending' badge when their registration is awaiting approval."
 ```
 
 ---
 
-## Task 21: Fix All Remaining Type Errors
+## Task 24: Fix All Remaining Type Errors
 
 **Files:** Multiple — any file that constructs Tournament or Registration objects
 
@@ -2144,12 +2928,7 @@ npx tsc --noEmit 2>&1 | head -100
 
 **Step 2: Fix each file**
 
-Common fixes:
-- Add new required fields when constructing Tournament objects (tests, create page, dashboard)
-- Add new required fields when constructing Registration objects (tests, form, player manager)
-- Update mock helpers (makeTournament, makeRegistration) in test files
-
-For each test helper that creates a Tournament, add:
+Common fixes — for each test helper that creates a Tournament, add:
 
 ```typescript
 accessMode: 'open' as const,
@@ -2178,7 +2957,7 @@ Expected: All pass.
 **Step 4: Commit**
 
 ```bash
-git add -A
+git add src/ firestore.rules firestore.indexes.json
 git commit -m "fix: add new required fields to all Tournament and Registration constructors
 
 Updates test helpers, mock data, and production code to include
@@ -2187,7 +2966,7 @@ accessMode, listed, registrationCounts, status, etc."
 
 ---
 
-## Task 22: Final Verification
+## Task 25: Final Verification
 
 **Files:** None (verification only)
 
@@ -2219,8 +2998,17 @@ Expected: Build succeeds.
 
 ```bash
 git status
-git log --oneline -20
+git log --oneline -25
 ```
+
+---
+
+## Deferred Items (follow-up tasks, not in this plan)
+
+1. **Tournament edit page integration** — AccessModeSelector in edit flow with mode-change confirmation dialogs ("Approve all now?" when switching from approval to open)
+2. **Firestore emulator rule tests** — Comprehensive test suite for all security rule changes using Firebase emulator
+3. **Stale approval nudges** — "48h nudge" and "day 12 escalated nudge" for organizers with pending requests
+4. **Push notifications** — Replace dashboard-only notification surface with actual push notifications (P3 layer)
 
 ---
 
@@ -2231,22 +3019,25 @@ git log --oneline -20
 | 1 | Feature branch | — | — |
 | 2 | Data types | — | `types.ts` |
 | 3 | Normalizer | `tournamentNormalizer.ts`, test | — |
-| 4 | Tournament repo | — | `firestoreTournamentRepository.ts` |
-| 5 | Registration repo | test | `firestoreRegistrationRepository.ts` |
-| 6 | Invitation repo | — | `firestoreInvitationRepository.ts` |
-| 7 | Constants | — | `constants.ts` |
-| 8 | Discovery filters | — | `discoveryFilters.ts`, test |
-| 9 | Firestore indexes | — | `firestore.indexes.json` |
-| 10 | Firestore rules | — | `firestore.rules` |
-| 11 | AccessModeBadge | component, test | — |
-| 12 | BrowseCard update | — | `BrowseCard.tsx`, test |
-| 13 | AccessModeSelector | component, test | — |
-| 14 | Create page | — | `TournamentCreatePage.tsx` |
-| 15 | ApprovalQueue | component, test | — |
-| 16 | RegistrationForm | — | `RegistrationForm.tsx` |
-| 17 | ShareTournamentModal | — | `ShareTournamentModal.tsx`, `TournamentDashboardPage.tsx` |
-| 18 | OrganizerPlayerManager | — | `OrganizerPlayerManager.tsx` |
-| 19 | Dashboard pending pill | — | `TournamentDashboardPage.tsx` |
-| 20 | MyTournamentsTab badges | — | `MyTournamentsTab.tsx` |
-| 21 | Fix type errors | — | Multiple |
-| 22 | Final verification | — | — |
+| 4 | Buddy group query | — | `firestoreBuddyGroupRepository.ts` |
+| 5 | Tournament repo | — | `firestoreTournamentRepository.ts` |
+| 6 | Registration repo | test | `firestoreRegistrationRepository.ts` |
+| 7 | Invitation repo + backfill | — | `firestoreInvitationRepository.ts` |
+| 8 | Constants | — | `constants.ts` |
+| 9 | Discovery filters | — | `discoveryFilters.ts`, test |
+| 10 | Firestore indexes | — | `firestore.indexes.json` |
+| 11 | Firestore rules | — | `firestore.rules` |
+| 12 | AccessModeBadge | component, test | — |
+| 13 | BrowseCard update | — | `BrowseCard.tsx`, test |
+| 14 | AccessModeSelector | component, test | — |
+| 15 | Create page | — | `TournamentCreatePage.tsx` |
+| 16 | ApprovalQueue | component, test | — |
+| 17 | Lazy expiry | `registrationExpiry.ts`, test | — |
+| 18 | RegistrationForm | — | `RegistrationForm.tsx` |
+| 19 | Wire isInvited/isGroupMember | — | `TournamentDashboardPage.tsx` |
+| 20 | ShareTournamentModal | — | `ShareTournamentModal.tsx`, `TournamentDashboardPage.tsx` |
+| 21 | OrganizerPlayerManager | — | `OrganizerPlayerManager.tsx` |
+| 22 | InvitationInbox fix | — | `InvitationInbox.tsx` |
+| 23 | Pending badges | — | `TournamentDashboardPage.tsx`, `MyTournamentsTab.tsx` |
+| 24 | Fix type errors | — | Multiple |
+| 25 | Final verification | — | — |
