@@ -4,7 +4,6 @@ import {
   mergeMyTournaments,
 } from '../discoveryFilters';
 import type { Tournament } from '../../../../data/types';
-import type { MyTournamentEntry } from '../discoveryFilters';
 
 // --- helpers ---
 

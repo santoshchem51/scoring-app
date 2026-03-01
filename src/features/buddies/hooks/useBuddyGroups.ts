@@ -1,5 +1,5 @@
 import { createSignal, createEffect, onCleanup } from 'solid-js';
-import { collection, collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { firestore } from '../../../data/firebase/config';
 import type { BuddyGroup } from '../../../data/types';
 

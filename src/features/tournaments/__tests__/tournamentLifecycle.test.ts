@@ -5,7 +5,7 @@ import { calculateStandings } from '../engine/standings';
 import { seedBracketFromPools } from '../engine/bracketSeeding';
 import { generateBracket } from '../engine/bracketGenerator';
 import { createTeamsFromRegistrations } from '../engine/teamFormation';
-import type { TournamentRegistration, Match } from '../../../data/types';
+import type { TournamentRegistration } from '../../../data/types';
 
 const makeReg = (userId: string, overrides?: Partial<TournamentRegistration>): TournamentRegistration => ({
   id: `reg-${userId}`,
@@ -21,6 +21,9 @@ const makeReg = (userId: string, overrides?: Partial<TournamentRegistration>): T
   partnerName: null,
   profileComplete: false,
   registeredAt: Date.now(),
+  status: 'confirmed',
+  declineReason: null,
+  statusUpdatedAt: null,
   ...overrides,
 });
 

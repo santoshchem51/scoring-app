@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { getExpiredRegistrationUserIds, EXPIRY_DAYS } from '../registrationExpiry';
 import type { TournamentRegistration } from '../../../../data/types';
 

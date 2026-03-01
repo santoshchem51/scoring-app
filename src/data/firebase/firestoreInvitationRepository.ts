@@ -1,4 +1,4 @@
-import { doc, setDoc, getDocs, getDoc, updateDoc, deleteDoc, collection, collectionGroup, query, where, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, getDocs, updateDoc, collection, collectionGroup, query, where, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { firestore } from './config';
 import type { TournamentInvitation } from '../types';
 

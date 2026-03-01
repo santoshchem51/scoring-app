@@ -3,6 +3,7 @@ import {
   collection, collectionGroup, query, where, orderBy, serverTimestamp,
   limit as firestoreLimit, startAfter,
 } from 'firebase/firestore';
+import type { QueryConstraint } from 'firebase/firestore';
 import { firestore } from './config';
 import type { Tournament, TournamentAccessMode, TournamentStatus, RegistrationStatus } from '../types';
 import { normalizeTournament } from './tournamentNormalizer';
@@ -64,7 +65,7 @@ export const firestoreTournamentRepository = {
   },
 
   async getPublicTournaments(pageSize = 50, cursor?: unknown): Promise<{ tournaments: Tournament[]; lastDoc: unknown }> {
-    const constraints = [
+    const constraints: QueryConstraint[] = [
       where('visibility', '==', 'public'),
       orderBy('date', 'desc'),
       firestoreLimit(pageSize),

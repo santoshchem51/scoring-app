@@ -23,6 +23,11 @@ const makeTournament = (overrides?: Partial<Tournament>): Tournament => ({
   updatedAt: Date.now(),
   visibility: 'private',
   shareCode: null,
+  accessMode: 'open',
+  listed: true,
+  buddyGroupId: null,
+  buddyGroupName: null,
+  registrationCounts: { confirmed: 0, pending: 0 },
   ...overrides,
 });
 
@@ -40,6 +45,9 @@ const makeReg = (userId: string): TournamentRegistration => ({
   partnerName: null,
   profileComplete: false,
   registeredAt: Date.now(),
+  status: 'confirmed',
+  declineReason: null,
+  statusUpdatedAt: null,
 });
 
 describe('detectViewerRole', () => {

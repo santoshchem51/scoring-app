@@ -4,7 +4,7 @@ import { A } from '@solidjs/router';
 import { AlertTriangle, Trophy } from 'lucide-solid';
 import type { Tournament } from '../../../data/types';
 import { mergeMyTournaments } from '../engine/discoveryFilters';
-import type { UserRole, MyTournamentEntry } from '../engine/discoveryFilters';
+import type { UserRole } from '../engine/discoveryFilters';
 import TournamentCard from './TournamentCard';
 import InvitationInbox from './InvitationInbox';
 import EmptyState from '../../../shared/components/EmptyState';

@@ -188,7 +188,7 @@ const CreateSessionPage: Component = () => {
   return (
     <PageLayout title="New Session">
       {/* Trigger pre-fill */}
-      {groupData()}
+      {void groupData()}
 
       <div class="p-4 pb-24 space-y-6">
         {/* RSVP Style Toggle */}

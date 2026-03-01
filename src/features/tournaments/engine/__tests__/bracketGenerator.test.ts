@@ -86,7 +86,6 @@ describe('generateBracket', () => {
     const firstRound = slots.filter((s) => s.round === 1);
     // Top half: positions 0-1, Bottom half: positions 2-3
     const topHalfTeams = firstRound.filter((s) => s.position < 2).flatMap((s) => [s.team1Id, s.team2Id]);
-    const bottomHalfTeams = firstRound.filter((s) => s.position >= 2).flatMap((s) => [s.team1Id, s.team2Id]);
 
     // Seed 1 (s1) and seed 2 (s2) must be in DIFFERENT halves
     const s1InTop = topHalfTeams.includes('s1');

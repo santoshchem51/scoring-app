@@ -83,7 +83,7 @@ describe('tilt directive', () => {
     window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as any;
     vi.resetModules();
     const { tilt } = await import('../tilt');
-    const { listeners } = createMockElement();
+    createMockElement();
 
     createRoot((dispose) => {
       tilt(el, () => ({}));

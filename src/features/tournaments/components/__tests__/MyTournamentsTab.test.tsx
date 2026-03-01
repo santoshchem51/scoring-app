@@ -74,6 +74,11 @@ function makeTournament(overrides: Partial<Tournament> = {}): Tournament {
     updatedAt: Date.now(),
     visibility: 'public',
     shareCode: 'ABC123',
+    accessMode: 'open',
+    listed: true,
+    buddyGroupId: null,
+    buddyGroupName: null,
+    registrationCounts: { confirmed: 0, pending: 0 },
     ...overrides,
   };
 }

@@ -51,7 +51,6 @@ describe('firestoreTournamentRepository discovery methods', () => {
 
   describe('getPublicTournaments', () => {
     it('fetches with correct filters and returns tournaments with lastDoc', async () => {
-      const mockLastDoc = { id: 't2' };
       mockGetDocs.mockResolvedValue({
         docs: [
           { id: 't1', data: () => ({ name: 'Open Championship', visibility: 'public', date: 2000 }) },

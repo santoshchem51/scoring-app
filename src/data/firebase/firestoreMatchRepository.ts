@@ -25,13 +25,14 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
 }
 
 function toCloudMatch(match: Match, ownerId: string, visibility: MatchVisibility = 'private'): CloudMatch {
-  return stripUndefined({
+  const raw = {
     ...match,
     ownerId,
-    sharedWith: [],
+    sharedWith: [] as string[],
     visibility,
     syncedAt: Date.now(),
-  } as unknown as Record<string, unknown>) as CloudMatch;
+  };
+  return stripUndefined(raw as unknown as Record<string, unknown>) as unknown as CloudMatch;
 }
 
 export const firestoreMatchRepository = {

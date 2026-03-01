@@ -10,7 +10,7 @@ import { firestoreTournamentRepository } from '../../data/firebase/firestoreTour
 import { filterPublicTournaments } from '../tournaments/engine/discoveryFilters';
 import { formatLabels } from '../tournaments/constants';
 
-const _tilt = tilt; // prevent tree-shaking
+void tilt; // prevent tree-shaking
 
 function TournamentPreview() {
   const [upcoming] = createResource(async () => {
@@ -69,11 +69,11 @@ function TournamentPreview() {
 }
 
 const LandingPage: Component = () => {
-  let logoEl!: HTMLElement;
-  let headlineEl!: HTMLElement;
-  let subtextEl!: HTMLElement;
-  let ctasEl!: HTMLElement;
-  let cardEl!: HTMLElement;
+  let logoEl!: HTMLDivElement;
+  let headlineEl!: HTMLParagraphElement;
+  let subtextEl!: HTMLParagraphElement;
+  let ctasEl!: HTMLDivElement;
+  let cardEl!: HTMLDivElement;
   let word1El!: HTMLElement;
   let word2El!: HTMLElement;
   let word3El!: HTMLElement;
