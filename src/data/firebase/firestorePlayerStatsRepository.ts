@@ -83,11 +83,13 @@ async function resolveParticipantUids(
 ): Promise<Array<{ uid: string; playerTeam: 1 | 2; result: 'win' | 'loss' }>> {
   const participants: Array<{ uid: string; playerTeam: 1 | 2; result: 'win' | 'loss' }> = [];
 
-  if (match.tournamentId && (match.tournamentTeam1Id || match.tournamentTeam2Id)) {
+  const isTournamentMatch = !!(match.tournamentId && (match.tournamentTeam1Id || match.tournamentTeam2Id));
+
+  if (isTournamentMatch) {
     // Tournament match: look up registrations to find UIDs
     try {
       const regsSnapshot = await getDocs(
-        collection(firestore, 'tournaments', match.tournamentId, 'registrations'),
+        collection(firestore, 'tournaments', match.tournamentId!, 'registrations'),
       );
       const registrations = regsSnapshot.docs.map((d) => ({
         id: d.id,
@@ -105,12 +107,14 @@ async function resolveParticipantUids(
         participants.push({ uid: reg.userId, playerTeam, result });
       }
     } catch (err) {
-      console.warn('Failed to resolve tournament participant UIDs:', err);
+      // Return empty — don't fall through to casual path and give scorer phantom stats
+      console.warn('Failed to resolve tournament participant UIDs, skipping stats:', err);
+      return participants;
     }
   }
 
   // Casual match: only scorer gets stats
-  if (participants.length === 0) {
+  if (!isTournamentMatch && participants.length === 0) {
     const result: 'win' | 'loss' = match.winningSide === 1 ? 'win' : 'loss';
     participants.push({ uid: scorerUid, playerTeam: 1, result });
   }

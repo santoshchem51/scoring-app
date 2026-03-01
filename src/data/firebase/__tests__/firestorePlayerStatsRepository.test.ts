@@ -407,5 +407,24 @@ describe('firestorePlayerStatsRepository', () => {
         firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid'),
       ).resolves.not.toThrow();
     });
+
+    it('does not give scorer phantom stats when tournament registration lookup fails', async () => {
+      // Registration lookup throws
+      mockGetDocs.mockRejectedValueOnce(new Error('Permission denied'));
+
+      const match = makeMatch({
+        tournamentId: 'tourn-1',
+        tournamentTeam1Id: 'team-A',
+        tournamentTeam2Id: 'team-B',
+      });
+
+      await firestorePlayerStatsRepository.processMatchCompletion(
+        match, 'scorer-uid',
+      );
+
+      // No stats should be written — registration failed, so no participants resolved
+      expect(mockTransactionSet).not.toHaveBeenCalled();
+      expect(mockRunTransaction).not.toHaveBeenCalled();
+    });
   });
 });
