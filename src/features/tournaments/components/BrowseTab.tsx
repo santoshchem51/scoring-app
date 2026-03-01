@@ -16,9 +16,16 @@ const BrowseTab: Component = () => {
   const [allTournaments, setAllTournaments] = createSignal<Tournament[]>([]);
 
   const [data] = createResource(async () => {
-    const result = await firestoreTournamentRepository.getPublicTournaments(50);
-    setCursor(result.lastDoc);
-    return result.tournaments;
+    try {
+      const result = await Promise.race([
+        firestoreTournamentRepository.getPublicTournaments(50),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+      ]);
+      setCursor(result.lastDoc);
+      return result.tournaments;
+    } catch {
+      return [];
+    }
   });
 
   // Seed the cumulative signal when the initial resource resolves
