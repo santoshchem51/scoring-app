@@ -398,6 +398,23 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // ── Match References (/users/{userId}/matchRefs/{refId}) ──────────
+    match /users/{userId}/matchRefs/{refId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.matchId is string
+        && request.resource.data.completedAt is number
+        && request.resource.data.result in ['win', 'loss'];
+      allow update, delete: if false;
+    }
+
+    // ── Stats Summary (/users/{userId}/stats/{docId}) ─────────────────
+    match /users/{userId}/stats/{docId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+      allow delete: if false;
+    }
+
     // ── Collection Group: Members (for "my groups" query) ──────────────
     match /{path=**}/members/{userId} {
       allow read: if request.auth != null
