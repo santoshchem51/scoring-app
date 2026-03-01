@@ -111,7 +111,7 @@ describe('firestorePlayerStatsRepository', () => {
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
-        'user-1', match, 1, 'win',
+        'user-1', match, 1, 'win', 'scorer-uid',
       );
 
       // Should write matchRef doc
@@ -144,7 +144,7 @@ describe('firestorePlayerStatsRepository', () => {
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
-        'user-1', match, 1, 'win',
+        'user-1', match, 1, 'win', 'scorer-uid',
       );
 
       // Should NOT write anything
@@ -172,7 +172,7 @@ describe('firestorePlayerStatsRepository', () => {
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
-        'user-1', match, 1, 'win',
+        'user-1', match, 1, 'win', 'scorer-uid',
       );
 
       const statsCall = mockSetDoc.mock.calls[1];
@@ -200,7 +200,7 @@ describe('firestorePlayerStatsRepository', () => {
 
       const match = makeMatch({ winningSide: 2 });
       await firestorePlayerStatsRepository.updatePlayerStats(
-        'user-1', match, 1, 'loss',
+        'user-1', match, 1, 'loss', 'scorer-uid',
       );
 
       const statsCall = mockSetDoc.mock.calls[1];
@@ -222,7 +222,7 @@ describe('firestorePlayerStatsRepository', () => {
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
-        'user-1', match, 1, 'win',
+        'user-1', match, 1, 'win', 'scorer-uid',
       );
 
       const statsCall = mockSetDoc.mock.calls[1];
@@ -243,7 +243,7 @@ describe('firestorePlayerStatsRepository', () => {
         completedAt: 2000,
       });
       await firestorePlayerStatsRepository.updatePlayerStats(
-        'user-1', match, 1, 'win',
+        'user-1', match, 1, 'win', 'scorer-uid',
       );
 
       const refCall = mockSetDoc.mock.calls[0];
@@ -256,6 +256,76 @@ describe('firestorePlayerStatsRepository', () => {
       expect(ref.playerTeam).toBe(1);
       expect(ref.scores).toBe('11-7, 11-4');
       expect(ref.gameScores).toEqual([[11, 7], [11, 4]]);
+    });
+
+    it('tracks a loss as first match correctly', async () => {
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const match = makeMatch({ winningSide: 2 });
+      await firestorePlayerStatsRepository.updatePlayerStats(
+        'user-1', match, 1, 'loss', 'scorer-uid',
+      );
+
+      const statsCall = mockSetDoc.mock.calls[1];
+      const stats = statsCall[1] as StatsSummary;
+      expect(stats.totalMatches).toBe(1);
+      expect(stats.wins).toBe(0);
+      expect(stats.losses).toBe(1);
+      expect(stats.winRate).toBeCloseTo(0);
+      expect(stats.currentStreak).toEqual({ type: 'L', count: 1 });
+    });
+
+    it('records correct perspective for team-2 player', async () => {
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const match = makeMatch({ winningSide: 2 });
+      await firestorePlayerStatsRepository.updatePlayerStats(
+        'user-1', match, 2, 'win', 'scorer-uid',
+      );
+
+      const refCall = mockSetDoc.mock.calls[0];
+      const ref = refCall[1] as MatchRef;
+      expect(ref.playerTeam).toBe(2);
+      expect(ref.result).toBe('win');
+      expect(ref.opponentNames).toEqual(['Alice']); // team1Name is opponent
+
+      const statsCall = mockSetDoc.mock.calls[1];
+      const stats = statsCall[1] as StatsSummary;
+      expect(stats.wins).toBe(1);
+    });
+
+    it('sets matchRef ownerId to scorerUid, not participant uid', async () => {
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const match = makeMatch();
+      await firestorePlayerStatsRepository.updatePlayerStats(
+        'participant-uid', match, 1, 'win', 'the-scorer-uid',
+      );
+
+      const refCall = mockSetDoc.mock.calls[0];
+      const ref = refCall[1] as MatchRef;
+      expect(ref.ownerId).toBe('the-scorer-uid');
+    });
+
+    it('writes stats with merge: true', async () => {
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockSetDoc.mockResolvedValue(undefined);
+
+      const match = makeMatch();
+      await firestorePlayerStatsRepository.updatePlayerStats(
+        'user-1', match, 1, 'win', 'scorer-uid',
+      );
+
+      // Second setDoc call is stats — should have merge: true
+      const statsCall = mockSetDoc.mock.calls[1];
+      expect(statsCall[2]).toEqual({ merge: true });
     });
 
     it('tracks doubles stats separately', async () => {
@@ -272,7 +342,7 @@ describe('firestorePlayerStatsRepository', () => {
         },
       });
       await firestorePlayerStatsRepository.updatePlayerStats(
-        'user-1', match, 1, 'win',
+        'user-1', match, 1, 'win', 'scorer-uid',
       );
 
       const statsCall = mockSetDoc.mock.calls[1];

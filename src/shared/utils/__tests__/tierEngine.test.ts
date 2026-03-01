@@ -171,6 +171,37 @@ describe('computeTier', () => {
   it('defaults to beginner for first-time player', () => {
     expect(computeTier(0.25, 'beginner')).toBe('beginner');
   });
+
+  // Exact boundary tests (thresholds use strict > and <)
+  it('does not promote from beginner at exactly 0.33', () => {
+    expect(computeTier(0.33, 'beginner')).toBe('beginner');
+  });
+
+  it('does not demote from intermediate at exactly 0.27', () => {
+    expect(computeTier(0.27, 'intermediate')).toBe('intermediate');
+  });
+
+  it('does not promote from intermediate at exactly 0.53', () => {
+    expect(computeTier(0.53, 'intermediate')).toBe('intermediate');
+  });
+
+  it('does not demote from expert at exactly 0.67', () => {
+    expect(computeTier(0.67, 'expert')).toBe('expert');
+  });
+
+  // Multi-tier jumps (recursive)
+  it('jumps from beginner to expert when score is very high', () => {
+    expect(computeTier(0.80, 'beginner')).toBe('expert');
+  });
+
+  it('jumps from expert to beginner when score is very low', () => {
+    expect(computeTier(0.10, 'expert')).toBe('beginner');
+  });
+
+  // Defensive guard
+  it('returns beginner for invalid currentTier', () => {
+    expect(computeTier(0.5, 'invalid' as any)).toBe('beginner');
+  });
 });
 
 // --- computeTierConfidence ---

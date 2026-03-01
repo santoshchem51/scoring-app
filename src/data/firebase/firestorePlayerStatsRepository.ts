@@ -1,6 +1,6 @@
 import { doc, getDoc, getDocs, setDoc, collection } from 'firebase/firestore';
 import { firestore } from './config';
-import type { Match, MatchRef, StatsSummary, RecentResult, Tier } from '../types';
+import type { Match, MatchRef, StatsSummary, RecentResult } from '../types';
 import { computeTierScore, computeTier, computeTierConfidence } from '../../shared/utils/tierEngine';
 
 const RING_BUFFER_SIZE = 50;
@@ -124,6 +124,7 @@ export const firestorePlayerStatsRepository = {
     match: Match,
     playerTeam: 1 | 2,
     result: 'win' | 'loss',
+    scorerUid: string,
   ): Promise<void> {
     // 1. Idempotency check: skip if matchRef already exists
     const matchRefDoc = doc(firestore, 'users', uid, 'matchRefs', match.id);
@@ -139,7 +140,7 @@ export const firestorePlayerStatsRepository = {
 
     // 3. Build and write matchRef
     const matchRef = buildMatchRef(match, playerTeam, result);
-    matchRef.ownerId = uid;
+    matchRef.ownerId = scorerUid;
     await setDoc(matchRefDoc, matchRef);
 
     // 4. Update stats
@@ -184,7 +185,7 @@ export const firestorePlayerStatsRepository = {
     stats.updatedAt = Date.now();
 
     // 5. Write updated stats
-    await setDoc(statsDoc, stats);
+    await setDoc(statsDoc, stats, { merge: true });
   },
 
   async processMatchCompletion(
@@ -195,7 +196,7 @@ export const firestorePlayerStatsRepository = {
 
     await Promise.all(
       participants.map(({ uid, playerTeam, result }) =>
-        this.updatePlayerStats(uid, match, playerTeam, result).catch((err) => {
+        this.updatePlayerStats(uid, match, playerTeam, result, scorerUid).catch((err) => {
           console.warn('Stats update failed for user:', uid, err);
         }),
       ),

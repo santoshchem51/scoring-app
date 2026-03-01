@@ -72,6 +72,7 @@ const TIER_ORDER: Tier[] = ['beginner', 'intermediate', 'advanced', 'expert'];
 
 export function computeTier(score: number, currentTier: Tier): Tier {
   const currentIndex = TIER_ORDER.indexOf(currentTier);
+  if (currentIndex === -1) return 'beginner';
   const current = TIER_THRESHOLDS[currentIndex];
 
   // Check promotion
