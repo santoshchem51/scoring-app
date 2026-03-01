@@ -66,14 +66,14 @@ describe('computeTierScore', () => {
   });
 
   it('weights recent matches more heavily', () => {
-    // Same total wins/losses (10 each), but positioned differently
-    const recentLosses: RecentResult[] = [
-      ...makeResults(10, { result: 'loss' }),
-      ...makeResults(10, { result: 'win', completedAt: Date.now() - 100000 }),
-    ];
+    // Array is oldest-first: items at end are newest and get highest recency weight
     const recentWins: RecentResult[] = [
-      ...makeResults(10, { result: 'win' }),
-      ...makeResults(10, { result: 'loss', completedAt: Date.now() - 100000 }),
+      ...makeResults(10, { result: 'loss' }),  // old losses (low weight)
+      ...makeResults(10, { result: 'win' }),   // recent wins (high weight)
+    ];
+    const recentLosses: RecentResult[] = [
+      ...makeResults(10, { result: 'win' }),   // old wins (low weight)
+      ...makeResults(10, { result: 'loss' }),  // recent losses (high weight)
     ];
     expect(computeTierScore(recentWins)).toBeGreaterThan(
       computeTierScore(recentLosses),

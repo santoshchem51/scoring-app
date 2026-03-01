@@ -9,10 +9,12 @@ const TIER_MULTIPLIER: Record<Tier, number> = {
   expert: 1.3,
 };
 
+// Recency buckets keyed by distance from end of array (0 = newest match).
+// Array is ordered oldest-first, so distFromEnd = results.length - 1 - i.
 const RECENCY_BUCKETS = [
-  { maxIndex: 10, weight: 1.0 },   // last 10 matches
-  { maxIndex: 25, weight: 0.8 },   // matches 11-25
-  { maxIndex: 50, weight: 0.6 },   // matches 26-50
+  { maxIndex: 10, weight: 1.0 },   // newest 10 matches
+  { maxIndex: 25, weight: 0.8 },   // matches 11-25 from end
+  { maxIndex: 50, weight: 0.6 },   // matches 26-50 from end
 ] as const;
 
 const DAMPING_MATCHES = 15;
@@ -35,7 +37,7 @@ export function computeTierScore(results: RecentResult[]): number {
 
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
-    const recency = getRecencyWeight(i);
+    const recency = getRecencyWeight(results.length - 1 - i);
     const tierMul = TIER_MULTIPLIER[r.opponentTier];
 
     if (r.result === 'win') {

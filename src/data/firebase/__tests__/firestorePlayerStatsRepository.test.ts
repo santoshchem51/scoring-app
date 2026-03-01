@@ -3,30 +3,35 @@ import type { Match, StatsSummary, MatchRef } from '../../types';
 
 const {
   mockDoc,
-  mockSetDoc,
-  mockGetDoc,
   mockGetDocs,
   mockCollection,
-  mockQuery,
-  mockWhere,
-} = vi.hoisted(() => ({
-  mockDoc: vi.fn(() => 'mock-doc-ref'),
-  mockSetDoc: vi.fn(),
-  mockGetDoc: vi.fn(),
-  mockGetDocs: vi.fn(() => Promise.resolve({ docs: [] })),
-  mockCollection: vi.fn(() => 'mock-collection-ref'),
-  mockQuery: vi.fn(() => 'mock-query'),
-  mockWhere: vi.fn(() => 'mock-where'),
-}));
+  mockRunTransaction,
+  mockTransactionGet,
+  mockTransactionSet,
+} = vi.hoisted(() => {
+  const mockTransactionGet = vi.fn();
+  const mockTransactionSet = vi.fn();
+  const mockRunTransaction = vi.fn((_firestore: unknown, callback: unknown) =>
+    (callback as (txn: { get: typeof mockTransactionGet; set: typeof mockTransactionSet }) => Promise<void>)({
+      get: mockTransactionGet,
+      set: mockTransactionSet,
+    }),
+  );
+  return {
+    mockDoc: vi.fn(() => 'mock-doc-ref'),
+    mockGetDocs: vi.fn(() => Promise.resolve({ docs: [] })),
+    mockCollection: vi.fn(() => 'mock-collection-ref'),
+    mockRunTransaction,
+    mockTransactionGet,
+    mockTransactionSet,
+  };
+});
 
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
-  setDoc: mockSetDoc,
-  getDoc: mockGetDoc,
   getDocs: mockGetDocs,
   collection: mockCollection,
-  query: mockQuery,
-  where: mockWhere,
+  runTransaction: mockRunTransaction,
 }));
 
 vi.mock('../config', () => ({
@@ -104,10 +109,9 @@ describe('firestorePlayerStatsRepository', () => {
   describe('updatePlayerStats', () => {
     it('creates matchRef and new stats summary for first match', async () => {
       // No existing matchRef
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       // No existing stats
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockSetDoc.mockResolvedValue(undefined);
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
@@ -124,11 +128,11 @@ describe('firestorePlayerStatsRepository', () => {
         'mock-firestore', 'users', 'user-1', 'stats', 'summary',
       );
 
-      // setDoc called twice: matchRef + stats
-      expect(mockSetDoc).toHaveBeenCalledTimes(2);
+      // transaction.set called twice: matchRef + stats
+      expect(mockTransactionSet).toHaveBeenCalledTimes(2);
 
       // Verify stats summary shape
-      const statsCall = mockSetDoc.mock.calls[1];
+      const statsCall = mockTransactionSet.mock.calls[1];
       const stats = statsCall[1] as StatsSummary;
       expect(stats.totalMatches).toBe(1);
       expect(stats.wins).toBe(1);
@@ -140,7 +144,7 @@ describe('firestorePlayerStatsRepository', () => {
 
     it('skips if matchRef already exists (idempotency)', async () => {
       // matchRef already exists
-      mockGetDoc.mockResolvedValueOnce({ exists: () => true });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => true });
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
@@ -148,12 +152,12 @@ describe('firestorePlayerStatsRepository', () => {
       );
 
       // Should NOT write anything
-      expect(mockSetDoc).not.toHaveBeenCalled();
+      expect(mockTransactionSet).not.toHaveBeenCalled();
     });
 
     it('updates existing stats summary incrementally', async () => {
       // No existing matchRef
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       // Existing stats with 5 matches
       const existingStats = makeEmptyStats();
       existingStats.totalMatches = 5;
@@ -164,18 +168,17 @@ describe('firestorePlayerStatsRepository', () => {
       existingStats.bestWinStreak = 3;
       existingStats.singles = { matches: 5, wins: 3, losses: 2 };
       existingStats.recentResults = makeResults(5);
-      mockGetDoc.mockResolvedValueOnce({
+      mockTransactionGet.mockResolvedValueOnce({
         exists: () => true,
         data: () => existingStats,
       });
-      mockSetDoc.mockResolvedValue(undefined);
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
         'user-1', match, 1, 'win', 'scorer-uid',
       );
 
-      const statsCall = mockSetDoc.mock.calls[1];
+      const statsCall = mockTransactionSet.mock.calls[1];
       const stats = statsCall[1] as StatsSummary;
       expect(stats.totalMatches).toBe(6);
       expect(stats.wins).toBe(4);
@@ -185,55 +188,52 @@ describe('firestorePlayerStatsRepository', () => {
     });
 
     it('resets win streak on a loss', async () => {
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       const existingStats = makeEmptyStats();
       existingStats.totalMatches = 3;
       existingStats.wins = 3;
       existingStats.losses = 0;
       existingStats.currentStreak = { type: 'W', count: 3 };
       existingStats.bestWinStreak = 3;
-      mockGetDoc.mockResolvedValueOnce({
+      mockTransactionGet.mockResolvedValueOnce({
         exists: () => true,
         data: () => existingStats,
       });
-      mockSetDoc.mockResolvedValue(undefined);
 
       const match = makeMatch({ winningSide: 2 });
       await firestorePlayerStatsRepository.updatePlayerStats(
         'user-1', match, 1, 'loss', 'scorer-uid',
       );
 
-      const statsCall = mockSetDoc.mock.calls[1];
+      const statsCall = mockTransactionSet.mock.calls[1];
       const stats = statsCall[1] as StatsSummary;
       expect(stats.currentStreak).toEqual({ type: 'L', count: 1 });
       expect(stats.bestWinStreak).toBe(3); // preserved
     });
 
     it('caps recentResults ring buffer at 50', async () => {
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       const existingStats = makeEmptyStats();
       existingStats.totalMatches = 50;
       existingStats.recentResults = makeResults(50);
-      mockGetDoc.mockResolvedValueOnce({
+      mockTransactionGet.mockResolvedValueOnce({
         exists: () => true,
         data: () => existingStats,
       });
-      mockSetDoc.mockResolvedValue(undefined);
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
         'user-1', match, 1, 'win', 'scorer-uid',
       );
 
-      const statsCall = mockSetDoc.mock.calls[1];
+      const statsCall = mockTransactionSet.mock.calls[1];
       const stats = statsCall[1] as StatsSummary;
       expect(stats.recentResults).toHaveLength(50);
     });
 
     it('builds matchRef with correct fields', async () => {
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockSetDoc.mockResolvedValue(undefined);
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch({
         id: 'match-42',
@@ -246,7 +246,7 @@ describe('firestorePlayerStatsRepository', () => {
         'user-1', match, 1, 'win', 'scorer-uid',
       );
 
-      const refCall = mockSetDoc.mock.calls[0];
+      const refCall = mockTransactionSet.mock.calls[0];
       const ref = refCall[1] as MatchRef;
       expect(ref.matchId).toBe('match-42');
       expect(ref.startedAt).toBe(1000);
@@ -259,16 +259,15 @@ describe('firestorePlayerStatsRepository', () => {
     });
 
     it('tracks a loss as first match correctly', async () => {
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockSetDoc.mockResolvedValue(undefined);
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch({ winningSide: 2 });
       await firestorePlayerStatsRepository.updatePlayerStats(
         'user-1', match, 1, 'loss', 'scorer-uid',
       );
 
-      const statsCall = mockSetDoc.mock.calls[1];
+      const statsCall = mockTransactionSet.mock.calls[1];
       const stats = statsCall[1] as StatsSummary;
       expect(stats.totalMatches).toBe(1);
       expect(stats.wins).toBe(0);
@@ -278,60 +277,56 @@ describe('firestorePlayerStatsRepository', () => {
     });
 
     it('records correct perspective for team-2 player', async () => {
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockSetDoc.mockResolvedValue(undefined);
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch({ winningSide: 2 });
       await firestorePlayerStatsRepository.updatePlayerStats(
         'user-1', match, 2, 'win', 'scorer-uid',
       );
 
-      const refCall = mockSetDoc.mock.calls[0];
+      const refCall = mockTransactionSet.mock.calls[0];
       const ref = refCall[1] as MatchRef;
       expect(ref.playerTeam).toBe(2);
       expect(ref.result).toBe('win');
       expect(ref.opponentNames).toEqual(['Alice']); // team1Name is opponent
 
-      const statsCall = mockSetDoc.mock.calls[1];
+      const statsCall = mockTransactionSet.mock.calls[1];
       const stats = statsCall[1] as StatsSummary;
       expect(stats.wins).toBe(1);
     });
 
     it('sets matchRef ownerId to scorerUid, not participant uid', async () => {
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockSetDoc.mockResolvedValue(undefined);
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
         'participant-uid', match, 1, 'win', 'the-scorer-uid',
       );
 
-      const refCall = mockSetDoc.mock.calls[0];
+      const refCall = mockTransactionSet.mock.calls[0];
       const ref = refCall[1] as MatchRef;
       expect(ref.ownerId).toBe('the-scorer-uid');
     });
 
     it('writes stats with merge: true', async () => {
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockSetDoc.mockResolvedValue(undefined);
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
         'user-1', match, 1, 'win', 'scorer-uid',
       );
 
-      // Second setDoc call is stats — should have merge: true
-      const statsCall = mockSetDoc.mock.calls[1];
+      // Second transaction.set call is stats — should have merge: true
+      const statsCall = mockTransactionSet.mock.calls[1];
       expect(statsCall[2]).toEqual({ merge: true });
     });
 
     it('tracks doubles stats separately', async () => {
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
-      mockSetDoc.mockResolvedValue(undefined);
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch({
         config: {
@@ -345,7 +340,7 @@ describe('firestorePlayerStatsRepository', () => {
         'user-1', match, 1, 'win', 'scorer-uid',
       );
 
-      const statsCall = mockSetDoc.mock.calls[1];
+      const statsCall = mockTransactionSet.mock.calls[1];
       const stats = statsCall[1] as StatsSummary;
       expect(stats.doubles.matches).toBe(1);
       expect(stats.doubles.wins).toBe(1);
@@ -356,10 +351,9 @@ describe('firestorePlayerStatsRepository', () => {
   describe('processMatchCompletion', () => {
     it('writes stats for scorer only on casual match', async () => {
       // matchRef check (not exists) + stats check (not exists) for scorer
-      mockGetDoc
+      mockTransactionGet
         .mockResolvedValueOnce({ exists: () => false })  // matchRef
         .mockResolvedValueOnce({ exists: () => false }); // stats
-      mockSetDoc.mockResolvedValue(undefined);
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.processMatchCompletion(
@@ -367,8 +361,8 @@ describe('firestorePlayerStatsRepository', () => {
       );
 
       // Only scorer gets stats (casual match = no tournament)
-      // 2 setDoc calls: matchRef + stats for scorer
-      expect(mockSetDoc).toHaveBeenCalledTimes(2);
+      // 2 transaction.set calls: matchRef + stats for scorer
+      expect(mockTransactionSet).toHaveBeenCalledTimes(2);
     });
 
     it('writes stats for all tournament participants', async () => {
@@ -380,13 +374,14 @@ describe('firestorePlayerStatsRepository', () => {
         ],
       });
 
-      // For each of the 2 UIDs resolved: matchRef check + stats check
-      mockGetDoc
+      // Both participants run transactions concurrently (Promise.all).
+      // Due to microtask interleaving, get calls alternate:
+      //   uid-A matchRef, uid-B matchRef, uid-A stats, uid-B stats
+      mockTransactionGet
         .mockResolvedValueOnce({ exists: () => false })  // uid-A matchRef
-        .mockResolvedValueOnce({ exists: () => false })  // uid-A stats
         .mockResolvedValueOnce({ exists: () => false })  // uid-B matchRef
+        .mockResolvedValueOnce({ exists: () => false })  // uid-A stats
         .mockResolvedValueOnce({ exists: () => false }); // uid-B stats
-      mockSetDoc.mockResolvedValue(undefined);
 
       const match = makeMatch({
         tournamentId: 'tourn-1',
@@ -398,17 +393,13 @@ describe('firestorePlayerStatsRepository', () => {
         match, 'scorer-uid',
       );
 
-      // 2 participants x 2 writes each (matchRef + stats) = 4 setDoc calls
-      expect(mockSetDoc).toHaveBeenCalledTimes(4);
+      // 2 participants x 2 writes each (matchRef + stats) = 4 transaction.set calls
+      expect(mockTransactionSet).toHaveBeenCalledTimes(4);
     });
 
     it('swallows errors for individual players without blocking others', async () => {
-      // First player fails, second succeeds
-      mockGetDoc
-        .mockRejectedValueOnce(new Error('Firestore error'))  // uid-1 fails
-        .mockResolvedValueOnce({ exists: () => false })        // uid-2 matchRef
-        .mockResolvedValueOnce({ exists: () => false });       // uid-2 stats
-      mockSetDoc.mockResolvedValue(undefined);
+      // Transaction fails because transaction.get rejects
+      mockTransactionGet.mockRejectedValueOnce(new Error('Firestore error'));
 
       const match = makeMatch();
       // Should not throw

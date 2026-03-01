@@ -1,4 +1,4 @@
-import { doc, getDoc, getDocs, setDoc, collection } from 'firebase/firestore';
+import { doc, getDocs, collection, runTransaction } from 'firebase/firestore';
 import { firestore } from './config';
 import type { Match, MatchRef, StatsSummary, RecentResult } from '../types';
 import { computeTierScore, computeTier, computeTierConfidence } from '../../shared/utils/tierEngine';
@@ -126,66 +126,69 @@ export const firestorePlayerStatsRepository = {
     result: 'win' | 'loss',
     scorerUid: string,
   ): Promise<void> {
-    // 1. Idempotency check: skip if matchRef already exists
     const matchRefDoc = doc(firestore, 'users', uid, 'matchRefs', match.id);
-    const existingRef = await getDoc(matchRefDoc);
-    if (existingRef.exists()) return;
-
-    // 2. Read existing stats
     const statsDoc = doc(firestore, 'users', uid, 'stats', 'summary');
-    const existingStatsSnap = await getDoc(statsDoc);
-    const stats: StatsSummary = existingStatsSnap.exists()
-      ? (existingStatsSnap.data() as StatsSummary)
-      : createEmptyStats();
 
-    // 3. Build and write matchRef
-    const matchRef = buildMatchRef(match, playerTeam, result);
-    matchRef.ownerId = scorerUid;
-    await setDoc(matchRefDoc, matchRef);
+    await runTransaction(firestore, async (transaction) => {
+      // 1. Idempotency check: skip if matchRef already exists
+      const existingRef = await transaction.get(matchRefDoc);
+      if (existingRef.exists()) return;
 
-    // 4. Update stats
-    const isWin = result === 'win';
-    const gameType = match.config.gameType;
+      // 2. Read existing stats
+      const existingStatsSnap = await transaction.get(statsDoc);
+      const stats: StatsSummary = existingStatsSnap.exists()
+        ? (existingStatsSnap.data() as StatsSummary)
+        : createEmptyStats();
 
-    stats.totalMatches += 1;
-    stats.wins += isWin ? 1 : 0;
-    stats.losses += isWin ? 0 : 1;
-    stats.winRate = stats.totalMatches > 0 ? stats.wins / stats.totalMatches : 0;
+      // 3. Build matchRef
+      const matchRef = buildMatchRef(match, playerTeam, result);
+      matchRef.ownerId = scorerUid;
 
-    // Format-specific stats
-    const formatStats = gameType === 'singles' ? stats.singles : stats.doubles;
-    formatStats.matches += 1;
-    formatStats.wins += isWin ? 1 : 0;
-    formatStats.losses += isWin ? 0 : 1;
+      // 4. Update stats
+      const isWin = result === 'win';
+      const gameType = match.config.gameType;
 
-    // Streak
-    const newStreak = updateStreak(stats.currentStreak, result);
-    stats.currentStreak = newStreak;
-    if (newStreak.type === 'W' && newStreak.count > stats.bestWinStreak) {
-      stats.bestWinStreak = newStreak.count;
-    }
+      stats.totalMatches += 1;
+      stats.wins += isWin ? 1 : 0;
+      stats.losses += isWin ? 0 : 1;
+      stats.winRate = stats.totalMatches > 0 ? stats.wins / stats.totalMatches : 0;
 
-    // Ring buffer
-    const newResult: RecentResult = {
-      result,
-      opponentTier: 'beginner', // v1: default opponent tier (circular bootstrap)
-      completedAt: match.completedAt ?? Date.now(),
-      gameType,
-    };
-    stats.recentResults = [...stats.recentResults, newResult].slice(-RING_BUFFER_SIZE);
+      // Format-specific stats
+      const formatStats = gameType === 'singles' ? stats.singles : stats.doubles;
+      formatStats.matches += 1;
+      formatStats.wins += isWin ? 1 : 0;
+      formatStats.losses += isWin ? 0 : 1;
 
-    // Tier computation
-    const score = computeTierScore(stats.recentResults);
-    stats.tier = computeTier(score, stats.tier);
-    const uniqueOpponents = estimateUniqueOpponents(stats.totalMatches);
-    stats.tierConfidence = computeTierConfidence(stats.totalMatches, uniqueOpponents);
-    stats.tierUpdatedAt = Date.now();
+      // Streak
+      const newStreak = updateStreak(stats.currentStreak, result);
+      stats.currentStreak = newStreak;
+      if (newStreak.type === 'W' && newStreak.count > stats.bestWinStreak) {
+        stats.bestWinStreak = newStreak.count;
+      }
 
-    stats.lastPlayedAt = match.completedAt ?? Date.now();
-    stats.updatedAt = Date.now();
+      // Ring buffer
+      const newResult: RecentResult = {
+        result,
+        opponentTier: 'beginner', // v1: default opponent tier (circular bootstrap)
+        completedAt: match.completedAt ?? Date.now(),
+        gameType,
+      };
+      stats.recentResults = [...stats.recentResults, newResult].slice(-RING_BUFFER_SIZE);
 
-    // 5. Write updated stats
-    await setDoc(statsDoc, stats, { merge: true });
+      // Tier computation
+      const score = computeTierScore(stats.recentResults);
+      stats.tier = computeTier(score, stats.tier);
+      const uniqueOpponents = estimateUniqueOpponents(stats.totalMatches);
+      stats.tierConfidence = computeTierConfidence(stats.totalMatches, uniqueOpponents);
+      stats.tierUpdatedAt = Date.now();
+
+      stats.lastPlayedAt = match.completedAt ?? Date.now();
+      stats.updatedAt = Date.now();
+
+      // 5. Write both docs atomically
+      transaction.set(matchRefDoc, matchRef);
+      transaction.set(statsDoc, stats, { merge: true });
+    });
   },
 
   async processMatchCompletion(

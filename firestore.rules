@@ -402,6 +402,7 @@ service cloud.firestore {
     match /users/{userId}/matchRefs/{refId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
+        && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.matchId is string
         && request.resource.data.completedAt is number
         && request.resource.data.result in ['win', 'loss'];
@@ -409,6 +410,8 @@ service cloud.firestore {
     }
 
     // ── Stats Summary (/users/{userId}/stats/{docId}) ─────────────────
+    // Note: create/update allows any authenticated user because tournament
+    // scorekeepers write stats for all participants (cross-user writes).
     match /users/{userId}/stats/{docId} {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null;
