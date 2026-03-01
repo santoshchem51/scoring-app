@@ -6,6 +6,10 @@ const {
   mockGetDoc,
   mockGetDocs,
   mockCollection,
+  mockQuery,
+  mockOrderBy,
+  mockLimit,
+  mockStartAfter,
   mockRunTransaction,
   mockTransactionGet,
   mockTransactionSet,
@@ -23,6 +27,10 @@ const {
     mockGetDoc: vi.fn(),
     mockGetDocs: vi.fn(() => Promise.resolve({ docs: [] })),
     mockCollection: vi.fn(() => 'mock-collection-ref'),
+    mockQuery: vi.fn(() => 'mock-query'),
+    mockOrderBy: vi.fn(() => 'mock-order-by'),
+    mockLimit: vi.fn(() => 'mock-limit'),
+    mockStartAfter: vi.fn(() => 'mock-start-after'),
     mockRunTransaction,
     mockTransactionGet,
     mockTransactionSet,
@@ -34,6 +42,10 @@ vi.mock('firebase/firestore', () => ({
   getDoc: mockGetDoc,
   getDocs: mockGetDocs,
   collection: mockCollection,
+  query: mockQuery,
+  orderBy: mockOrderBy,
+  limit: mockLimit,
+  startAfter: mockStartAfter,
   runTransaction: mockRunTransaction,
 }));
 
@@ -459,6 +471,53 @@ describe('firestorePlayerStatsRepository', () => {
       const result = await firestorePlayerStatsRepository.getStatsSummary('user-1');
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getRecentMatchRefs', () => {
+    it('returns match refs ordered by completedAt desc', async () => {
+      const matchRef1 = { matchId: 'm1', completedAt: 2000, result: 'win', gameType: 'singles' };
+      const matchRef2 = { matchId: 'm2', completedAt: 1000, result: 'loss', gameType: 'doubles' };
+      mockGetDocs.mockResolvedValueOnce({
+        docs: [
+          { data: () => matchRef1 },
+          { data: () => matchRef2 },
+        ],
+      });
+
+      const results = await firestorePlayerStatsRepository.getRecentMatchRefs('user-1', 10);
+
+      expect(mockCollection).toHaveBeenCalledWith(
+        'mock-firestore', 'users', 'user-1', 'matchRefs',
+      );
+      expect(mockOrderBy).toHaveBeenCalledWith('completedAt', 'desc');
+      expect(mockLimit).toHaveBeenCalledWith(10);
+      expect(results).toHaveLength(2);
+      expect(results[0].matchId).toBe('m1');
+    });
+
+    it('returns empty array when no match refs exist', async () => {
+      mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+      const results = await firestorePlayerStatsRepository.getRecentMatchRefs('user-1');
+
+      expect(results).toEqual([]);
+    });
+
+    it('uses startAfter cursor when provided', async () => {
+      mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+      await firestorePlayerStatsRepository.getRecentMatchRefs('user-1', 10, 5000);
+
+      expect(mockStartAfter).toHaveBeenCalledWith(5000);
+    });
+
+    it('defaults to limit of 10', async () => {
+      mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+      await firestorePlayerStatsRepository.getRecentMatchRefs('user-1');
+
+      expect(mockLimit).toHaveBeenCalledWith(10);
     });
   });
 });
