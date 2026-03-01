@@ -94,8 +94,15 @@ git commit -m "feat: add MatchRef, StatsSummary, and Tier types for player stats
 ## Task 2: Tier Engine — Score Computation (Pure Function + Tests)
 
 **Files:**
+- Create: `src/shared/utils/__tests__/` (directory — does not exist yet)
 - Create: `src/shared/utils/__tests__/tierEngine.test.ts`
 - Create: `src/shared/utils/tierEngine.ts`
+
+**Pre-step: Create test directory**
+
+```bash
+mkdir -p src/shared/utils/__tests__
+```
 
 **Context:** The tier engine is a set of pure functions. No Firebase, no side effects. It takes a `RecentResult[]` array and match metadata, returns tier info.
 
@@ -218,6 +225,23 @@ describe('computeTierScore', () => {
     const score = computeTierScore(results);
     expect(score).toBeGreaterThan(0.3);
     expect(score).toBeLessThan(0.7);
+  });
+
+  it('closed friend group: 4 players trading wins converge to intermediate', () => {
+    // Simulates 4 friends who only play each other — all beginner-tier opponents
+    // Player with 50% win rate vs beginners shouldn't rise above intermediate
+    const results: RecentResult[] = [];
+    for (let i = 0; i < 30; i++) {
+      results.push(makeResult({
+        result: i % 2 === 0 ? 'win' : 'loss',
+        opponentTier: 'beginner', // closed group, all beginner
+        completedAt: Date.now() - i * 60000,
+      }));
+    }
+    const score = computeTierScore(results);
+    // 50% wins vs beginners (0.5 multiplier) → low weighted score
+    expect(score).toBeLessThan(0.53); // should NOT promote to advanced
+    expect(score).toBeGreaterThan(0.2); // but shouldn't be rock bottom
   });
 });
 ```
@@ -567,13 +591,22 @@ vi.mock('../config', () => ({
   auth: { currentUser: { uid: 'scorer-uid' } },
 }));
 
-vi.mock('../../repositories/matchRepository', () => ({
-  matchRepository: {},
-}));
-
 import { firestorePlayerStatsRepository } from '../firestorePlayerStatsRepository';
 
 // --- Factories ---
+
+function makeResults(
+  count: number,
+  overrides: Partial<import('../../types').RecentResult> = {},
+): import('../../types').RecentResult[] {
+  return Array.from({ length: count }, (_, i) => ({
+    result: 'win' as const,
+    opponentTier: 'intermediate' as const,
+    completedAt: Date.now() - i * 60000,
+    gameType: 'singles' as const,
+    ...overrides,
+  }));
+}
 
 function makeMatch(overrides: Partial<Match> = {}): Match {
   return {
@@ -807,20 +840,6 @@ describe('firestorePlayerStatsRepository', () => {
     });
   });
 });
-
-// Re-export factory for use in test
-function makeResults(
-  count: number,
-  overrides: Partial<import('../../types').RecentResult> = {},
-): import('../../types').RecentResult[] {
-  return Array.from({ length: count }, (_, i) => ({
-    result: 'win' as const,
-    opponentTier: 'intermediate' as const,
-    completedAt: Date.now() - i * 60000,
-    gameType: 'singles' as const,
-    ...overrides,
-  }));
-}
 ```
 
 **Step 2: Run test to verify it fails**
@@ -907,11 +926,11 @@ function updateStreak(
   return { type: streakType, count: 1 };
 }
 
-function countUniqueOpponents(recentResults: RecentResult[]): number {
-  // For v1 we approximate: count distinct completedAt timestamps as a proxy
-  // (true opponent tracking requires opponentIds on RecentResult, deferred)
-  // Since we can't track opponent IDs in RecentResult, use match count as lower bound
-  return Math.min(recentResults.length, recentResults.length);
+// v1 approximation: unique opponent count is estimated as ~70% of match count
+// (true tracking requires reading matchRefs subcollection for opponentIds,
+// deferred to avoid an extra Firestore read per stats update)
+function estimateUniqueOpponents(matchCount: number): number {
+  return Math.ceil(matchCount * 0.7);
 }
 
 export const firestorePlayerStatsRepository = {
@@ -972,7 +991,7 @@ export const firestorePlayerStatsRepository = {
     // Tier computation
     const score = computeTierScore(stats.recentResults);
     stats.tier = computeTier(score, stats.tier);
-    const uniqueOpponents = countUniqueOpponents(stats.recentResults);
+    const uniqueOpponents = estimateUniqueOpponents(stats.totalMatches);
     stats.tierConfidence = computeTierConfidence(stats.totalMatches, uniqueOpponents);
     stats.tierUpdatedAt = Date.now();
 
@@ -1036,10 +1055,13 @@ Append to the `describe('firestorePlayerStatsRepository')` block in the test fil
     });
 
     it('writes stats for all tournament participants', async () => {
-      // Need to mock firestoreRegistrationRepository
-      const { mockGetDocs } = await vi.importMock<{
-        mockGetDocs: ReturnType<typeof vi.fn>;
-      }>('firebase/firestore');
+      // Mock registration lookup: 2 registrations mapping to teams
+      mockGetDocs.mockResolvedValueOnce({
+        docs: [
+          { id: 'reg-1', data: () => ({ userId: 'uid-A', teamId: 'team-A' }) },
+          { id: 'reg-2', data: () => ({ userId: 'uid-B', teamId: 'team-B' }) },
+        ],
+      });
 
       // For each of the 2 UIDs resolved: matchRef check + stats check
       mockGetDoc
@@ -1055,15 +1077,12 @@ Append to the `describe('firestorePlayerStatsRepository')` block in the test fil
         tournamentTeam2Id: 'team-B',
       });
 
-      // Mock registration lookup via getDocs
-      // This is done through the repository's internal call
-      // We need to add getDocs to our mocks - see updated mock setup
       await firestorePlayerStatsRepository.processMatchCompletion(
         match, 'scorer-uid',
       );
 
-      // Should process stats for resolved UIDs
-      expect(mockSetDoc).toHaveBeenCalled();
+      // 2 participants × 2 writes each (matchRef + stats) = 4 setDoc calls
+      expect(mockSetDoc).toHaveBeenCalledTimes(4);
     });
 
     it('swallows errors for individual players without blocking others', async () => {
@@ -1258,7 +1277,7 @@ git commit -m "feat: add Firestore rules for matchRefs (immutable) and stats sub
 ## Task 8: CloudSync Integration — `syncPlayerStatsAfterMatch`
 
 **Files:**
-- Modify: `src/data/firebase/cloudSync.ts:7,122`
+- Modify: `src/data/firebase/cloudSync.ts:6,137`
 - Create: `src/data/firebase/__tests__/cloudSync.playerStats.test.ts` (separate test file to keep focused)
 
 **Context:** Add one new fire-and-forget method to the existing `cloudSync` object. Follows the exact same pattern as `syncMatchToCloud`: void return, auth guard, `.catch()` for error swallowing.
@@ -1350,7 +1369,7 @@ Expected: FAIL — `syncPlayerStatsAfterMatch` is not a function
 
 Modify `src/data/firebase/cloudSync.ts`:
 
-1. Add import at line 5 (after the existing imports):
+1. Add import after line 6 (after `import { matchRepository } ...`, before the type import):
 ```typescript
 import { firestorePlayerStatsRepository } from './firestorePlayerStatsRepository';
 ```
@@ -1390,12 +1409,125 @@ git commit -m "feat: add syncPlayerStatsAfterMatch to cloudSync (fire-and-forget
 
 ---
 
-## Task 9: ScoringPage Integration — One Line
+## Task 9: Expand UserProfile with Optional Fields
+
+**Files:**
+- Modify: `src/data/types.ts:78-85` (UserProfile interface)
+- Modify: `src/data/firebase/firestoreUserRepository.ts:35-42,55-64,78-87` (getProfile + search methods)
+
+**Context:** Add `bio`, `profileVisibility`, and `updatedAt` optional fields to UserProfile. These are optional for backward compatibility — existing docs don't have them, so read code provides defaults. The `getProfile()`, `searchByNamePrefix()`, and `searchByEmailPrefix()` methods manually map each field (they do NOT use object spread), so the new fields must be explicitly added to each mapping.
+
+**Step 1: Update UserProfile type**
+
+In `src/data/types.ts`, modify the `UserProfile` interface (lines 78-85):
+
+```typescript
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  displayNameLower: string;
+  email: string;
+  photoURL: string | null;
+  createdAt: number;
+  // Layer 7 Wave A additions (optional for backward compat)
+  bio?: string;
+  profileVisibility?: 'public' | 'private';
+  updatedAt?: number;
+}
+```
+
+**Step 2: Update `getProfile()` return mapping**
+
+In `src/data/firebase/firestoreUserRepository.ts`, update the return object in `getProfile()` (lines 35-42). Currently:
+
+```typescript
+    return {
+      id: snap.id,
+      displayName: data.displayName ?? '',
+      displayNameLower: data.displayNameLower ?? (data.displayName ?? '').toLowerCase(),
+      email: data.email ?? '',
+      photoURL: data.photoURL ?? null,
+      createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? Date.now(),
+    };
+```
+
+Change to:
+
+```typescript
+    return {
+      id: snap.id,
+      displayName: data.displayName ?? '',
+      displayNameLower: data.displayNameLower ?? (data.displayName ?? '').toLowerCase(),
+      email: data.email ?? '',
+      photoURL: data.photoURL ?? null,
+      createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? Date.now(),
+      bio: data.bio,
+      profileVisibility: data.profileVisibility,
+      updatedAt: data.updatedAt?.toMillis?.() ?? data.updatedAt,
+    };
+```
+
+**Step 3: Update `searchByNamePrefix()` return mapping**
+
+In the same file, update the return object in `searchByNamePrefix()` (lines 57-64) to add the same three fields:
+
+```typescript
+      return {
+        id: d.id,
+        displayName: data.displayName ?? '',
+        displayNameLower: data.displayNameLower ?? '',
+        email: data.email ?? '',
+        photoURL: data.photoURL ?? null,
+        createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? Date.now(),
+        bio: data.bio,
+        profileVisibility: data.profileVisibility,
+        updatedAt: data.updatedAt?.toMillis?.() ?? data.updatedAt,
+      };
+```
+
+**Step 4: Update `searchByEmailPrefix()` return mapping**
+
+Same pattern for `searchByEmailPrefix()` (lines 80-87):
+
+```typescript
+      return {
+        id: d.id,
+        displayName: data.displayName ?? '',
+        displayNameLower: data.displayNameLower ?? '',
+        email: data.email ?? '',
+        photoURL: data.photoURL ?? null,
+        createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? Date.now(),
+        bio: data.bio,
+        profileVisibility: data.profileVisibility,
+        updatedAt: data.updatedAt?.toMillis?.() ?? data.updatedAt,
+      };
+```
+
+**Step 5: Run type check**
+
+Run: `npx tsc --noEmit`
+Expected: PASS (fields are optional, no consumers break)
+
+**Step 6: Run full test suite**
+
+Run: `npx vitest run`
+Expected: All tests PASS
+
+**Step 7: Commit**
+
+```bash
+git add src/data/types.ts src/data/firebase/firestoreUserRepository.ts
+git commit -m "feat: add optional bio, profileVisibility, updatedAt to UserProfile"
+```
+
+---
+
+## Task 10: ScoringPage Integration — One Line
 
 **Files:**
 - Modify: `src/features/scoring/ScoringPage.tsx:203`
 
-**Context:** Add one line after `cloudSync.syncMatchToCloud(updatedMatch)` (line 203) to trigger stats sync. This is fire-and-forget — it never blocks navigation or tournament updates.
+**Context:** Add one line after `cloudSync.syncMatchToCloud(updatedMatch)` (line 203) to trigger stats sync. This is fire-and-forget — it never blocks navigation or tournament updates. `cloudSync` is already imported on line 19.
 
 **Step 1: Add the call**
 
@@ -1434,56 +1566,6 @@ git commit -m "feat: trigger player stats sync after match completion in Scoring
 
 ---
 
-## Task 10: Expand UserProfile with Optional Fields
-
-**Files:**
-- Modify: `src/data/types.ts:78-85` (UserProfile interface)
-- Modify: `src/data/firebase/firestoreUserRepository.ts` (getProfile defaults)
-
-**Context:** Add `bio`, `profileVisibility`, and `updatedAt` optional fields to UserProfile. These are optional for backward compatibility — existing docs don't have them, so read code provides defaults.
-
-**Step 1: Update UserProfile type**
-
-In `src/data/types.ts`, modify the `UserProfile` interface (lines 78-85):
-
-```typescript
-export interface UserProfile {
-  id: string;
-  displayName: string;
-  displayNameLower: string;
-  email: string;
-  photoURL: string | null;
-  createdAt: number;
-  // Layer 7 Wave A additions (optional for backward compat)
-  bio?: string;
-  profileVisibility?: 'public' | 'private';
-  updatedAt?: number;
-}
-```
-
-**Step 2: Update `getProfile()` to provide defaults**
-
-In `src/data/firebase/firestoreUserRepository.ts`, find the `getProfile()` method. Where it maps Firestore data to a `UserProfile`, ensure new fields have defaults. If there's a mapping like `return { id: d.id, ...d.data() }`, the optional fields will be `undefined` (fine — callers use `?? ''` as stated in design doc). No code change needed if it uses spread.
-
-**Step 3: Run type check**
-
-Run: `npx tsc --noEmit`
-Expected: PASS (fields are optional, no consumers break)
-
-**Step 4: Run full test suite**
-
-Run: `npx vitest run`
-Expected: All tests PASS
-
-**Step 5: Commit**
-
-```bash
-git add src/data/types.ts src/data/firebase/firestoreUserRepository.ts
-git commit -m "feat: add optional bio, profileVisibility, updatedAt to UserProfile"
-```
-
----
-
 ## Task 11: Final Verification
 
 **Step 1: Run type check**
@@ -1518,16 +1600,16 @@ Expected: Clean series of `feat:` commits, one per task
 | Task | What | New Tests |
 |------|------|-----------|
 | 1 | Types (`MatchRef`, `StatsSummary`, `Tier`, etc.) | 0 (type-only) |
-| 2 | `computeTierScore()` — weighted win rate + damping | ~9 |
+| 2 | `computeTierScore()` — weighted win rate + damping | ~10 |
 | 3 | `computeTier()` — hysteresis thresholds | ~11 |
 | 4 | `computeTierConfidence()` — match count + opponent variety | ~7 |
 | 5 | `updatePlayerStats()` — matchRef + stats CRUD | ~7 |
 | 6 | `processMatchCompletion()` — UID resolution + orchestration | ~3 |
 | 7 | Firestore rules for `matchRefs` + `stats` | 0 (rules only) |
 | 8 | `cloudSync.syncPlayerStatsAfterMatch()` | ~3 |
-| 9 | ScoringPage one-line integration | 0 (verified by type check) |
-| 10 | UserProfile optional fields | 0 (additive) |
+| 9 | UserProfile optional fields + repo mapping | 0 (additive) |
+| 10 | ScoringPage one-line integration | 0 (verified by type check) |
 | 11 | Final verification | 0 (run existing) |
 
-**Estimated new tests: ~40**
+**Estimated new tests: ~41**
 **Total after: ~500+**
