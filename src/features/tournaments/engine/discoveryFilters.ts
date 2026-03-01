@@ -1,4 +1,4 @@
-import type { Tournament, TournamentFormat, TournamentStatus } from '../../../data/types';
+import type { Tournament, TournamentAccessMode, TournamentFormat, TournamentStatus } from '../../../data/types';
 
 // --- Exported types ---
 
@@ -8,6 +8,7 @@ export interface BrowseFilters {
   status?: BrowseStatusFilter;
   format?: TournamentFormat;
   search?: string;
+  accessMode?: TournamentAccessMode;
 }
 
 export type UserRole = 'organizer' | 'scorekeeper' | 'player';
@@ -51,6 +52,9 @@ export function filterPublicTournaments(
     if (format !== undefined && t.format !== format) {
       return false;
     }
+
+    // Access mode filter
+    if (filters.accessMode && t.accessMode !== filters.accessMode) return false;
 
     // Search filter (case-insensitive on name and location)
     if (searchLower !== undefined && searchLower !== '') {
