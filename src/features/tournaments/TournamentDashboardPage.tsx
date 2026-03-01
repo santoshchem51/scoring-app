@@ -34,7 +34,6 @@ import { checkBracketRescoreSafety } from './engine/rescoring';
 import { advanceBracketWinner } from './engine/bracketAdvancement';
 import { cloudSync } from '../../data/firebase/cloudSync';
 import ShareTournamentModal from './components/ShareTournamentModal';
-import { generateShareCode } from './engine/shareCode';
 import { useTournamentLive } from './hooks/useTournamentLive';
 import { detectViewerRole } from './engine/roleDetection';
 import type { ViewerRole } from './engine/roleDetection';
@@ -484,19 +483,6 @@ const TournamentDashboardPage: Component = () => {
     setEditModalError('');
   };
 
-  const handleToggleVisibility = async (newVisibility: 'private' | 'public') => {
-    const t = live.tournament();
-    if (!t) return;
-
-    let shareCode = t.shareCode;
-    if (newVisibility === 'public' && !shareCode) {
-      shareCode = generateShareCode();
-    }
-
-    await firestoreTournamentRepository.updateVisibility(t.id, newVisibility, shareCode);
-    // Live data auto-updates via onSnapshot
-  };
-
   const handleSaveEditedScore = async (data: ScoreEditData) => {
     const match = editingMatch();
     const ctx = editingContext();
@@ -789,11 +775,11 @@ const TournamentDashboardPage: Component = () => {
                     tournamentName={t().name}
                     tournamentDate={new Date(t().date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                     tournamentLocation={t().location || 'TBD'}
-                    visibility={t().visibility ?? 'private'}
+                    accessMode={t().accessMode ?? 'open'}
+                    buddyGroupName={t().buddyGroupName ?? null}
                     shareCode={t().shareCode ?? null}
                     organizerId={t().organizerId}
                     registeredUserIds={live.registrations().map((r) => r.userId)}
-                    onToggleVisibility={handleToggleVisibility}
                     onClose={() => setShowShareModal(false)}
                   />
                 )}
