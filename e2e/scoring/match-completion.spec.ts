@@ -26,20 +26,11 @@ test.describe('MP-3.3: Match Completion', () => {
     await expect(scoring.saveFinishBtn).toBeVisible();
   });
 
-  test('save & finish navigates to match history', async ({ page }) => {
+  test('save & finish navigates to match history with score', async ({ page }) => {
     await scoring.scorePoints('Team 1', 11);
 
     await scoring.saveAndFinish();
 
-    await expect(page.getByRole('link', { name: 'Match History' })).toBeVisible();
-    await expect(page.getByText('11').first()).toBeVisible();
-  });
-
-  test('match saved to history after completion', async ({ page }) => {
-    await scoring.scorePoints('Team 1', 11);
-    await scoring.saveAndFinish();
-
-    // Verify we're on the history page with the match visible
     await expect(page.getByRole('link', { name: 'Match History' })).toBeVisible();
     await expect(page.getByText('11').first()).toBeVisible();
   });

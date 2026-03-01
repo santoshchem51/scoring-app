@@ -21,8 +21,8 @@ test.describe('MP-3.1: Match Setup', () => {
 
     await scoring.expectOnScoringScreen();
     await scoring.expectScore('0-0-2');
-    await expect(page.getByRole('button', { name: /Side out/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Undo/i })).toBeVisible();
+    await expect(scoring.sideOutBtn).toBeVisible();
+    await expect(scoring.undoBtn).toBeVisible();
   });
 
   test('creates singles match', async () => {
