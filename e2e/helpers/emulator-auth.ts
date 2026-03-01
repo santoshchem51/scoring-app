@@ -84,7 +84,10 @@ export async function signInAsTestUser(
   );
 
   // Wait for auth state to propagate through onAuthStateChanged → RequireAuth
-  await page.waitForTimeout(1000);
+  await page.waitForFunction(
+    () => (window as any).__TEST_FIREBASE__?.auth?.currentUser !== null,
+    { timeout: 10000 },
+  );
 }
 
 /**
@@ -97,7 +100,10 @@ export async function signOut(page: Page) {
     const { signOut } = (window as any).__TEST_FIREBASE_AUTH__;
     await signOut(auth);
   });
-  await page.waitForTimeout(300);
+  await page.waitForFunction(
+    () => (window as any).__TEST_FIREBASE__?.auth?.currentUser === null,
+    { timeout: 10000 },
+  );
 }
 
 // ── Admin seeding (bypasses security rules via Bearer owner) ──────────
