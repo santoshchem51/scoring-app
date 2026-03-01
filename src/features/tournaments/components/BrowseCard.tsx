@@ -1,13 +1,12 @@
 import type { Component } from 'solid-js';
-import { Show } from 'solid-js';
 import type { Tournament } from '../../../data/types';
 import { A } from '@solidjs/router';
 import { Calendar, Activity, Trophy, X } from 'lucide-solid';
 import { formatLabels, statusLabels, statusColors } from '../constants';
+import AccessModeBadge from './AccessModeBadge';
 
 interface BrowseCardProps {
   tournament: Tournament;
-  registrationCount?: number;
 }
 
 function formatDate(timestamp: number): string {
@@ -43,10 +42,22 @@ const BrowseCard: Component<BrowseCardProps> = (props) => {
       ? `/t/${props.tournament.shareCode}`
       : `/tournaments/${props.tournament.id}`;
 
-  const registrationText = () =>
-    props.tournament.maxPlayers
-      ? `${props.registrationCount}/${props.tournament.maxPlayers} registered`
-      : `${props.registrationCount} registered`;
+  const registrationLabel = () => {
+    const counts = props.tournament.registrationCounts ?? { confirmed: 0, pending: 0 };
+    const confirmed = counts.confirmed;
+    const pending = counts.pending;
+
+    if (props.tournament.accessMode === 'approval' && pending > 0) {
+      return `${confirmed} registered, ${pending} pending`;
+    }
+    if (props.tournament.accessMode === 'invite-only') {
+      return `${confirmed} invited`;
+    }
+    if (props.tournament.maxPlayers) {
+      return `${confirmed}/${props.tournament.maxPlayers} registered`;
+    }
+    return `${confirmed} registered`;
+  };
 
   return (
     <A
@@ -75,12 +86,16 @@ const BrowseCard: Component<BrowseCardProps> = (props) => {
           <StatusIcon status={props.tournament.status} />
           {statusLabels[props.tournament.status] ?? props.tournament.status}
         </span>
+
+        {/* Access mode badge */}
+        <AccessModeBadge
+          accessMode={props.tournament.accessMode ?? 'open'}
+          groupName={props.tournament.buddyGroupName ?? undefined}
+        />
       </div>
 
       {/* Registration count */}
-      <Show when={props.registrationCount !== undefined}>
-        <p class="text-xs text-on-surface-muted mt-2">{registrationText()}</p>
-      </Show>
+      <p class="text-xs text-on-surface-muted mt-2">{registrationLabel()}</p>
     </A>
   );
 };
