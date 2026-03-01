@@ -1,18 +1,12 @@
 import { test, expect } from '@playwright/test';
 import {
   signInAsTestUser,
-  clearEmulators,
   seedFirestoreDocAdmin,
-} from './helpers/emulator-auth';
+} from '../helpers/emulator-auth';
 
 test.describe('Session RSVP Journey', () => {
-  test.beforeAll(async () => {
-    await clearEmulators();
-  });
-
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
     await signInAsTestUser(page, { email: 'session-test@test.com' });
   });
 
