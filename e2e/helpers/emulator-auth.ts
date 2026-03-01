@@ -1,8 +1,5 @@
 import type { Page } from '@playwright/test';
-
-const AUTH_EMULATOR = 'http://127.0.0.1:9099';
-const FIRESTORE_EMULATOR = 'http://127.0.0.1:8180';
-const PROJECT_ID = 'picklescore-b0a71';
+import { AUTH_EMULATOR, FIRESTORE_EMULATOR, PROJECT_ID } from './emulator-config';
 
 /**
  * Clear all data from Auth and Firestore emulators via REST API.

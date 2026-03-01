@@ -1,8 +1,6 @@
 // e2e/global-setup.ts
 
-const AUTH_EMULATOR = 'http://127.0.0.1:9099';
-const FIRESTORE_EMULATOR = 'http://127.0.0.1:8180';
-const PROJECT_ID = 'picklescore-b0a71';
+import { AUTH_EMULATOR, FIRESTORE_EMULATOR, PROJECT_ID } from './helpers/emulator-config';
 
 async function globalSetup() {
   console.log('[global-setup] Clearing emulators...');
