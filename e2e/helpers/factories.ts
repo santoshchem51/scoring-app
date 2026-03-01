@@ -86,3 +86,45 @@ export function makeGameSession(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+export function makeTeam(overrides: Record<string, unknown> = {}) {
+  const id = uid('team');
+  return {
+    id,
+    tournamentId: '',
+    name: `Team ${id.slice(-4)}`,
+    playerIds: [`player-${randomUUID().slice(0, 8)}`],
+    seed: null,
+    poolId: null,
+    ...overrides,
+  };
+}
+
+export function makeBracketSlot(overrides: Record<string, unknown> = {}) {
+  const id = uid('slot');
+  return {
+    id,
+    tournamentId: '',
+    round: 1,
+    position: 1,
+    team1Id: null,
+    team2Id: null,
+    matchId: null,
+    winnerId: null,
+    nextSlotId: null,
+    ...overrides,
+  };
+}
+
+export function makePool(overrides: Record<string, unknown> = {}) {
+  const id = uid('pool');
+  return {
+    id,
+    tournamentId: '',
+    name: 'Pool A',
+    teamIds: [],
+    schedule: [],
+    standings: [],
+    ...overrides,
+  };
+}
