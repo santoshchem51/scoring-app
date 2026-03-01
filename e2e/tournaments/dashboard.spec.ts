@@ -106,12 +106,12 @@ async function seedPlayersAndTeams(
 test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
 
   // ═══════════════════════════════════════════════════════════════════
-  // 1. Status Transitions: setup → registration → pool-play → completed (round-robin)
+  // 1. Status Transitions: setup → registration → pool-play (round-robin)
   // ═══════════════════════════════════════════════════════════════════
 
   test.describe('Status transitions', () => {
 
-    test('round-robin: setup → registration → pool-play → completed', async ({
+    test('round-robin: setup → registration → pool-play', async ({
       authenticatedPage: page,
     }) => {
       const { tournament } = await seedOrganizerTournament(page, {
@@ -171,7 +171,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       await expect(page.getByText('Pool Standings')).toBeVisible({ timeout: 15000 });
     });
 
-    test('single-elimination: setup → registration → bracket → completed', async ({
+    test('single-elimination: setup → registration → bracket', async ({
       authenticatedPage: page,
     }) => {
       const { tournament } = await seedOrganizerTournament(page, {
@@ -407,6 +407,11 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
     await expect(page.getByText('Test Player Two')).toBeVisible({ timeout: 10000 });
   });
 
+  // TODO: Player removal test — The OrganizerPlayerManager component does not
+  // currently support removing individual registered players (no delete/remove
+  // button exists in the UI). When that feature is added, a test for removing
+  // a player from the registered players list should be added here.
+
   // ═══════════════════════════════════════════════════════════════════
   // 6. Pairing panel: auto-pair generates valid pairings
   // ═══════════════════════════════════════════════════════════════════
@@ -468,8 +473,12 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════════
-  // 7. Scoring a tournament match updates standings
+  // 7. Scoring navigation from dashboard
   // ═══════════════════════════════════════════════════════════════════
+  // TODO: These tests verify that the dashboard's Score / Score Match buttons
+  // navigate correctly to the scoring page. They do NOT actually score a match
+  // and verify that standings update afterward. Full scoring-and-standings
+  // integration is deferred to Task 24 (pool play scoring and bracket scoring tests).
 
   test('scoring a pool match navigates to scoring page', async ({
     authenticatedPage: page,
