@@ -1,24 +1,9 @@
 // e2e/tournaments/dashboard.spec.ts
 import { test, expect } from '../fixtures';
-import { seedFirestoreDocAdmin } from '../helpers/emulator-auth';
+import { seedFirestoreDocAdmin, getCurrentUserUid, goToTournamentDashboard } from '../helpers/emulator-auth';
 import { makeTournament } from '../helpers/factories';
 import { randomUUID } from 'crypto';
 import type { Page } from '@playwright/test';
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-/** Get the current user's UID from the Firebase auth globals on the page. */
-async function getCurrentUserUid(page: Page): Promise<string> {
-  return page.evaluate(
-    () => (window as any).__TEST_FIREBASE__?.auth?.currentUser?.uid as string,
-  );
-}
-
-/** Navigate to the tournament dashboard and wait for it to load. */
-async function goToDashboard(page: Page, tournamentId: string) {
-  await page.goto(`/tournaments/${tournamentId}`);
-  await page.waitForSelector('text=Status', { timeout: 15000 });
-}
 
 /** Create a tournament seeded in Firestore with the authenticated user as organizer. */
 async function seedOrganizerTournament(
@@ -40,65 +25,6 @@ async function seedOrganizerTournament(
   });
   await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
   return { tournament, uid };
-}
-
-/** Seed N player registrations and teams for a tournament. */
-async function seedPlayersAndTeams(
-  tournamentId: string,
-  count: number,
-  options: { teamFormation?: string } = {},
-) {
-  const registrations: Array<{ id: string; userId: string; playerName: string }> = [];
-
-  for (let i = 0; i < count; i++) {
-    const playerId = `player-${randomUUID().slice(0, 8)}`;
-    const playerName = `Player ${i + 1}`;
-
-    // Seed registration
-    const reg = {
-      id: playerId,
-      tournamentId,
-      userId: playerId,
-      playerName,
-      teamId: null,
-      paymentStatus: 'unpaid',
-      paymentNote: '',
-      lateEntry: false,
-      skillRating: 3.5,
-      partnerId: null,
-      partnerName: null,
-      profileComplete: true,
-      registeredAt: Date.now(),
-      status: 'confirmed',
-      declineReason: null,
-      statusUpdatedAt: null,
-    };
-    await seedFirestoreDocAdmin(
-      `tournaments/${tournamentId}/registrations`,
-      playerId,
-      reg,
-    );
-
-    // Seed team (1 player per team for singles-style seeding)
-    const teamId = `team-${randomUUID().slice(0, 8)}`;
-    const team = {
-      id: teamId,
-      tournamentId,
-      name: playerName,
-      playerIds: [playerId],
-      seed: null,
-      poolId: null,
-    };
-    await seedFirestoreDocAdmin(
-      `tournaments/${tournamentId}/teams`,
-      teamId,
-      team,
-    );
-
-    registrations.push({ id: playerId, userId: playerId, playerName });
-  }
-
-  return registrations;
 }
 
 // ── Test Suite ──────────────────────────────────────────────────────
@@ -127,7 +53,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
         },
       });
 
-      await goToDashboard(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       // Step 1: Verify status is Setup
       await expect(page.getByText('Setup')).toBeVisible({ timeout: 10000 });
@@ -164,7 +90,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       await expect(page.getByText('Pool Play')).toBeVisible({ timeout: 15000 });
 
       // Reload to ensure pool data loads from fresh snapshots
-      await goToDashboard(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
       await expect(page.getByText('Pool Play')).toBeVisible({ timeout: 10000 });
 
       // Pool table should be visible
@@ -187,7 +113,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
         },
       });
 
-      await goToDashboard(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       // Setup → Registration
       await expect(page.getByText('Setup')).toBeVisible({ timeout: 10000 });
@@ -215,7 +141,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       await expect(page.getByText('Bracket Play')).toBeVisible({ timeout: 15000 });
 
       // Reload to ensure bracket data loads from fresh snapshots
-      await goToDashboard(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
       await expect(page.getByText('Bracket Play')).toBeVisible({ timeout: 10000 });
 
       // Bracket view heading should be visible
@@ -235,7 +161,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       format: 'round-robin',
     });
 
-    await goToDashboard(page, tournament.id);
+    await goToTournamentDashboard(page, tournament.id);
 
     // Should show "Advance to Registration Open" button
     await expect(
@@ -262,7 +188,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       format: 'single-elimination',
     });
 
-    await goToDashboard(page, tournament.id);
+    await goToTournamentDashboard(page, tournament.id);
 
     // Single-elimination: registration → bracket (not pool-play)
     await expect(
@@ -292,7 +218,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       format: 'round-robin',
     });
 
-    await goToDashboard(page, tournament.id);
+    await goToTournamentDashboard(page, tournament.id);
 
     // Verify we start in Pool Play status
     await expect(page.getByText('Pool Play')).toBeVisible({ timeout: 10000 });
@@ -333,7 +259,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       format: 'round-robin',
     });
 
-    await goToDashboard(page, tournament.id);
+    await goToTournamentDashboard(page, tournament.id);
     await expect(page.getByText('Registration Open')).toBeVisible({ timeout: 10000 });
 
     // Click "Cancel Tournament" in OrganizerControls
@@ -350,8 +276,8 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
     ).toBeVisible();
 
     // Confirm cancellation — the confirm button label is "Cancel Tournament"
-    // The dialog is a bottom-sheet on mobile and the bottom nav bar may overlap.
-    // Use JavaScript click to bypass pointer event interception from the nav bar.
+    // The dialog is a bottom-sheet on mobile and the bottom nav bar may overlap,
+    // so use a direct DOM click to bypass Playwright's actionability checks.
     const confirmBtn = dialog.getByRole('button', { name: 'Cancel Tournament' });
     await confirmBtn.evaluate((el: HTMLElement) => el.click());
 
@@ -376,7 +302,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       format: 'round-robin',
     });
 
-    await goToDashboard(page, tournament.id);
+    await goToTournamentDashboard(page, tournament.id);
 
     // Wait for the Add Player form
     const playerNameInput = page.getByPlaceholder('Player name');
@@ -395,11 +321,14 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
     await expect(page.getByText('Registered Players (1)')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Test Player One')).toBeVisible({ timeout: 10000 });
 
-    // Add a second player with skill rating
-    await playerNameInput.fill('Test Player Two');
-    // Select a skill rating — use the select without an id (OrganizerPlayerManager's)
-    // The RegistrationForm's select has id="skill-rating"; the organizer form's doesn't.
+    // Add a second player with skill rating.
+    // Select skill level BEFORE filling the name — Playwright's selectOption focuses
+    // the <select>, which blurs the text input and can reset it in SolidJS's
+    // controlled-input model. Selecting first avoids that race.
+    // The organizer form's <select> has no id attribute, while the RegistrationForm's
+    // has id="skill-rating" — use select:not([id]) to target the correct one.
     await page.locator('select:not([id])').selectOption('3.5');
+    await playerNameInput.fill('Test Player Two');
     await page.getByRole('button', { name: 'Add Player', exact: true }).click();
 
     // Verify count increments
@@ -433,7 +362,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       },
     });
 
-    await goToDashboard(page, tournament.id);
+    await goToTournamentDashboard(page, tournament.id);
 
     // Add 4 players via the player manager
     const playerNameInput = page.getByPlaceholder('Player name');
@@ -548,7 +477,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       ],
     });
 
-    await goToDashboard(page, tournamentId);
+    await goToTournamentDashboard(page, tournamentId);
 
     // Verify pool table is visible
     await expect(page.getByText('Pool Standings')).toBeVisible({ timeout: 15000 });
@@ -628,7 +557,7 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
       nextSlotId: null,
     });
 
-    await goToDashboard(page, tournamentId);
+    await goToTournamentDashboard(page, tournamentId);
 
     // Verify bracket view heading is visible
     await expect(page.getByRole('heading', { name: 'Bracket' })).toBeVisible({ timeout: 15000 });

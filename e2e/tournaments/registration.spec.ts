@@ -1,26 +1,8 @@
 // e2e/tournaments/registration.spec.ts
 import { test, expect } from '../fixtures';
-import { seedFirestoreDocAdmin } from '../helpers/emulator-auth';
+import { seedFirestoreDocAdmin, getCurrentUserUid, goToTournamentDashboard } from '../helpers/emulator-auth';
 import { makeTournament, makeBuddyGroup } from '../helpers/factories';
 import { randomUUID } from 'crypto';
-import type { Page } from '@playwright/test';
-
-// ── Helpers ────────────────────────────────────────────────────────
-
-/** Get the current user's UID from the Firebase auth globals on the page. */
-async function getCurrentUserUid(page: Page): Promise<string> {
-  return page.evaluate(
-    () => (window as any).__TEST_FIREBASE__?.auth?.currentUser?.uid as string,
-  );
-}
-
-/** Navigate to the tournament dashboard and wait for it to load. */
-async function goToDashboardRegistration(page: Page, tournamentId: string) {
-  await page.goto(`/tournaments/${tournamentId}`);
-  // Wait for the dashboard to finish loading — the "Status" label appears
-  // in the status card once tournament data is resolved.
-  await page.waitForSelector('text=Status', { timeout: 15000 });
-}
 
 // ── Test Suite ──────────────────────────────────────────────────────
 
@@ -43,7 +25,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       const joinBtn = page.getByRole('button', { name: 'Join Tournament' });
       await expect(joinBtn).toBeVisible({ timeout: 15000 });
@@ -62,7 +44,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       await page.getByRole('button', { name: 'Join Tournament' }).click();
       await expect(page.getByText("You're In!")).toBeVisible({ timeout: 10000 });
@@ -80,13 +62,13 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       await page.getByRole('button', { name: 'Join Tournament' }).click();
       await expect(page.getByText("You're In!")).toBeVisible({ timeout: 10000 });
 
       // Reload the page — should still show "You're In!" not "Join Tournament"
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
       await expect(page.getByText("You're In!")).toBeVisible({ timeout: 15000 });
       await expect(
         page.getByRole('button', { name: 'Join Tournament' }),
@@ -103,7 +85,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       // Before registration, confirmed count is 0
       // The dashboard info grid shows "Teams" count from live.teams(), but
@@ -130,7 +112,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       const askBtn = page.getByRole('button', { name: 'Ask to Join' });
       await expect(askBtn).toBeVisible({ timeout: 15000 });
@@ -149,7 +131,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       await page.getByRole('button', { name: 'Ask to Join' }).click();
       await expect(page.getByText('Request Submitted')).toBeVisible({ timeout: 10000 });
@@ -185,7 +167,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       await expect(
         page.getByText('This tournament is invite only.'),
@@ -229,7 +211,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
         invitation,
       );
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       // Invited user should see the Join button (not restriction message)
       const joinBtn = page.getByRole('button', { name: 'Join Tournament' });
@@ -260,7 +242,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       // Should see restriction message
       await expect(
@@ -301,7 +283,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
         member,
       );
 
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
 
       const joinBtn = page.getByRole('button', { name: 'Join Tournament' });
       await expect(joinBtn).toBeVisible({ timeout: 15000 });
@@ -332,7 +314,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
       // Register (creates pending status for approval mode)
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
       await page.getByRole('button', { name: 'Ask to Join' }).click();
       await expect(page.getByText('Request Submitted')).toBeVisible({ timeout: 10000 });
 
@@ -355,7 +337,7 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
       // Register
-      await goToDashboardRegistration(page, tournament.id);
+      await goToTournamentDashboard(page, tournament.id);
       await page.getByRole('button', { name: 'Ask to Join' }).click();
       await expect(page.getByText('Request Submitted')).toBeVisible({ timeout: 10000 });
 

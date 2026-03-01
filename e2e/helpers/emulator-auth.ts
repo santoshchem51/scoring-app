@@ -107,6 +107,21 @@ export async function signOut(page: Page) {
   );
 }
 
+// ── Shared page helpers ────────────────────────────────────────────────
+
+/** Get the current user's UID from the Firebase auth globals on the page. */
+export async function getCurrentUserUid(page: Page): Promise<string> {
+  return page.evaluate(
+    () => (window as any).__TEST_FIREBASE__?.auth?.currentUser?.uid as string,
+  );
+}
+
+/** Navigate to the tournament dashboard and wait for it to load. */
+export async function goToTournamentDashboard(page: Page, tournamentId: string) {
+  await page.goto(`/tournaments/${tournamentId}`);
+  await page.waitForSelector('text=Status', { timeout: 15000 });
+}
+
 // ── Admin seeding (bypasses security rules via Bearer owner) ──────────
 
 /** Convert a JS value to Firestore REST API field format. */
