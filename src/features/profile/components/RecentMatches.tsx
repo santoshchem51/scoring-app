@@ -1,4 +1,4 @@
-import { Show, For } from 'solid-js';
+import { Show, For, createEffect, on } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { MatchRef } from '../../../data/types';
 
@@ -27,6 +27,21 @@ function formatOpponentName(match: MatchRef): string {
 }
 
 const RecentMatches: Component<RecentMatchesProps> = (props) => {
+  let listRef: HTMLUListElement | undefined;
+  let prevCount = 0;
+
+  // After matches array grows (from Load More), focus the first new row
+  createEffect(on(() => props.matches.length, (count) => {
+    if (count > prevCount && prevCount > 0 && listRef) {
+      const buttons = listRef.querySelectorAll<HTMLButtonElement>('li button');
+      const firstNew = buttons[prevCount];
+      if (firstNew) {
+        queueMicrotask(() => firstNew.focus());
+      }
+    }
+    prevCount = count;
+  }));
+
   return (
     <section aria-labelledby="matches-heading">
       <h2
@@ -37,12 +52,10 @@ const RecentMatches: Component<RecentMatchesProps> = (props) => {
       </h2>
 
       <div class="bg-surface rounded-xl overflow-hidden">
-        <ul role="list" aria-label="Recent match results">
+        <ul ref={listRef} role="list" aria-label="Recent match results" class="divide-y divide-surface-lighter">
           <For each={props.matches}>
-            {(match, index) => (
-              <li
-                class={`${index() > 0 ? 'border-t border-surface-lighter' : ''}`}
-              >
+            {(match) => (
+              <li>
                 <button
                   type="button"
                   class="w-full flex items-center gap-3 px-4 py-3 min-h-[48px] text-left hover:bg-surface-lighter transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-500"
@@ -86,7 +99,7 @@ const RecentMatches: Component<RecentMatchesProps> = (props) => {
               type="button"
               onClick={() => props.onLoadMore?.()}
               disabled={props.loadingMore}
-              class="w-full text-center text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+              class="w-full text-center text-sm font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50 min-h-[48px]"
               aria-label="Load more matches"
             >
               {props.loadingMore ? 'Loading...' : 'Load More'}

@@ -1,4 +1,4 @@
-import { Show, onMount, createMemo } from 'solid-js';
+import { Show, createMemo } from 'solid-js';
 import type { Component } from 'solid-js';
 import { BarChart3 } from 'lucide-solid';
 import { useAuth } from '../../shared/hooks/useAuth';
@@ -8,6 +8,7 @@ import StatsOverview from './components/StatsOverview';
 import RecentMatches from './components/RecentMatches';
 import EmptyState from '../../shared/components/EmptyState';
 import Skeleton from '../../shared/components/Skeleton';
+import PageLayout from '../../shared/components/PageLayout';
 
 const ProfileSkeleton: Component = () => (
   <div class="space-y-4" role="status" aria-label="Loading profile">
@@ -40,25 +41,9 @@ const ProfilePage: Component = () => {
     return !!stats && stats.totalMatches > 0;
   });
 
-  let containerRef: HTMLDivElement | undefined;
-
-  onMount(() => {
-    if (!containerRef) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      containerRef.style.opacity = '1';
-      return;
-    }
-    containerRef.animate(
-      [
-        { opacity: 0, transform: 'translateY(8px)' },
-        { opacity: 1, transform: 'translateY(0)' },
-      ],
-      { duration: 200, easing: 'ease-out', fill: 'forwards' },
-    );
-  });
-
   return (
-    <div ref={containerRef} style={{ opacity: '0' }} class="max-w-lg mx-auto px-4 pt-2 pb-24">
+    <PageLayout title="My Profile">
+    <div class="px-4 pt-2">
       <Show when={!data.loading} fallback={<ProfileSkeleton />}>
         {/* Header always shows (Google info available) */}
         <Show when={data()?.profile}>
@@ -103,6 +88,7 @@ const ProfilePage: Component = () => {
         </Show>
       </Show>
     </div>
+    </PageLayout>
   );
 };
 

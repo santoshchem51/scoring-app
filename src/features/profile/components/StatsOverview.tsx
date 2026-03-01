@@ -25,7 +25,7 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
         role="group"
         aria-label={`Win rate: ${Math.round(props.stats.winRate * 100)} percent`}
       >
-        <div class="text-xs text-on-surface-muted uppercase tracking-wide font-semibold mb-1">Win Rate</div>
+        <div class="text-sm text-on-surface-muted uppercase tracking-wide font-semibold mb-1">Win Rate</div>
         <div class="text-2xl font-bold text-green-400">{formatWinRate(props.stats.winRate)}</div>
         <div class="text-xs text-on-surface-muted mt-1">
           Singles {props.stats.singles.wins}-{props.stats.singles.losses}
@@ -41,7 +41,7 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
           role="group"
           aria-label={`Total matches: ${props.stats.totalMatches}`}
         >
-          <div class="text-xs text-on-surface-muted uppercase tracking-wide font-semibold mb-1">Matches</div>
+          <div class="text-sm text-on-surface-muted uppercase tracking-wide font-semibold mb-1">Matches</div>
           <div class="text-xl font-semibold text-on-surface">{props.stats.totalMatches}</div>
         </div>
 
@@ -50,7 +50,7 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
           role="group"
           aria-label={`Current streak: ${props.stats.currentStreak.count} ${props.stats.currentStreak.type === 'W' ? 'wins' : 'losses'}`}
         >
-          <div class="text-xs text-on-surface-muted uppercase tracking-wide font-semibold mb-1">Streak</div>
+          <div class="text-sm text-on-surface-muted uppercase tracking-wide font-semibold mb-1">Streak</div>
           <div class={`text-xl font-semibold ${props.stats.currentStreak.type === 'W' ? 'text-green-400' : 'text-red-400'}`}>
             {formatStreak(props.stats.currentStreak)}
           </div>
@@ -61,7 +61,7 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
           role="group"
           aria-label={`Best win streak: ${props.stats.bestWinStreak}`}
         >
-          <div class="text-xs text-on-surface-muted uppercase tracking-wide font-semibold mb-1">Best</div>
+          <div class="text-sm text-on-surface-muted uppercase tracking-wide font-semibold mb-1">Best</div>
           <div class="text-xl font-semibold text-on-surface">
             {props.stats.bestWinStreak > 0 ? `W${props.stats.bestWinStreak}` : '—'}
           </div>
