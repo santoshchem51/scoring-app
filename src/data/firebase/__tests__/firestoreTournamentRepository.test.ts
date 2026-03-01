@@ -84,7 +84,11 @@ describe('firestoreTournamentRepository', () => {
       const result = await firestoreTournamentRepository.getById('t1');
 
       expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'tournaments', 't1');
-      expect(result).toEqual({ id: 't1', name: 'Test Tournament', organizerId: 'org1' });
+      expect(result).toEqual({
+        id: 't1', name: 'Test Tournament', organizerId: 'org1',
+        accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
+        registrationCounts: { confirmed: 0, pending: 0 },
+      });
     });
 
     it('returns undefined when document does not exist', async () => {
@@ -112,8 +116,16 @@ describe('firestoreTournamentRepository', () => {
       expect(mockOrderBy).toHaveBeenCalledWith('date', 'desc');
       expect(mockQuery).toHaveBeenCalledWith('mock-collection-ref', 'mock-where', 'mock-orderby');
       expect(result).toEqual([
-        { id: 't1', name: 'Tournament A', organizerId: 'org1' },
-        { id: 't2', name: 'Tournament B', organizerId: 'org1' },
+        {
+          id: 't1', name: 'Tournament A', organizerId: 'org1',
+          accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
+        {
+          id: 't2', name: 'Tournament B', organizerId: 'org1',
+          accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
       ]);
     });
 

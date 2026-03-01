@@ -1,4 +1,4 @@
-import type { Tournament, TournamentFormat, TournamentStatus } from '../../../data/types';
+import type { Tournament, TournamentAccessMode, TournamentFormat, TournamentStatus, RegistrationStatus } from '../../../data/types';
 
 // --- Exported types ---
 
@@ -8,6 +8,7 @@ export interface BrowseFilters {
   status?: BrowseStatusFilter;
   format?: TournamentFormat;
   search?: string;
+  accessMode?: TournamentAccessMode;
 }
 
 export type UserRole = 'organizer' | 'scorekeeper' | 'player';
@@ -15,6 +16,7 @@ export type UserRole = 'organizer' | 'scorekeeper' | 'player';
 export interface MyTournamentEntry {
   tournament: Tournament;
   role: UserRole;
+  registrationStatus?: RegistrationStatus;
 }
 
 // --- Status groups ---
@@ -52,6 +54,9 @@ export function filterPublicTournaments(
       return false;
     }
 
+    // Access mode filter
+    if (filters.accessMode && t.accessMode !== filters.accessMode) return false;
+
     // Search filter (case-insensitive on name and location)
     if (searchLower !== undefined && searchLower !== '') {
       const nameMatch = t.name.toLowerCase().includes(searchLower);
@@ -74,12 +79,14 @@ export function mergeMyTournaments(lists: {
   organized: Tournament[];
   participating: Tournament[];
   scorekeeping: Tournament[];
+  registrationStatuses?: Map<string, RegistrationStatus>;
 }): MyTournamentEntry[] {
   const map = new Map<string, MyTournamentEntry>();
+  const regStatuses = lists.registrationStatuses;
 
   // Process in priority order (lowest first so higher priority overwrites)
   for (const t of lists.participating) {
-    map.set(t.id, { tournament: t, role: 'player' });
+    map.set(t.id, { tournament: t, role: 'player', registrationStatus: regStatuses?.get(t.id) });
   }
   for (const t of lists.scorekeeping) {
     map.set(t.id, { tournament: t, role: 'scorekeeper' });

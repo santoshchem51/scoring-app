@@ -51,7 +51,6 @@ describe('firestoreTournamentRepository discovery methods', () => {
 
   describe('getPublicTournaments', () => {
     it('fetches with correct filters and returns tournaments with lastDoc', async () => {
-      const mockLastDoc = { id: 't2' };
       mockGetDocs.mockResolvedValue({
         docs: [
           { id: 't1', data: () => ({ name: 'Open Championship', visibility: 'public', date: 2000 }) },
@@ -72,8 +71,16 @@ describe('firestoreTournamentRepository discovery methods', () => {
         'mock-limit',
       );
       expect(result.tournaments).toEqual([
-        { id: 't1', name: 'Open Championship', visibility: 'public', date: 2000 },
-        { id: 't2', name: 'Spring Slam', visibility: 'public', date: 1000 },
+        {
+          id: 't1', name: 'Open Championship', visibility: 'public', date: 2000,
+          accessMode: 'open', listed: true, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
+        {
+          id: 't2', name: 'Spring Slam', visibility: 'public', date: 1000,
+          accessMode: 'open', listed: true, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
       ]);
       expect(result.lastDoc).toBeDefined();
     });
@@ -121,8 +128,8 @@ describe('firestoreTournamentRepository discovery methods', () => {
     it('uses collection group query on registrations subcollection', async () => {
       mockGetDocs.mockResolvedValue({
         docs: [
-          { ref: { parent: { parent: { id: 't1' } } } },
-          { ref: { parent: { parent: { id: 't2' } } } },
+          { ref: { parent: { parent: { id: 't1' } } }, data: () => ({ status: 'confirmed' }) },
+          { ref: { parent: { parent: { id: 't2' } } }, data: () => ({ status: 'pending' }) },
         ],
       });
 
@@ -131,21 +138,23 @@ describe('firestoreTournamentRepository discovery methods', () => {
       expect(mockCollectionGroup).toHaveBeenCalledWith('mock-firestore', 'registrations');
       expect(mockWhere).toHaveBeenCalledWith('userId', '==', 'user1');
       expect(mockQuery).toHaveBeenCalledWith('mock-collection-group-ref', 'mock-where');
-      expect(result).toEqual(['t1', 't2']);
+      expect(result.tournamentIds).toEqual(['t1', 't2']);
+      expect(result.registrationStatuses.get('t1')).toBe('confirmed');
+      expect(result.registrationStatuses.get('t2')).toBe('pending');
     });
 
     it('deduplicates tournament IDs', async () => {
       mockGetDocs.mockResolvedValue({
         docs: [
-          { ref: { parent: { parent: { id: 't1' } } } },
-          { ref: { parent: { parent: { id: 't1' } } } },
-          { ref: { parent: { parent: { id: 't2' } } } },
+          { ref: { parent: { parent: { id: 't1' } } }, data: () => ({ status: 'confirmed' }) },
+          { ref: { parent: { parent: { id: 't1' } } }, data: () => ({ status: 'confirmed' }) },
+          { ref: { parent: { parent: { id: 't2' } } }, data: () => ({ status: 'pending' }) },
         ],
       });
 
       const result = await firestoreTournamentRepository.getByParticipant('user1');
 
-      expect(result).toEqual(['t1', 't2']);
+      expect(result.tournamentIds).toEqual(['t1', 't2']);
     });
 
     it('handles empty results', async () => {
@@ -153,7 +162,8 @@ describe('firestoreTournamentRepository discovery methods', () => {
 
       const result = await firestoreTournamentRepository.getByParticipant('loner');
 
-      expect(result).toEqual([]);
+      expect(result.tournamentIds).toEqual([]);
+      expect(result.registrationStatuses.size).toBe(0);
     });
   });
 
@@ -177,8 +187,16 @@ describe('firestoreTournamentRepository discovery methods', () => {
         'mock-orderby',
       );
       expect(result).toEqual([
-        { id: 't1', name: 'Tournament A', scorekeeperIds: ['sk1'] },
-        { id: 't2', name: 'Tournament B', scorekeeperIds: ['sk1', 'sk2'] },
+        {
+          id: 't1', name: 'Tournament A', scorekeeperIds: ['sk1'],
+          accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
+        {
+          id: 't2', name: 'Tournament B', scorekeeperIds: ['sk1', 'sk2'],
+          accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
+          registrationCounts: { confirmed: 0, pending: 0 },
+        },
       ]);
     });
 

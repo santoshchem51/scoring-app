@@ -16,6 +16,9 @@ const makeReg = (userId: string, teamId: string | null = null): TournamentRegist
   partnerName: null,
   profileComplete: false,
   registeredAt: Date.now(),
+  status: 'confirmed',
+  declineReason: null,
+  statusUpdatedAt: null,
 });
 
 const makeTeam = (id: string, playerIds: string[]): TournamentTeam => ({

@@ -96,8 +96,8 @@ describe('createWaveRenderer', () => {
     // The renderer calls beginPath for all 8 waves, but only draws for waves with points >= 80.
     // Waves fully in clearance have no moveTo or lineTo. The straddling wave uses
     // moveTo to restart the path after skipped points.
-    const moveToCount = ctx.moveTo.mock.calls.length;
-    const lineToCount = ctx.lineTo.mock.calls.length;
+    const moveToCount = vi.mocked(ctx.moveTo).mock.calls.length;
+    const lineToCount = vi.mocked(ctx.lineTo).mock.calls.length;
 
     // The total draw calls should be fewer than if all waves were fully drawn.
     // With 8 waves on an 800px canvas at STEP=8, a fully drawn wave has ~101 points:

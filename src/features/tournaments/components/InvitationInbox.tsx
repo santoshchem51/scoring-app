@@ -5,7 +5,7 @@ import { firestoreInvitationRepository } from '../../../data/firebase/firestoreI
 import { firestoreTournamentRepository } from '../../../data/firebase/firestoreTournamentRepository';
 import { firestoreUserRepository } from '../../../data/firebase/firestoreUserRepository';
 import { canAcceptInvitation } from '../engine/invitationHelpers';
-import type { TournamentInvitation, Tournament, UserProfile } from '../../../data/types';
+import type { TournamentInvitation, Tournament } from '../../../data/types';
 
 interface InvitationWithContext {
   invitation: TournamentInvitation;
@@ -44,7 +44,7 @@ const InvitationInbox: Component<Props> = (props) => {
   const handleAccept = async (item: InvitationWithContext) => {
     await firestoreInvitationRepository.updateStatus(
       item.invitation.tournamentId,
-      item.invitation.id,
+      item.invitation.invitedUserId,
       'accepted',
     );
     navigate(`/tournaments/${item.invitation.tournamentId}`);
@@ -53,7 +53,7 @@ const InvitationInbox: Component<Props> = (props) => {
   const handleDecline = async (item: InvitationWithContext) => {
     await firestoreInvitationRepository.updateStatus(
       item.invitation.tournamentId,
-      item.invitation.id,
+      item.invitation.invitedUserId,
       'declined',
     );
     refetch();

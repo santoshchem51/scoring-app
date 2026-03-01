@@ -1,4 +1,4 @@
-import { createSignal, Show } from 'solid-js';
+import { createSignal, createResource, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
@@ -6,10 +6,12 @@ import OptionCard from '../../shared/components/OptionCard';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
 import type {
-  TournamentFormat, GameType, ScoringMode, MatchFormat, Tournament, TournamentRules,
+  TournamentFormat, GameType, ScoringMode, MatchFormat, Tournament, TournamentRules, TournamentAccessMode,
 } from '../../data/types';
 import { validateTournamentForm } from './engine/validateTournament';
 import type { TournamentFormErrors } from './engine/validateTournament';
+import AccessModeSelector from './components/AccessModeSelector';
+import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
 
 const emptyRules: TournamentRules = {
   registrationDeadline: null, checkInRequired: false, checkInOpens: null, checkInCloses: null,
@@ -35,6 +37,30 @@ const TournamentCreatePage: Component = () => {
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
   const [touched, setTouched] = createSignal<Record<string, boolean>>({});
+  const [accessMode, setAccessMode] = createSignal<TournamentAccessMode>('open');
+  const [listed, setListed] = createSignal(true);
+  const [buddyGroupId, setBuddyGroupId] = createSignal<string | null>(null);
+  const [buddyGroupName, setBuddyGroupName] = createSignal<string | null>(null);
+  const [buddyGroups, setBuddyGroups] = createSignal<Array<{ id: string; name: string }>>([]);
+
+  createResource(
+    () => user()?.uid,
+    async (uid) => {
+      const groups = await firestoreBuddyGroupRepository.getGroupsByUser(uid);
+      setBuddyGroups(groups.map((g) => ({ id: g.id, name: g.name })));
+    },
+  );
+
+  const handleAccessModeChange = (mode: TournamentAccessMode) => {
+    setAccessMode(mode);
+    if (mode === 'open' || mode === 'approval') {
+      setListed(true);
+    }
+    if (mode !== 'group') {
+      setBuddyGroupId(null);
+      setBuddyGroupName(null);
+    }
+  };
 
   const fieldErrors = (): TournamentFormErrors => validateTournamentForm({
     name: name(), date: date(), location: location(),
@@ -49,6 +75,11 @@ const TournamentCreatePage: Component = () => {
   const handleCreate = async () => {
     setTouched({ name: true, date: true, location: true, maxPlayers: true, gameType: true });
     if (Object.keys(fieldErrors()).length > 0) return;
+
+    if (accessMode() === 'group' && !buddyGroupId()) {
+      setError('Select a group before continuing.');
+      return;
+    }
 
     const currentUser = user();
     if (!currentUser || saving()) return;
@@ -80,8 +111,13 @@ const TournamentCreatePage: Component = () => {
         cancellationReason: null,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        visibility: 'private' as const,
-        shareCode: null,
+        accessMode: accessMode(),
+        listed: listed(),
+        visibility: listed() ? 'public' as const : 'private' as const,
+        shareCode: crypto.randomUUID().slice(0, 8).toUpperCase(),
+        buddyGroupId: accessMode() === 'group' ? buddyGroupId() : null,
+        buddyGroupName: accessMode() === 'group' ? buddyGroupName() : null,
+        registrationCounts: { confirmed: 0, pending: 0 },
       };
 
       await firestoreTournamentRepository.save(tournament);
@@ -124,6 +160,23 @@ const TournamentCreatePage: Component = () => {
             </Show>
           </div>
         </div>
+
+        {/* Access section divider */}
+        <div class="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mt-6 mb-2">Access</div>
+
+        <AccessModeSelector
+          accessMode={accessMode()}
+          listed={listed()}
+          buddyGroupId={buddyGroupId()}
+          buddyGroupName={buddyGroupName()}
+          buddyGroups={buddyGroups()}
+          onAccessModeChange={handleAccessModeChange}
+          onListedChange={setListed}
+          onGroupChange={(id, name) => { setBuddyGroupId(id); setBuddyGroupName(name); }}
+        />
+
+        {/* Game Rules section divider */}
+        <div class="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mt-6 mb-2">Game Rules</div>
 
         <fieldset>
           <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Format</legend>

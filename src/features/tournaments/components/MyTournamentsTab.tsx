@@ -4,7 +4,7 @@ import { A } from '@solidjs/router';
 import { AlertTriangle, Trophy } from 'lucide-solid';
 import type { Tournament } from '../../../data/types';
 import { mergeMyTournaments } from '../engine/discoveryFilters';
-import type { UserRole, MyTournamentEntry } from '../engine/discoveryFilters';
+import type { UserRole } from '../engine/discoveryFilters';
 import TournamentCard from './TournamentCard';
 import InvitationInbox from './InvitationInbox';
 import EmptyState from '../../../shared/components/EmptyState';
@@ -35,11 +35,13 @@ const MyTournamentsTab: Component<Props> = (props) => {
     () => props.userId,
     async (uid) => {
       // Fire three queries in parallel
-      const [organized, participantIds, scorekeeping] = await Promise.all([
+      const [organized, participantResult, scorekeeping] = await Promise.all([
         firestoreTournamentRepository.getByOrganizer(uid),
         firestoreTournamentRepository.getByParticipant(uid),
         firestoreTournamentRepository.getByScorekeeper(uid),
       ]);
+
+      const { tournamentIds: participantIds, registrationStatuses } = participantResult;
 
       // Collect IDs already fetched from organized/scorekeeping
       const knownIds = new Set<string>([
@@ -74,6 +76,7 @@ const MyTournamentsTab: Component<Props> = (props) => {
         organized,
         participating: allParticipating,
         scorekeeping,
+        registrationStatuses,
       });
     },
   );
@@ -167,6 +170,16 @@ const MyTournamentsTab: Component<Props> = (props) => {
                     >
                       {ROLE_LABELS[entry.role]}
                     </span>
+                    <Show when={(entry.tournament.registrationCounts?.pending ?? 0) > 0 && entry.role === 'organizer'}>
+                      <span class="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                        {entry.tournament.registrationCounts?.pending ?? 0} pending
+                      </span>
+                    </Show>
+                    <Show when={entry.role === 'player' && entry.registrationStatus === 'pending'}>
+                      <span class="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                        Pending
+                      </span>
+                    </Show>
                   </li>
                 )}
               </For>

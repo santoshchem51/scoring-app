@@ -1,4 +1,3 @@
-import { createSignal } from 'solid-js';
 import { renderHook } from '@solidjs/testing-library';
 import { useBuddyGroups } from '../useBuddyGroups';
 

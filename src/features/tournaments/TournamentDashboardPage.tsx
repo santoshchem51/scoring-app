@@ -6,6 +6,8 @@ import { useAuth } from '../../shared/hooks/useAuth';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
 import { firestoreTeamRepository } from '../../data/firebase/firestoreTeamRepository';
 import { firestoreRegistrationRepository } from '../../data/firebase/firestoreRegistrationRepository';
+import { firestoreInvitationRepository } from '../../data/firebase/firestoreInvitationRepository';
+import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
 import { firestorePoolRepository } from '../../data/firebase/firestorePoolRepository';
 import { firestoreBracketRepository } from '../../data/firebase/firestoreBracketRepository';
 import { generatePools } from './engine/poolGenerator';
@@ -32,7 +34,6 @@ import { checkBracketRescoreSafety } from './engine/rescoring';
 import { advanceBracketWinner } from './engine/bracketAdvancement';
 import { cloudSync } from '../../data/firebase/cloudSync';
 import ShareTournamentModal from './components/ShareTournamentModal';
-import { generateShareCode } from './engine/shareCode';
 import { useTournamentLive } from './hooks/useTournamentLive';
 import { detectViewerRole } from './engine/roleDetection';
 import type { ViewerRole } from './engine/roleDetection';
@@ -93,6 +94,36 @@ const TournamentDashboardPage: Component = () => {
     (source) => {
       if (!source) return Promise.resolve(undefined);
       return firestoreRegistrationRepository.getByUser(source.tournamentId, source.userId);
+    },
+  );
+
+  // Check if user is invited to this tournament
+  const [isInvited] = createResource(
+    () => {
+      const u = user();
+      const t = live.tournament();
+      if (!u || !t || t.accessMode !== 'invite-only') return null;
+      return { tournamentId: t.id, userId: u.uid };
+    },
+    async (source) => {
+      if (!source) return false;
+      const invitations = await firestoreInvitationRepository.getByTournament(source.tournamentId);
+      return invitations.some((inv) => inv.invitedUserId === source.userId);
+    },
+  );
+
+  // Check if user is a member of the tournament's buddy group
+  const [isGroupMember] = createResource(
+    () => {
+      const u = user();
+      const t = live.tournament();
+      if (!u || !t || t.accessMode !== 'group' || !t.buddyGroupId) return null;
+      return { groupId: t.buddyGroupId, userId: u.uid };
+    },
+    async (source) => {
+      if (!source) return false;
+      const member = await firestoreBuddyGroupRepository.getMember(source.groupId, source.userId);
+      return member !== null;
     },
   );
 
@@ -387,8 +418,8 @@ const TournamentDashboardPage: Component = () => {
       tournamentId: t.id,
       tournamentTeam1Id: team1Id,
       tournamentTeam2Id: team2Id,
-      poolId: extra.poolId ?? null,
-      bracketSlotId: extra.bracketSlotId ?? null,
+      poolId: extra.poolId,
+      bracketSlotId: extra.bracketSlotId,
     };
 
     try {
@@ -450,19 +481,6 @@ const TournamentDashboardPage: Component = () => {
     setEditingMatch(null);
     setEditingContext(null);
     setEditModalError('');
-  };
-
-  const handleToggleVisibility = async (newVisibility: 'private' | 'public') => {
-    const t = live.tournament();
-    if (!t) return;
-
-    let shareCode = t.shareCode;
-    if (newVisibility === 'public' && !shareCode) {
-      shareCode = generateShareCode();
-    }
-
-    await firestoreTournamentRepository.updateVisibility(t.id, newVisibility, shareCode);
-    // Live data auto-updates via onSnapshot
   };
 
   const handleSaveEditedScore = async (data: ScoreEditData) => {
@@ -573,6 +591,11 @@ const TournamentDashboardPage: Component = () => {
                   <span class={`inline-block mt-1 text-sm font-bold px-3 py-1 rounded-full ${statusColors[t().status] ?? ''}`}>
                     {statusLabels[t().status] ?? t().status}
                   </span>
+                  <Show when={(t().registrationCounts?.pending ?? 0) > 0}>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                      {t().registrationCounts?.pending ?? 0} pending
+                    </span>
+                  </Show>
                 </div>
                 <div class="flex items-center gap-2">
                   <Show when={isOrganizer()}>
@@ -640,6 +663,8 @@ const TournamentDashboardPage: Component = () => {
                     tournament={t()}
                     existingRegistration={existingRegistration()}
                     onRegistered={handleRegistered}
+                    isInvited={isInvited() ?? false}
+                    isGroupMember={isGroupMember() ?? false}
                   />
                 </div>
               </Show>
@@ -755,11 +780,11 @@ const TournamentDashboardPage: Component = () => {
                     tournamentName={t().name}
                     tournamentDate={new Date(t().date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                     tournamentLocation={t().location || 'TBD'}
-                    visibility={t().visibility ?? 'private'}
+                    accessMode={t().accessMode ?? 'open'}
+                    buddyGroupName={t().buddyGroupName ?? null}
                     shareCode={t().shareCode ?? null}
                     organizerId={t().organizerId}
                     registeredUserIds={live.registrations().map((r) => r.userId)}
-                    onToggleVisibility={handleToggleVisibility}
                     onClose={() => setShowShareModal(false)}
                   />
                 )}

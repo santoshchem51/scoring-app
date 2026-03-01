@@ -23,13 +23,13 @@ const DiscoverPage: Component = () => {
       if (pending.length > 0) return 'my' as TabId;
 
       // Check if user has any tournaments (any role)
-      const [organized, participantIds, scorekeeping] = await Promise.all([
+      const [organized, participantResult, scorekeeping] = await Promise.all([
         firestoreTournamentRepository.getByOrganizer(uid),
         firestoreTournamentRepository.getByParticipant(uid),
         firestoreTournamentRepository.getByScorekeeper(uid),
       ]);
 
-      if (organized.length > 0 || participantIds.length > 0 || scorekeeping.length > 0) {
+      if (organized.length > 0 || participantResult.tournamentIds.length > 0 || scorekeeping.length > 0) {
         return 'my' as TabId;
       }
 

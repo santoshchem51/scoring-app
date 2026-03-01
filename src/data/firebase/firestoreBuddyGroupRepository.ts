@@ -65,4 +65,13 @@ export const firestoreBuddyGroupRepository = {
     const snap = await getDocs(q);
     return snap.docs.map((d) => d.ref.parent.parent!.id);
   },
+
+  async getGroupsByUser(userId: string): Promise<BuddyGroup[]> {
+    const groupIds = await this.getGroupsForUser(userId);
+    if (groupIds.length === 0) return [];
+    const groups = await Promise.all(
+      groupIds.map((id) => this.get(id)),
+    );
+    return groups.filter((g): g is BuddyGroup => g !== null);
+  },
 };

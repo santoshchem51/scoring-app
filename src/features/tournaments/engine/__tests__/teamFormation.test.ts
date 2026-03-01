@@ -15,6 +15,9 @@ const makeReg = (overrides: Partial<TournamentRegistration> & { userId: string }
   partnerName: null,
   profileComplete: false,
   registeredAt: Date.now(),
+  status: 'confirmed',
+  declineReason: null,
+  statusUpdatedAt: null,
   ...overrides,
 });
 

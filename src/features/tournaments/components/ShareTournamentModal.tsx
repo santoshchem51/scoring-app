@@ -1,5 +1,6 @@
 import { createSignal, createEffect, Show } from 'solid-js';
 import type { Component } from 'solid-js';
+import type { TournamentAccessMode } from '../../../data/types';
 import QRCode from 'qrcode';
 import PlayerSearch from './PlayerSearch';
 
@@ -9,22 +10,30 @@ interface Props {
   tournamentName: string;
   tournamentDate: string;
   tournamentLocation: string;
-  visibility: 'private' | 'public';
+  accessMode: TournamentAccessMode;
+  buddyGroupName: string | null;
   shareCode: string | null;
   organizerId: string;
   registeredUserIds: string[];
-  onToggleVisibility: (newVisibility: 'private' | 'public') => Promise<void>;
   onClose: () => void;
 }
 
 const ShareTournamentModal: Component<Props> = (props) => {
   const [qrDataUrl, setQrDataUrl] = createSignal('');
   const [copied, setCopied] = createSignal(false);
-  const [toggling, setToggling] = createSignal(false);
 
   const shareUrl = () => {
     if (!props.shareCode) return '';
     return `${window.location.origin}/t/${props.shareCode}`;
+  };
+
+  const helpText = () => {
+    const mode = props.accessMode ?? 'open';
+    if (mode === 'open') return 'Anyone with this link can join immediately.';
+    if (mode === 'approval') return "Anyone with this link can request to join. You'll approve each one.";
+    if (mode === 'invite-only') return 'Only players you invite can join. Others will see this is invite-only.';
+    if (mode === 'group') return `Only members of ${props.buddyGroupName ?? 'the group'} can join.`;
+    return '';
   };
 
   // Generate QR code when share URL is available
@@ -41,17 +50,6 @@ const ShareTournamentModal: Component<Props> = (props) => {
       setQrDataUrl('');
     }
   });
-
-  const handleToggleVisibility = async () => {
-    if (toggling()) return;
-    setToggling(true);
-    try {
-      const newVisibility = props.visibility === 'private' ? 'public' : 'private';
-      await props.onToggleVisibility(newVisibility);
-    } finally {
-      setToggling(false);
-    }
-  };
 
   const handleCopyLink = async () => {
     const url = shareUrl();
@@ -85,30 +83,13 @@ const ShareTournamentModal: Component<Props> = (props) => {
           </div>
 
           <div class="p-4 space-y-5">
-            {/* Section 1: Visibility Toggle */}
-            <div>
-              <div class="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mb-2">Visibility</div>
-              <button
-                type="button"
-                onClick={handleToggleVisibility}
-                disabled={toggling()}
-                class="w-full flex items-center justify-between bg-surface-light rounded-xl px-4 py-3"
-              >
-                <span class="text-on-surface font-semibold text-sm">
-                  {props.visibility === 'public' ? 'Public' : 'Private'}
-                </span>
-                <span class={`text-xs px-2 py-1 rounded-full font-semibold ${
-                  props.visibility === 'public'
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-gray-500/20 text-gray-400'
-                }`}>
-                  {props.visibility === 'public' ? 'Anyone with link can view' : 'Only you can see'}
-                </span>
-              </button>
+            {/* Section 1: Access Mode Info */}
+            <div class="bg-surface-light rounded-lg p-3 text-sm text-on-surface-muted">
+              {helpText()}
             </div>
 
-            {/* Section 2: Shareable Link (only when public) */}
-            <Show when={props.visibility === 'public' && shareUrl()}>
+            {/* Section 2: Shareable Link */}
+            <Show when={shareUrl()}>
               <div>
                 <div class="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mb-2">Share Link</div>
                 <div class="flex gap-2">
@@ -133,8 +114,8 @@ const ShareTournamentModal: Component<Props> = (props) => {
               </div>
             </Show>
 
-            {/* Section 3: QR Code (only when public) */}
-            <Show when={props.visibility === 'public' && qrDataUrl()}>
+            {/* Section 3: QR Code */}
+            <Show when={qrDataUrl()}>
               <div>
                 <div class="text-xs font-semibold text-on-surface-muted uppercase tracking-wider mb-2">QR Code</div>
                 <div class="flex flex-col items-center gap-3">
@@ -150,8 +131,8 @@ const ShareTournamentModal: Component<Props> = (props) => {
               </div>
             </Show>
 
-            {/* Section 4: Invite Player (only when public) */}
-            <Show when={props.visibility === 'public' && shareUrl()}>
+            {/* Section 4: Invite Player */}
+            <Show when={shareUrl()}>
               <PlayerSearch
                 tournamentId={props.tournamentId}
                 tournamentName={props.tournamentName}

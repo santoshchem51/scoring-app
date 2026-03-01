@@ -91,6 +91,11 @@ service cloud.firestore {
     // ── Tournaments (/tournaments/{tournamentId}) ─────────────────────
     match /tournaments/{tournamentId} {
 
+      // Helper: read tournament data (cached per rule evaluation)
+      function tournamentData() {
+        return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
+      }
+
       // Any authenticated user can read tournaments
       allow read: if request.auth != null;
 
@@ -113,7 +118,17 @@ service cloud.firestore {
         && request.resource.data.config.matchFormat in ['single', 'best-of-3', 'best-of-5']
         && request.resource.data.config.pointsToWin in [11, 15, 21]
         && request.resource.data.scorekeeperIds is list
-        && request.resource.data.visibility in ['private', 'public'];
+        && request.resource.data.visibility in ['private', 'public']
+        && request.resource.data.accessMode in ['open', 'approval', 'invite-only', 'group']
+        && request.resource.data.listed is bool
+        && (request.resource.data.accessMode in ['open', 'approval'] ? request.resource.data.listed == true : true)
+        && (request.resource.data.listed == true ? request.resource.data.visibility == 'public' : request.resource.data.visibility == 'private')
+        && request.resource.data.registrationCounts.confirmed == 0
+        && request.resource.data.registrationCounts.pending == 0
+        && (request.resource.data.accessMode != 'group'
+            || (request.resource.data.buddyGroupId is string
+                && exists(/databases/$(database)/documents/buddyGroups/$(request.resource.data.buddyGroupId))
+                && exists(/databases/$(database)/documents/buddyGroups/$(request.resource.data.buddyGroupId)/members/$(request.auth.uid))));
 
       // Update: status transitions + field validation + organizerId immutable
       allow update: if request.auth != null && request.auth.uid == resource.data.organizerId
@@ -136,7 +151,22 @@ service cloud.firestore {
           (resource.data.status == 'paused' && request.resource.data.status in ['pool-play', 'bracket', 'completed', 'cancelled']) ||
           // Allow updates that don't change status
           request.resource.data.status == resource.data.status
+        )
+        && request.resource.data.visibility in ['private', 'public']
+        && (
+          // If accessMode hasn't changed, allow (backward compat for old tournaments)
+          !('accessMode' in resource.data) && !('accessMode' in request.resource.data)
+          // If accessMode is present, validate invariants
+          || (request.resource.data.accessMode in ['open', 'approval', 'invite-only', 'group']
+              && request.resource.data.listed is bool
+              && (request.resource.data.listed == true ? request.resource.data.visibility == 'public' : request.resource.data.visibility == 'private'))
         );
+
+      // Counter-only update: any authenticated user (for atomic registration batches)
+      allow update: if request.auth != null
+        && request.resource.data.organizerId == resource.data.organizerId
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['registrationCounts', 'updatedAt']);
 
       // Only the organizer can delete a tournament
       allow delete: if request.auth != null && request.auth.uid == resource.data.organizerId;
@@ -227,42 +257,75 @@ service cloud.firestore {
         allow read: if request.auth != null;
         allow read: if isTournamentPublic();
 
-        // Players can register themselves — only during registration phase
+        // Player self-registration: mode-aware
         allow create: if request.auth != null
-          && isTournamentActive()
+          && regId == request.auth.uid
           && request.resource.data.userId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
-          && request.resource.data.paymentStatus == 'unpaid'
-          && request.resource.data.paymentNote == ''
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.status == 'registration';
+          && tournamentData().status in ['setup', 'registration']
+          && (
+            // OPEN mode: anyone, status must be confirmed
+            (tournamentData().accessMode == 'open'
+              && request.resource.data.status == 'confirmed')
+            // APPROVAL mode: anyone, status must be pending
+            || (tournamentData().accessMode == 'approval'
+              && request.resource.data.status == 'pending')
+            // INVITE-ONLY: only invited users, confirmed
+            || (tournamentData().accessMode == 'invite-only'
+              && exists(/databases/$(database)/documents/tournaments/$(tournamentId)/invitations/$(request.auth.uid))
+              && request.resource.data.status == 'confirmed')
+            // GROUP: only group members, confirmed
+            || (tournamentData().accessMode == 'group'
+              && exists(/databases/$(database)/documents/buddyGroups/$(tournamentData().buddyGroupId)/members/$(request.auth.uid))
+              && request.resource.data.status == 'confirmed')
+            // LEGACY: no accessMode field, fallback to existing behavior
+            || (!('accessMode' in tournamentData())
+              && request.resource.data.status == 'confirmed')
+          );
 
-        // Organizer can add players on their behalf
+        // Organizer can add players on their behalf (manual registration)
         allow create: if request.auth != null
-          && isTournamentActive()
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && tournamentData().organizerId == request.auth.uid
           && request.resource.data.tournamentId == tournamentId
-          && request.resource.data.paymentStatus == 'unpaid'
-          && request.resource.data.paymentNote == ''
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.status == 'registration';
+          && request.resource.data.status == 'confirmed'
+          && tournamentData().status in ['setup', 'registration'];
 
-        // Organizer can update any registration (e.g., payment status)
+        // Organizer: approve, decline, expire, or withdraw any registration
         allow update: if request.auth != null
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
-          && request.resource.data.paymentStatus in ['unpaid', 'paid', 'waived']
+          && tournamentData().organizerId == request.auth.uid
           && request.resource.data.userId == resource.data.userId
-          && request.resource.data.tournamentId == resource.data.tournamentId;
+          && request.resource.data.tournamentId == resource.data.tournamentId
+          && (
+            // Approve: pending -> confirmed
+            (resource.data.status == 'pending' && request.resource.data.status == 'confirmed')
+            // Decline: pending -> declined
+            || (resource.data.status == 'pending' && request.resource.data.status == 'declined')
+            // Expire: pending -> expired
+            || (resource.data.status == 'pending' && request.resource.data.status == 'expired')
+            // Withdraw anyone
+            || request.resource.data.status == 'withdrawn'
+            // Payment updates (backward compat) — status unchanged
+            || (request.resource.data.status == resource.data.status
+                && request.resource.data.paymentStatus in ['unpaid', 'paid', 'waived'])
+          );
 
-        // Players can update their own registration, but NOT paymentStatus or paymentNote
-        allow update: if request.auth != null && resource.data.userId == request.auth.uid
-          && request.resource.data.paymentStatus == resource.data.paymentStatus
-          && request.resource.data.paymentNote == resource.data.paymentNote
+        // Player: withdraw own registration or update own profile fields
+        allow update: if request.auth != null
+          && resource.data.userId == request.auth.uid
           && request.resource.data.userId == resource.data.userId
-          && request.resource.data.tournamentId == resource.data.tournamentId;
+          && request.resource.data.tournamentId == resource.data.tournamentId
+          && (
+            // Withdraw: confirmed or pending -> withdrawn
+            (request.resource.data.status == 'withdrawn'
+              && resource.data.status in ['confirmed', 'pending'])
+            // Profile updates: status unchanged, payment unchanged
+            || (request.resource.data.status == resource.data.status
+                && request.resource.data.paymentStatus == resource.data.paymentStatus
+                && request.resource.data.paymentNote == resource.data.paymentNote)
+          );
 
-        // Players can delete their own registration; organizer can delete any
-        allow delete: if request.auth != null
-          && (resource.data.userId == request.auth.uid
-              || get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid);
+        // Registration delete: never (use withdrawn status)
+        allow delete: if false;
       }
 
       // ── Invitations (/tournaments/{tid}/invitations/{invId}) ──

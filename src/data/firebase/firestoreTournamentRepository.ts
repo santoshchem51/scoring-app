@@ -3,8 +3,10 @@ import {
   collection, collectionGroup, query, where, orderBy, serverTimestamp,
   limit as firestoreLimit, startAfter,
 } from 'firebase/firestore';
+import type { QueryConstraint } from 'firebase/firestore';
 import { firestore } from './config';
-import type { Tournament, TournamentStatus } from '../types';
+import type { Tournament, TournamentAccessMode, TournamentStatus, RegistrationStatus } from '../types';
+import { normalizeTournament } from './tournamentNormalizer';
 
 export const firestoreTournamentRepository = {
   async save(tournament: Tournament): Promise<void> {
@@ -21,7 +23,7 @@ export const firestoreTournamentRepository = {
     const ref = doc(firestore, 'tournaments', id);
     const snap = await getDoc(ref);
     if (!snap.exists()) return undefined;
-    return { id: snap.id, ...snap.data() } as Tournament;
+    return normalizeTournament({ id: snap.id, ...snap.data() });
   },
 
   async getByOrganizer(organizerId: string): Promise<Tournament[]> {
@@ -31,19 +33,18 @@ export const firestoreTournamentRepository = {
       orderBy('date', 'desc'),
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
+    return snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }));
   },
 
   async getByShareCode(shareCode: string): Promise<Tournament | undefined> {
     const q = query(
       collection(firestore, 'tournaments'),
       where('shareCode', '==', shareCode),
-      where('visibility', '==', 'public'),
     );
     const snapshot = await getDocs(q);
     if (snapshot.empty) return undefined;
     const d = snapshot.docs[0];
-    return { id: d.id, ...d.data() } as Tournament;
+    return normalizeTournament({ id: d.id, ...d.data() });
   },
 
   async updateStatus(id: string, status: TournamentStatus, options?: { reason?: string; pausedFrom?: TournamentStatus | null }): Promise<void> {
@@ -64,7 +65,7 @@ export const firestoreTournamentRepository = {
   },
 
   async getPublicTournaments(pageSize = 50, cursor?: unknown): Promise<{ tournaments: Tournament[]; lastDoc: unknown }> {
-    const constraints = [
+    const constraints: QueryConstraint[] = [
       where('visibility', '==', 'public'),
       orderBy('date', 'desc'),
       firestoreLimit(pageSize),
@@ -74,16 +75,28 @@ export const firestoreTournamentRepository = {
     }
     const q = query(collection(firestore, 'tournaments'), ...constraints);
     const snapshot = await getDocs(q);
-    const tournaments = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
+    const tournaments = snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }));
     const lastDoc = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
     return { tournaments, lastDoc };
   },
 
-  async getByParticipant(userId: string): Promise<string[]> {
+  async getByParticipant(userId: string): Promise<{
+    tournamentIds: string[];
+    registrationStatuses: Map<string, RegistrationStatus>;
+  }> {
     const q = query(collectionGroup(firestore, 'registrations'), where('userId', '==', userId));
     const snap = await getDocs(q);
-    const ids = snap.docs.map((d) => d.ref.parent.parent!.id);
-    return [...new Set(ids)];
+    const idSet = new Set<string>();
+    const statusMap = new Map<string, RegistrationStatus>();
+    for (const d of snap.docs) {
+      const tournamentId = d.ref.parent.parent!.id;
+      idSet.add(tournamentId);
+      const data = d.data();
+      if (data.status) {
+        statusMap.set(tournamentId, data.status as RegistrationStatus);
+      }
+    }
+    return { tournamentIds: [...idSet], registrationStatuses: statusMap };
   },
 
   async getByScorekeeper(userId: string): Promise<Tournament[]> {
@@ -93,6 +106,25 @@ export const firestoreTournamentRepository = {
       orderBy('date', 'desc'),
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Tournament);
+    return snapshot.docs.map((d) => normalizeTournament({ id: d.id, ...d.data() }));
+  },
+
+  async updateAccessMode(
+    id: string,
+    accessMode: TournamentAccessMode,
+    listed: boolean,
+    buddyGroupId: string | null,
+    buddyGroupName: string | null,
+  ): Promise<void> {
+    const ref = doc(firestore, 'tournaments', id);
+    const visibility = listed ? 'public' : 'private';
+    await updateDoc(ref, {
+      accessMode,
+      listed,
+      visibility,
+      buddyGroupId,
+      buddyGroupName,
+      updatedAt: serverTimestamp(),
+    });
   },
 };

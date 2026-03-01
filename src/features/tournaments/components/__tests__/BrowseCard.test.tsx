@@ -32,6 +32,11 @@ function makeTournament(overrides: Partial<Tournament> = {}): Tournament {
     teamFormation: 'byop',
     minPlayers: 4,
     entryFee: null,
+    accessMode: 'open' as const,
+    listed: true,
+    buddyGroupId: null,
+    buddyGroupName: null,
+    registrationCounts: { confirmed: 0, pending: 0 },
     rules: {
       registrationDeadline: null,
       checkInRequired: false,
@@ -53,64 +58,88 @@ function makeTournament(overrides: Partial<Tournament> = {}): Tournament {
   };
 }
 
+function renderCard(tournament: Tournament) {
+  return render(() => <BrowseCard tournament={tournament} />);
+}
+
 describe('BrowseCard', () => {
   it('renders tournament name', () => {
-    const tournament = makeTournament({ name: 'Spring Classic' });
-    render(() => <BrowseCard tournament={tournament} registrationCount={8} />);
+    renderCard(makeTournament({ name: 'Spring Classic' }));
     expect(screen.getByText('Spring Classic')).toBeInTheDocument();
   });
 
   it('renders date and location', () => {
-    const tournament = makeTournament({
+    renderCard(makeTournament({
       date: new Date('2026-03-15T12:00:00Z').getTime(),
       location: 'Central Park Courts',
-    });
-    render(() => <BrowseCard tournament={tournament} registrationCount={5} />);
+    }));
     expect(screen.getByText(/Mar 15, 2026/)).toBeInTheDocument();
     expect(screen.getByText(/Central Park Courts/)).toBeInTheDocument();
   });
 
   it('renders format label', () => {
-    const tournament = makeTournament({ format: 'round-robin' });
-    render(() => <BrowseCard tournament={tournament} registrationCount={3} />);
+    renderCard(makeTournament({ format: 'round-robin' }));
     expect(screen.getByText('Round Robin')).toBeInTheDocument();
   });
 
   it('renders status label', () => {
-    const tournament = makeTournament({ status: 'registration' });
-    render(() => <BrowseCard tournament={tournament} registrationCount={3} />);
+    renderCard(makeTournament({ status: 'registration' }));
     expect(screen.getByText('Registration Open')).toBeInTheDocument();
   });
 
   it('renders registration count with maxPlayers', () => {
-    const tournament = makeTournament({ maxPlayers: 16 });
-    render(() => <BrowseCard tournament={tournament} registrationCount={8} />);
+    renderCard(makeTournament({
+      maxPlayers: 16,
+      registrationCounts: { confirmed: 8, pending: 0 },
+    }));
     expect(screen.getByText('8/16 registered')).toBeInTheDocument();
   });
 
   it('renders registration count without maxPlayers', () => {
-    const tournament = makeTournament({ maxPlayers: null });
-    render(() => <BrowseCard tournament={tournament} registrationCount={5} />);
+    renderCard(makeTournament({
+      maxPlayers: null,
+      registrationCounts: { confirmed: 5, pending: 0 },
+    }));
     expect(screen.getByText('5 registered')).toBeInTheDocument();
   });
 
   it('links to /t/:shareCode when shareCode exists', () => {
-    const tournament = makeTournament({ shareCode: 'ABC123' });
-    render(() => <BrowseCard tournament={tournament} registrationCount={2} />);
+    renderCard(makeTournament({ shareCode: 'ABC123' }));
     const link = screen.getByRole('link');
     expect(link).toHaveAttribute('href', '/t/ABC123');
   });
 
   it('fallback link to /tournaments/:id when no shareCode', () => {
-    const tournament = makeTournament({ id: 't42', shareCode: null });
-    render(() => <BrowseCard tournament={tournament} registrationCount={2} />);
+    renderCard(makeTournament({ id: 't42', shareCode: null }));
     const link = screen.getByRole('link');
     expect(link).toHaveAttribute('href', '/tournaments/t42');
   });
 
-  it('hides registration count when registrationCount is not provided', () => {
-    const tournament = makeTournament();
-    render(() => <BrowseCard tournament={tournament} />);
-    expect(screen.queryByText(/registered/)).not.toBeInTheDocument();
+  it('shows 0 registered when counts are zero', () => {
+    renderCard(makeTournament({
+      maxPlayers: null,
+      registrationCounts: { confirmed: 0, pending: 0 },
+    }));
+    expect(screen.getByText('0 registered')).toBeInTheDocument();
+  });
+
+  it('shows access mode badge for approval tournaments', () => {
+    renderCard(makeTournament({ accessMode: 'approval', listed: true }));
+    expect(screen.getByText('Approval Required')).toBeTruthy();
+  });
+
+  it('shows no access mode badge for open tournaments', () => {
+    renderCard(makeTournament({ accessMode: 'open', listed: true }));
+    expect(screen.queryByText('Approval Required')).toBeNull();
+    expect(screen.queryByText('Invite Only')).toBeNull();
+  });
+
+  it('shows pending count for approval mode', () => {
+    renderCard(makeTournament({
+      accessMode: 'approval',
+      listed: true,
+      registrationCounts: { confirmed: 12, pending: 3 },
+    }));
+    expect(screen.getByText('12 registered, 3 pending')).toBeTruthy();
   });
 });

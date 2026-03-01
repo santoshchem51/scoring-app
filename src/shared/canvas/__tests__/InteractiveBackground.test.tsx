@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, afterEach, afterAll } from 'vitest';
 import { render, cleanup } from '@solidjs/testing-library';
 import InteractiveBackground from '../InteractiveBackground';
 

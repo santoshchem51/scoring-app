@@ -140,6 +140,8 @@ export interface StatsSummary {
 // --- Tournament types (Layer 2) ---
 
 export type TournamentVisibility = 'private' | 'public';
+export type TournamentAccessMode = 'open' | 'approval' | 'invite-only' | 'group';
+export type RegistrationStatus = 'confirmed' | 'pending' | 'declined' | 'withdrawn' | 'expired';
 export type TournamentFormat = 'round-robin' | 'single-elimination' | 'pool-bracket';
 export type TournamentStatus = 'setup' | 'registration' | 'pool-play' | 'bracket' | 'completed' | 'cancelled' | 'paused';
 export type PaymentStatus = 'unpaid' | 'paid' | 'waived';
@@ -195,6 +197,11 @@ export interface Tournament {
   updatedAt: number;
   visibility: TournamentVisibility;
   shareCode: string | null;
+  accessMode: TournamentAccessMode;
+  listed: boolean;
+  buddyGroupId: string | null;
+  buddyGroupName: string | null;
+  registrationCounts: { confirmed: number; pending: number };
 }
 
 export interface TournamentTeam {
@@ -258,6 +265,9 @@ export interface TournamentRegistration {
   partnerName: string | null;       // BYOP: display name for lookup
   profileComplete: boolean;         // true when rating + partner (if BYOP) filled
   registeredAt: number;
+  status: RegistrationStatus;
+  declineReason: string | null;
+  statusUpdatedAt: number | null;
 }
 
 export type InvitationStatus = 'pending' | 'accepted' | 'declined';

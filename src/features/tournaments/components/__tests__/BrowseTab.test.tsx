@@ -7,23 +7,23 @@ vi.mock('@solidjs/router', () => ({
   A: (props: any) => <a href={props.href}>{props.children}</a>,
 }));
 
-const mockGetPublicTournaments = vi.fn(() =>
+const mockGetPublicTournaments = vi.fn((_pageSize?: number, _cursor?: unknown) =>
   Promise.resolve({ tournaments: [] as Tournament[], lastDoc: null }),
 );
 
 // Mock firestoreTournamentRepository — returns empty by default
 vi.mock('../../../../data/firebase/firestoreTournamentRepository', () => ({
   firestoreTournamentRepository: {
-    getPublicTournaments: (...args: unknown[]) => mockGetPublicTournaments(...args),
+    getPublicTournaments: (pageSize?: number, cursor?: unknown) => mockGetPublicTournaments(pageSize, cursor),
   },
 }));
 
-const mockFilterPublicTournaments = vi.fn((tournaments: Tournament[]) => tournaments);
+const mockFilterPublicTournaments = vi.fn((tournaments: Tournament[], _filters?: any) => tournaments);
 
 // Mock discoveryFilters — pass-through by default
 vi.mock('../../engine/discoveryFilters', () => ({
-  filterPublicTournaments: (...args: unknown[]) =>
-    mockFilterPublicTournaments(...(args as [Tournament[], any])),
+  filterPublicTournaments: (tournaments: Tournament[], filters: any) =>
+    mockFilterPublicTournaments(tournaments, filters),
 }));
 
 // Import component after mocks
@@ -68,6 +68,11 @@ function makeTournament(overrides: Partial<Tournament> = {}): Tournament {
     updatedAt: Date.now(),
     visibility: 'public',
     shareCode: 'ABC123',
+    accessMode: 'open',
+    listed: true,
+    buddyGroupId: null,
+    buddyGroupName: null,
+    registrationCounts: { confirmed: 0, pending: 0 },
     ...overrides,
   };
 }

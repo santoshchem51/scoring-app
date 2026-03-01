@@ -1,7 +1,9 @@
-import { createSignal, Show, For } from 'solid-js';
+import { createSignal, createEffect, Show, For } from 'solid-js';
 import type { Component } from 'solid-js';
 import { firestoreRegistrationRepository } from '../../../data/firebase/firestoreRegistrationRepository';
 import type { TournamentRegistration, Tournament } from '../../../data/types';
+import ApprovalQueue from './ApprovalQueue';
+import { getExpiredRegistrationUserIds } from '../engine/registrationExpiry';
 
 interface Props {
   tournament: Tournament;
@@ -16,6 +18,72 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal('');
 
+  const pendingRegs = () => props.registrations.filter((r) => r.status === 'pending');
+  const confirmedRegs = () => props.registrations.filter((r) => (r.status ?? 'confirmed') === 'confirmed');
+
+  // Lazy expiry: batch-expire stale pending registrations on load
+  const [expiryProcessed, setExpiryProcessed] = createSignal(false);
+  createEffect(() => {
+    if (expiryProcessed()) return;
+    const expired = getExpiredRegistrationUserIds(props.registrations);
+    if (expired.length > 0) {
+      firestoreRegistrationRepository.batchUpdateStatus(
+        props.tournament.id, expired, 'pending', 'expired',
+      ).then(() => {
+        setExpiryProcessed(true);
+        props.onUpdated();
+      });
+    } else {
+      setExpiryProcessed(true);
+    }
+  });
+
+  const handleApprove = async (userId: string) => {
+    try {
+      await firestoreRegistrationRepository.updateRegistrationStatus(
+        props.tournament.id, userId, 'pending', 'confirmed',
+      );
+      props.onUpdated();
+    } catch (err) {
+      console.error('Failed to approve registration:', err);
+    }
+  };
+
+  const handleDecline = async (userId: string, reason?: string) => {
+    try {
+      await firestoreRegistrationRepository.updateRegistrationStatus(
+        props.tournament.id, userId, 'pending', 'declined', reason,
+      );
+      props.onUpdated();
+    } catch (err) {
+      console.error('Failed to decline registration:', err);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    try {
+      const userIds = pendingRegs().map((r) => r.userId);
+      await firestoreRegistrationRepository.batchUpdateStatus(
+        props.tournament.id, userIds, 'pending', 'confirmed',
+      );
+      props.onUpdated();
+    } catch (err) {
+      console.error('Failed to approve all:', err);
+    }
+  };
+
+  const handleDeclineAll = async () => {
+    try {
+      const userIds = pendingRegs().map((r) => r.userId);
+      await firestoreRegistrationRepository.batchUpdateStatus(
+        props.tournament.id, userIds, 'pending', 'declined',
+      );
+      props.onUpdated();
+    } catch (err) {
+      console.error('Failed to decline all:', err);
+    }
+  };
+
   const handleAddPlayer = async () => {
     const name = playerName().trim();
     if (!name || saving()) return;
@@ -23,10 +91,11 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
     setError('');
     setSaving(true);
     try {
+      const manualId = `manual-${crypto.randomUUID()}`;
       const reg: TournamentRegistration = {
-        id: crypto.randomUUID(),
+        id: manualId,
         tournamentId: props.tournament.id,
-        userId: `manual-${crypto.randomUUID()}`,
+        userId: manualId,
         playerName: name,
         teamId: null,
         paymentStatus: 'unpaid',
@@ -37,8 +106,11 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
         partnerName: partnerName().trim() || null,
         profileComplete: !!(skillRating() && (props.tournament.teamFormation !== 'byop' || partnerName().trim())),
         registeredAt: Date.now(),
+        status: 'confirmed',
+        declineReason: null,
+        statusUpdatedAt: null,
       };
-      await firestoreRegistrationRepository.save(reg);
+      await firestoreRegistrationRepository.saveWithStatus(reg, props.tournament.id);
       setPlayerName('');
       setSkillRating('');
       setPartnerName('');
@@ -53,16 +125,25 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
 
   return (
     <div class="space-y-4">
+      <ApprovalQueue
+        tournamentId={props.tournament.id}
+        pendingRegistrations={pendingRegs()}
+        onApprove={handleApprove}
+        onDecline={handleDecline}
+        onApproveAll={handleApproveAll}
+        onDeclineAll={handleDeclineAll}
+      />
+
       {/* Registered Players List */}
       <div class="bg-surface-light rounded-xl p-4">
         <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-3">
-          Registered Players ({props.registrations.length})
+          Registered Players ({confirmedRegs().length})
         </div>
-        <Show when={props.registrations.length > 0} fallback={
+        <Show when={confirmedRegs().length > 0} fallback={
           <p class="text-sm text-on-surface-muted py-2">No players registered yet.</p>
         }>
           <div class="space-y-2">
-            <For each={props.registrations}>
+            <For each={confirmedRegs()}>
               {(reg) => (
                 <div class="flex items-center justify-between bg-surface rounded-lg px-3 py-2">
                   <div>

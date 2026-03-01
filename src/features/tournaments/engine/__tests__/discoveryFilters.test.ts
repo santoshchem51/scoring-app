@@ -4,7 +4,6 @@ import {
   mergeMyTournaments,
 } from '../discoveryFilters';
 import type { Tournament } from '../../../../data/types';
-import type { MyTournamentEntry } from '../discoveryFilters';
 
 // --- helpers ---
 
@@ -50,6 +49,11 @@ const makeTournament = (overrides: Partial<Tournament> = {}): Tournament => {
     updatedAt: Date.now(),
     visibility: 'public',
     shareCode: null,
+    accessMode: 'open' as const,
+    listed: true,
+    buddyGroupId: null,
+    buddyGroupName: null,
+    registrationCounts: { confirmed: 0, pending: 0 },
     ...overrides,
   };
 };
@@ -185,6 +189,32 @@ describe('filterPublicTournaments', () => {
 
     const result = filterPublicTournaments(tournaments, { status: 'upcoming' });
     expect(result).toHaveLength(0);
+  });
+});
+
+// ================================================================
+// filterPublicTournaments - access mode
+// ================================================================
+
+describe('filterPublicTournaments - access mode', () => {
+  it('includes all access modes when no accessMode filter', () => {
+    const tournaments = [
+      makeTournament({ id: 't1', accessMode: 'open', listed: true }),
+      makeTournament({ id: 't2', accessMode: 'approval', listed: true }),
+      makeTournament({ id: 't3', accessMode: 'invite-only', listed: true }),
+    ];
+    const result = filterPublicTournaments(tournaments, {});
+    expect(result).toHaveLength(3);
+  });
+
+  it('filters by accessMode when provided', () => {
+    const tournaments = [
+      makeTournament({ id: 't1', accessMode: 'open', listed: true }),
+      makeTournament({ id: 't2', accessMode: 'approval', listed: true }),
+    ];
+    const result = filterPublicTournaments(tournaments, { accessMode: 'approval' });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('t2');
   });
 });
 

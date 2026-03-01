@@ -12,7 +12,7 @@ vi.mock('@solidjs/router', () => ({
 vi.mock('../../../../data/firebase/firestoreTournamentRepository', () => ({
   firestoreTournamentRepository: {
     getByOrganizer: vi.fn().mockResolvedValue([]),
-    getByParticipant: vi.fn().mockResolvedValue([]),
+    getByParticipant: vi.fn().mockResolvedValue({ tournamentIds: [], registrationStatuses: new Map() }),
     getByScorekeeper: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(undefined),
   },
@@ -74,6 +74,11 @@ function makeTournament(overrides: Partial<Tournament> = {}): Tournament {
     updatedAt: Date.now(),
     visibility: 'public',
     shareCode: 'ABC123',
+    accessMode: 'open',
+    listed: true,
+    buddyGroupId: null,
+    buddyGroupName: null,
+    registrationCounts: { confirmed: 0, pending: 0 },
     ...overrides,
   };
 }

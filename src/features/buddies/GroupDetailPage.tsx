@@ -6,7 +6,7 @@ import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestor
 import { firestore } from '../../data/firebase/config';
 import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
 import PageLayout from '../../shared/components/PageLayout';
-import type { BuddyGroup, BuddyGroupMember, GameSession } from '../../data/types';
+import type { BuddyGroupMember, GameSession } from '../../data/types';
 
 function formatSessionDate(timestamp: number | null): string {
   if (!timestamp) return 'TBD';
