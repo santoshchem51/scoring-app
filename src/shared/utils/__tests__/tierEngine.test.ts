@@ -1,0 +1,125 @@
+import { describe, it, expect } from 'vitest';
+import type { RecentResult } from '../../../data/types';
+import { computeTierScore, computeTier, computeTierConfidence } from '../tierEngine';
+
+// --- Factory ---
+function makeResult(overrides: Partial<RecentResult> = {}): RecentResult {
+  return {
+    result: 'win',
+    opponentTier: 'intermediate',
+    completedAt: Date.now(),
+    gameType: 'singles',
+    ...overrides,
+  };
+}
+
+function makeResults(
+  count: number,
+  overrides: Partial<RecentResult> = {},
+): RecentResult[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeResult({ completedAt: Date.now() - i * 60000, ...overrides }),
+  );
+}
+
+// --- computeTierScore ---
+
+describe('computeTierScore', () => {
+  it('returns 0.25 for empty results (prior)', () => {
+    expect(computeTierScore([])).toBeCloseTo(0.25, 2);
+  });
+
+  it('damps toward 0.25 with few matches (3 wins)', () => {
+    const results = makeResults(3, { result: 'win', opponentTier: 'intermediate' });
+    const score = computeTierScore(results);
+    // With 3 matches, dampingFactor = 3/15 = 0.2
+    // rawScore = weightedWins / totalWeight. All wins, recency=1.0, tierMul=0.8
+    // weightedWins = 3 * 1.0 * 0.8 = 2.4, totalWeight = 3 * 1.0 = 3.0
+    // rawScore = 2.4 / 3.0 = 0.8
+    // score = 0.25 + (0.8 - 0.25) * 0.2 = 0.25 + 0.11 = 0.36
+    expect(score).toBeGreaterThan(0.25);
+    expect(score).toBeLessThan(0.6);
+  });
+
+  it('converges to real score at 15+ matches', () => {
+    const results = makeResults(15, { result: 'win', opponentTier: 'intermediate' });
+    const score = computeTierScore(results);
+    // dampingFactor = 1.0, rawScore = 0.8 (all wins * 0.8 multiplier)
+    expect(score).toBeGreaterThan(0.7);
+  });
+
+  it('caps around intermediate for 100% wins vs beginners', () => {
+    const results = makeResults(20, { result: 'win', opponentTier: 'beginner' });
+    const score = computeTierScore(results);
+    // beginner multiplier = 0.5, rawScore = 0.5
+    expect(score).toBeLessThan(0.65);
+  });
+
+  it('rewards wins vs experts', () => {
+    const vsBeginners = computeTierScore(
+      makeResults(20, { result: 'win', opponentTier: 'beginner' }),
+    );
+    const vsExperts = computeTierScore(
+      makeResults(20, { result: 'win', opponentTier: 'expert' }),
+    );
+    expect(vsExperts).toBeGreaterThan(vsBeginners);
+  });
+
+  it('weights recent matches more heavily', () => {
+    // Same total wins/losses (10 each), but positioned differently
+    const recentLosses: RecentResult[] = [
+      ...makeResults(10, { result: 'loss' }),
+      ...makeResults(10, { result: 'win', completedAt: Date.now() - 100000 }),
+    ];
+    const recentWins: RecentResult[] = [
+      ...makeResults(10, { result: 'win' }),
+      ...makeResults(10, { result: 'loss', completedAt: Date.now() - 100000 }),
+    ];
+    expect(computeTierScore(recentWins)).toBeGreaterThan(
+      computeTierScore(recentLosses),
+    );
+  });
+
+  it('handles all losses -> low score', () => {
+    const results = makeResults(20, { result: 'loss' });
+    const score = computeTierScore(results);
+    expect(score).toBeLessThan(0.25);
+  });
+
+  it('returns clamped value between 0 and 1', () => {
+    const allWins = makeResults(50, { result: 'win', opponentTier: 'expert' });
+    const allLosses = makeResults(50, { result: 'loss', opponentTier: 'beginner' });
+    expect(computeTierScore(allWins)).toBeLessThanOrEqual(1.0);
+    expect(computeTierScore(allWins)).toBeGreaterThanOrEqual(0.0);
+    expect(computeTierScore(allLosses)).toBeLessThanOrEqual(1.0);
+    expect(computeTierScore(allLosses)).toBeGreaterThanOrEqual(0.0);
+  });
+
+  it('50% win rate vs mixed opponents -> mid range', () => {
+    const results: RecentResult[] = [];
+    for (let i = 0; i < 20; i++) {
+      results.push(makeResult({
+        result: i % 2 === 0 ? 'win' : 'loss',
+        opponentTier: 'intermediate',
+        completedAt: Date.now() - i * 60000,
+      }));
+    }
+    const score = computeTierScore(results);
+    expect(score).toBeGreaterThan(0.3);
+    expect(score).toBeLessThan(0.7);
+  });
+
+  it('closed friend group: 4 players trading wins converge to intermediate', () => {
+    const results: RecentResult[] = [];
+    for (let i = 0; i < 30; i++) {
+      results.push(makeResult({
+        result: i % 2 === 0 ? 'win' : 'loss',
+        opponentTier: 'beginner',
+        completedAt: Date.now() - i * 60000,
+      }));
+    }
+    const score = computeTierScore(results);
+    expect(score).toBeLessThan(0.53);
+    expect(score).toBeGreaterThan(0.2);
+  });
+});
