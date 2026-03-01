@@ -201,6 +201,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
     };
     await matchRepository.save(updatedMatch);
     cloudSync.syncMatchToCloud(updatedMatch);
+    cloudSync.syncPlayerStatsAfterMatch(updatedMatch);
 
     // Update tournament pool if this is a tournament match
     if (updatedMatch.tournamentId && updatedMatch.poolId) {
