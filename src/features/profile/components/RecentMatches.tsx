@@ -95,7 +95,6 @@ const RecentMatches: Component<RecentMatchesProps> = (props) => {
         </Show>
       </div>
 
-      <div aria-live="polite" class="sr-only" id="match-load-status" />
     </section>
   );
 };

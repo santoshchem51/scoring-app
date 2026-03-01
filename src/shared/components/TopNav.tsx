@@ -1,4 +1,4 @@
-import { createSignal, Show } from 'solid-js';
+import { createSignal, Show, onMount, onCleanup } from 'solid-js';
 import type { Component } from 'solid-js';
 import { A } from '@solidjs/router';
 import { User, Settings } from 'lucide-solid';
@@ -13,6 +13,13 @@ interface TopNavProps {
 const TopNav: Component<TopNavProps> = (props) => {
   const { user, loading, signIn, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = createSignal(false);
+
+  // Close dropdown on Escape key
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && menuOpen()) setMenuOpen(false);
+  };
+  onMount(() => document.addEventListener('keydown', handleKeyDown));
+  onCleanup(() => document.removeEventListener('keydown', handleKeyDown));
 
   const isLanding = () => (props.variant ?? 'app') === 'landing';
 
@@ -40,6 +47,8 @@ const TopNav: Component<TopNavProps> = (props) => {
               onClick={() => setMenuOpen(!menuOpen())}
               class="flex items-center active:scale-95 transition-transform"
               aria-label="Account menu"
+              aria-expanded={menuOpen()}
+              aria-haspopup="true"
             >
               <Show
                 when={user()}
