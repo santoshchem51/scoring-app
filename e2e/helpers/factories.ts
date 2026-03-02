@@ -173,7 +173,7 @@ export function makeMatchRefSeed(overrides: Record<string, unknown> = {}) {
       scoringMode: 'sideout',
       result: 'win',
       scores: '11-7, 11-4',
-      gameScores: [[11, 7], [11, 4]],
+      gameScores: [],
       playerTeam: 1,
       opponentNames: ['Opponent'],
       opponentIds: [],

@@ -33,7 +33,7 @@ export class ProfilePage {
   }
 
   async expectTierBadge(tier: string) {
-    await expect(this.header.getByLabelText(new RegExp(`Skill tier: ${tier}`))).toBeVisible();
+    await expect(this.header.getByLabel(new RegExp(`Skill tier: ${tier}`))).toBeVisible();
   }
 
   async expectWinRate(percentage: string) {
@@ -41,7 +41,7 @@ export class ProfilePage {
   }
 
   async expectTotalMatches(count: number) {
-    await expect(this.statsSection.getByLabelText(`Total matches: ${count}`)).toBeVisible();
+    await expect(this.statsSection.getByLabel(`Total matches: ${count}`)).toBeVisible();
   }
 
   async expectMatchCount(count: number) {
