@@ -58,6 +58,7 @@ function createEmptyStats(): StatsSummary {
     tierUpdatedAt: 0,
     lastPlayedAt: 0,
     updatedAt: 0,
+    uniqueOpponentUids: [],
   };
 }
 

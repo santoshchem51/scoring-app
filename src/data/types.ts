@@ -135,6 +135,7 @@ export interface StatsSummary {
   tierUpdatedAt: number;
   lastPlayedAt: number;
   updatedAt: number;
+  uniqueOpponentUids: string[];
 }
 
 // --- Tournament types (Layer 2) ---
@@ -172,6 +173,7 @@ export interface TournamentConfig {
   pointsToWin: 11 | 15 | 21;
   poolCount: number;
   teamsPerPoolAdvancing: number;
+  defaultTier?: Tier;
 }
 
 export type TeamFormation = 'byop' | 'auto-pair';
