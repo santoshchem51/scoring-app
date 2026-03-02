@@ -80,13 +80,14 @@ function estimateUniqueOpponents(matchCount: number): number {
 
 async function fetchPublicTiers(uids: string[]): Promise<Record<string, Tier>> {
   if (uids.length === 0) return {};
-  const snapshots = await Promise.all(
+  const results = await Promise.allSettled(
     uids.map((uid) => getDoc(doc(firestore, 'users', uid, 'public', 'tier'))),
   );
   const tiers: Record<string, Tier> = {};
   for (let i = 0; i < uids.length; i++) {
-    if (snapshots[i].exists()) {
-      tiers[uids[i]] = (snapshots[i].data() as { tier: Tier }).tier;
+    const r = results[i];
+    if (r.status === 'fulfilled' && r.value.exists()) {
+      tiers[uids[i]] = (r.value.data() as { tier: Tier }).tier;
     }
   }
   return tiers;

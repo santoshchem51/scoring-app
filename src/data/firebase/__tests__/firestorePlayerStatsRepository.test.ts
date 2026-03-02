@@ -737,6 +737,34 @@ describe('firestorePlayerStatsRepository', () => {
       expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'users', 'uid-B', 'public', 'tier');
     });
 
+    it('gracefully handles a rejected fetch via Promise.allSettled', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      mockRegistrations([
+        { userId: 'uid-A', teamId: 'team-1' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      // uid-A fetch succeeds, uid-B fetch rejects
+      mockGetDoc
+        .mockResolvedValueOnce({ exists: () => true, data: () => ({ tier: 'advanced' }) }) // uid-A
+        .mockRejectedValueOnce(new Error('Network error'))                                   // uid-B
+        // Tournament config lookup
+        .mockResolvedValueOnce({ exists: () => true, data: () => ({ config: { defaultTier: 'intermediate' } }) });
+
+      mockTransactionForParticipants(2);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // uid-A won: opponent is uid-B whose tier fetch failed → falls back to 'intermediate' (tournament default)
+      const uidAStats = mockTransactionSet.mock.calls[1][1] as StatsSummary;
+      expect(uidAStats.recentResults[0].opponentTier).toBe('intermediate');
+
+      // uid-B lost: opponent is uid-A whose tier fetch succeeded → 'advanced'
+      const uidBStats = mockTransactionSet.mock.calls[3][1] as StatsSummary;
+      expect(uidBStats.recentResults[0].opponentTier).toBe('advanced');
+    });
+
     it('handles non-existent docs gracefully (returns empty for those)', async () => {
       const match = makeTournamentMatch({ winningSide: 1 });
 
