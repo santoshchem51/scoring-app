@@ -301,6 +301,23 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           </span>
         </div>
 
+        {/* Scorer team indicator (casual matches only) */}
+        <Show when={!props.match.tournamentId && props.match.scorerRole !== 'spectator'}>
+          <div class="flex items-center justify-center gap-2 px-4">
+            <span
+              class="inline-block w-2.5 h-2.5 rounded-full"
+              style={{
+                "background-color": (props.match.scorerTeam ?? 1) === 1
+                  ? (props.match.team1Color ?? DEFAULT_TEAM1_COLOR)
+                  : (props.match.team2Color ?? DEFAULT_TEAM2_COLOR),
+              }}
+            />
+            <span class="text-xs text-on-surface-muted">
+              You're on {(props.match.scorerTeam ?? 1) === 1 ? props.match.team1Name : props.match.team2Name}
+            </span>
+          </div>
+        </Show>
+
         {/* Score Call */}
         <Show when={props.match.config.scoringMode === 'sideout' && props.match.config.gameType === 'doubles' && stateName() === 'serving'}>
           <div class="text-center">
