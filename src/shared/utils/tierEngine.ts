@@ -2,12 +2,33 @@ import type { RecentResult, Tier, TierConfidence } from '../../data/types';
 
 // --- Constants ---
 
-const TIER_MULTIPLIER: Record<Tier, number> = {
+export const TIER_MULTIPLIER: Record<Tier, number> = {
   beginner: 0.5,
   intermediate: 0.8,
   advanced: 1.0,
   expert: 1.3,
 };
+
+const TIER_MULTIPLIER_ENTRIES = Object.entries(TIER_MULTIPLIER) as [Tier, number][];
+
+export function nearestTier(multiplier: number): Tier {
+  let closest: Tier = 'beginner';
+  let minDist = Infinity;
+  for (const [tier, mul] of TIER_MULTIPLIER_ENTRIES) {
+    const dist = Math.abs(multiplier - mul);
+    if (dist < minDist) {
+      minDist = dist;
+      closest = tier;
+    } else if (dist === minDist) {
+      // Tie-break: prefer the tier whose multiplier is closer to 1.0
+      const currentClosestMul = TIER_MULTIPLIER[closest];
+      if (Math.abs(mul - 1.0) < Math.abs(currentClosestMul - 1.0)) {
+        closest = tier;
+      }
+    }
+  }
+  return closest;
+}
 
 // Recency buckets keyed by distance from end of array (0 = newest match).
 // Array is ordered oldest-first, so distFromEnd = results.length - 1 - i.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { RecentResult } from '../../../data/types';
-import { computeTierScore, computeTier, computeTierConfidence } from '../tierEngine';
+import { computeTierScore, computeTier, computeTierConfidence, nearestTier } from '../tierEngine';
 
 // --- Factory ---
 function makeResult(overrides: Partial<RecentResult> = {}): RecentResult {
@@ -233,5 +233,53 @@ describe('computeTierConfidence', () => {
 
   it('returns low for 0 matches', () => {
     expect(computeTierConfidence(0, 0)).toBe('low');
+  });
+});
+
+// --- nearestTier ---
+
+describe('nearestTier', () => {
+  it('returns beginner for multiplier 0.5', () => {
+    expect(nearestTier(0.5)).toBe('beginner');
+  });
+
+  it('returns intermediate for multiplier 0.8', () => {
+    expect(nearestTier(0.8)).toBe('intermediate');
+  });
+
+  it('returns advanced for multiplier 1.0', () => {
+    expect(nearestTier(1.0)).toBe('advanced');
+  });
+
+  it('returns expert for multiplier 1.3', () => {
+    expect(nearestTier(1.3)).toBe('expert');
+  });
+
+  it('maps beginner+intermediate average (0.65) to intermediate', () => {
+    expect(nearestTier(0.65)).toBe('intermediate');
+  });
+
+  it('maps beginner+advanced average (0.75) to intermediate', () => {
+    expect(nearestTier(0.75)).toBe('intermediate');
+  });
+
+  it('maps beginner+expert average (0.9) to advanced', () => {
+    expect(nearestTier(0.9)).toBe('advanced');
+  });
+
+  it('maps intermediate+expert average (1.05) to advanced', () => {
+    expect(nearestTier(1.05)).toBe('advanced');
+  });
+
+  it('maps advanced+expert average (1.15) to advanced', () => {
+    expect(nearestTier(1.15)).toBe('advanced');
+  });
+
+  it('clamps below beginner to beginner', () => {
+    expect(nearestTier(0.1)).toBe('beginner');
+  });
+
+  it('clamps above expert to expert', () => {
+    expect(nearestTier(2.0)).toBe('expert');
   });
 });
