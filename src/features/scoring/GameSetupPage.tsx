@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import OptionCard from '../../shared/components/OptionCard';
@@ -22,6 +22,9 @@ const GameSetupPage: Component = () => {
   const [team2Name, setTeam2Name] = createSignal('Team 2');
   const [team1Color, setTeam1Color] = createSignal(DEFAULT_TEAM1_COLOR);
   const [team2Color, setTeam2Color] = createSignal(DEFAULT_TEAM2_COLOR);
+  const [scorerRole, setScorerRole] = createSignal<'player' | 'spectator'>('player');
+  const [scorerTeam, setScorerTeam] = createSignal<1 | 2>(1);
+  const [roleExpanded, setRoleExpanded] = createSignal(false);
 
   const canStart = () => team1Name().trim() !== '' && team2Name().trim() !== '';
 
@@ -47,6 +50,8 @@ const GameSetupPage: Component = () => {
       status: 'in-progress',
       startedAt: Date.now(),
       completedAt: null,
+      scorerRole: scorerRole(),
+      scorerTeam: scorerTeam(),
     };
 
     try {
@@ -81,6 +86,8 @@ const GameSetupPage: Component = () => {
       status: 'in-progress',
       startedAt: Date.now(),
       completedAt: null,
+      scorerRole: 'player',
+      scorerTeam: 1,
     };
     try {
       await matchRepository.save(match);
@@ -194,6 +201,98 @@ const GameSetupPage: Component = () => {
               </div>
             </fieldset>
           </div>
+        </div>
+
+        {/* Your Role */}
+        <div class="mt-6">
+          <Show
+            when={roleExpanded()}
+            fallback={
+              <div class="flex items-center justify-between bg-surface-light rounded-xl px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-on-surface-muted">Your Role:</span>
+                  <span class="text-sm font-semibold text-on-surface">
+                    {scorerRole() === 'player' ? "I'm Playing" : 'Scoring for Others'}
+                  </span>
+                  <Show when={scorerRole() === 'player'}>
+                    <span
+                      class="inline-block w-3 h-3 rounded-full"
+                      style={{ "background-color": scorerTeam() === 1 ? team1Color() : team2Color() }}
+                    />
+                  </Show>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRoleExpanded(true)}
+                  class="text-sm text-primary font-semibold"
+                >
+                  Change
+                </button>
+              </div>
+            }
+          >
+            <fieldset>
+              <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Your Role</legend>
+              <div class="grid grid-cols-2 gap-3">
+                <OptionCard
+                  label="I'm Playing"
+                  description="Track your stats"
+                  selected={scorerRole() === 'player'}
+                  onClick={() => setScorerRole('player')}
+                />
+                <OptionCard
+                  label="Scoring for Others"
+                  description="No stats for you"
+                  selected={scorerRole() === 'spectator'}
+                  onClick={() => setScorerRole('spectator')}
+                />
+              </div>
+              <Show when={scorerRole() === 'player'}>
+                <div class="mt-3">
+                  <p class="text-sm text-on-surface-muted mb-2">Which team are you on?</p>
+                  <div class="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setScorerTeam(1)}
+                      class={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all ${
+                        scorerTeam() === 1
+                          ? 'border-primary bg-primary/20 text-on-surface'
+                          : 'border-surface-lighter bg-surface-light text-on-surface-muted'
+                      }`}
+                    >
+                      <span
+                        class="inline-block w-3 h-3 rounded-full"
+                        style={{ "background-color": team1Color() }}
+                      />
+                      <span class="text-sm font-semibold">{team1Name() || 'Team 1'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScorerTeam(2)}
+                      class={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all ${
+                        scorerTeam() === 2
+                          ? 'border-primary bg-primary/20 text-on-surface'
+                          : 'border-surface-lighter bg-surface-light text-on-surface-muted'
+                      }`}
+                    >
+                      <span
+                        class="inline-block w-3 h-3 rounded-full"
+                        style={{ "background-color": team2Color() }}
+                      />
+                      <span class="text-sm font-semibold">{team2Name() || 'Team 2'}</span>
+                    </button>
+                  </div>
+                </div>
+              </Show>
+              <button
+                type="button"
+                onClick={() => setRoleExpanded(false)}
+                class="mt-3 text-sm text-on-surface-muted underline"
+              >
+                Done
+              </button>
+            </fieldset>
+          </Show>
         </div>
       </div>
 
