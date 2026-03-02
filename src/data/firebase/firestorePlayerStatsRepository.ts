@@ -2,6 +2,7 @@ import { doc, getDoc, getDocs, setDoc, collection, query, orderBy, limit as fbLi
 import { firestore } from './config';
 import type { Match, MatchRef, StatsSummary, RecentResult, Tier } from '../types';
 import { computeTierScore, computeTier, computeTierConfidence, nearestTier, TIER_MULTIPLIER } from '../../shared/utils/tierEngine';
+import { buildLeaderboardEntry } from '../../shared/utils/leaderboardScoring';
 
 const RING_BUFFER_SIZE = 50;
 
@@ -203,6 +204,8 @@ export const firestorePlayerStatsRepository = {
     playerTeam: 1 | 2,
     result: 'win' | 'loss',
     scorerUid: string,
+    displayName: string,
+    photoURL: string | null,
     enrichment?: StatsEnrichment,
   ): Promise<void> {
     const matchRefDoc = doc(firestore, 'users', uid, 'matchRefs', match.id);
@@ -300,6 +303,18 @@ export const firestorePlayerStatsRepository = {
       transaction.set(matchRefDoc, matchRef);
       transaction.set(statsDoc, stats, { merge: true });
 
+      // 6. Write leaderboard entry if player qualifies (>= 5 matches)
+      const now = stats.updatedAt;
+      const leaderboardEntry = buildLeaderboardEntry(uid, displayName, photoURL, stats, now);
+      if (leaderboardEntry) {
+        const leaderboardDoc = doc(firestore, 'leaderboard', uid);
+        const existingLeaderboard = await transaction.get(leaderboardDoc);
+        if (existingLeaderboard.exists()) {
+          leaderboardEntry.createdAt = existingLeaderboard.data()!.createdAt as number;
+        }
+        transaction.set(leaderboardDoc, leaderboardEntry);
+      }
+
       newTier = stats.tier;
       tierUpdated = true;
     });
@@ -339,17 +354,35 @@ export const firestorePlayerStatsRepository = {
       }
     }
 
+    // Fetch user profiles for leaderboard denormalization
+    const { firestoreUserRepository } = await import('./firestoreUserRepository');
+    const profileMap = new Map<string, { displayName: string; photoURL: string | null }>();
+    await Promise.allSettled(
+      participants.map(async ({ uid }) => {
+        const profile = await firestoreUserRepository.getProfile(uid);
+        if (profile) {
+          profileMap.set(uid, { displayName: profile.displayName, photoURL: profile.photoURL });
+        }
+      }),
+    );
+
     await Promise.all(
-      participants.map(({ uid, playerTeam, result }) =>
-        this.updatePlayerStats(uid, match, playerTeam, result, scorerUid, {
-          isTournamentMatch,
-          participants,
-          tierMap,
-          fallbackTier,
-        }).catch((err) => {
+      participants.map(({ uid, playerTeam, result }) => {
+        const profile = profileMap.get(uid);
+        return this.updatePlayerStats(
+          uid, match, playerTeam, result, scorerUid,
+          profile?.displayName ?? 'Unknown Player',
+          profile?.photoURL ?? null,
+          {
+            isTournamentMatch,
+            participants,
+            tierMap,
+            fallbackTier,
+          },
+        ).catch((err) => {
           console.warn('Stats update failed for user:', uid, err);
-        }),
-      ),
+        });
+      }),
     );
   },
 
