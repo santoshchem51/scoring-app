@@ -28,7 +28,7 @@ function renderHeader(overrides: Record<string, unknown> = {}) {
     displayName: 'Alice Johnson',
     email: 'alice@example.com',
     photoURL: null as string | null,
-    createdAt: new Date('2024-03-15').getTime(),
+    createdAt: new Date('2024-03-15T12:00:00Z').getTime(),
     hasStats: false,
   };
   return render(() => <ProfileHeader {...{ ...defaults, ...overrides }} />);
@@ -46,8 +46,9 @@ describe('ProfileHeader', () => {
   });
 
   it('formats "Member since" correctly', () => {
-    renderHeader({ createdAt: new Date('2024-03-15').getTime() });
-    expect(screen.getByText('Member since Mar 2024')).toBeTruthy();
+    // Use mid-month UTC to avoid timezone boundary issues
+    renderHeader({ createdAt: new Date('2024-03-15T12:00:00Z').getTime() });
+    expect(screen.getByText(/Member since Mar 2024/)).toBeTruthy();
   });
 
   it('shows initials avatar when photoURL is null', () => {
@@ -64,6 +65,18 @@ describe('ProfileHeader', () => {
 
   it('shows initials avatar for non-Google domain', () => {
     renderHeader({ photoURL: 'https://evil.com/photo.jpg' });
+    expect(screen.getByText('A')).toBeTruthy();
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('shows initials avatar for malformed URL', () => {
+    renderHeader({ photoURL: 'not-a-url' });
+    expect(screen.getByText('A')).toBeTruthy();
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('shows initials avatar for empty string URL', () => {
+    renderHeader({ photoURL: '' });
     expect(screen.getByText('A')).toBeTruthy();
     expect(screen.queryByRole('img')).toBeNull();
   });
@@ -95,7 +108,7 @@ describe('ProfileHeader', () => {
 **Step 2: Run tests to verify they pass**
 
 Run: `npx vitest run src/features/profile/__tests__/ProfileHeader.test.tsx`
-Expected: 10 tests PASS
+Expected: 12 tests PASS
 
 **Step 3: Commit**
 
@@ -209,7 +222,7 @@ git commit -m "test: add StatsOverview unit tests"
 
 ```tsx
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@solidjs/testing-library';
+import { render, screen, waitFor } from '@solidjs/testing-library';
 import RecentMatches from '../components/RecentMatches';
 import type { MatchRef } from '../../../data/types';
 
@@ -287,41 +300,49 @@ describe('RecentMatches', () => {
       <RecentMatches matches={[makeMatch()]} hasMore={true} loadingMore={false} />
     ));
     expect(screen.getByLabelText('Load more matches')).toBeTruthy();
-    expect(screen.getByText('Load More')).toBeTruthy();
   });
 
   it('hides Load More button when hasMore is false', () => {
+    // SolidJS Show component removes from DOM entirely when condition is false
     render(() => (
       <RecentMatches matches={[makeMatch()]} hasMore={false} loadingMore={false} />
     ));
     expect(screen.queryByLabelText('Load more matches')).toBeNull();
   });
 
-  it('shows Loading... when loadingMore', () => {
+  it('shows Loading... and disables button when loadingMore', () => {
     render(() => (
       <RecentMatches matches={[makeMatch()]} hasMore={true} loadingMore={true} />
     ));
-    expect(screen.getByText('Loading...')).toBeTruthy();
+    const button = screen.getByLabelText('Load more matches');
+    expect(button).toHaveTextContent('Loading...');
+    expect(button).toBeDisabled();
   });
 
-  it('formats relative dates correctly', () => {
+  it('formats relative dates correctly', async () => {
     const now = Date.now();
     const DAY = 1000 * 60 * 60 * 24;
     const matches = [
       makeMatch({ matchId: 'today', completedAt: now - 1000, opponentNames: ['Today-Opp'] }),
       makeMatch({ matchId: '1d', completedAt: now - DAY, opponentNames: ['Yesterday-Opp'] }),
       makeMatch({ matchId: '3d', completedAt: now - 3 * DAY, opponentNames: ['ThreeDays-Opp'] }),
+      makeMatch({ matchId: '7d', completedAt: now - 7 * DAY, opponentNames: ['OneWeek-Opp'] }),
       makeMatch({ matchId: '2w', completedAt: now - 14 * DAY, opponentNames: ['TwoWeeks-Opp'] }),
+      makeMatch({ matchId: '30d', completedAt: now - 30 * DAY, opponentNames: ['OneMonth-Opp'] }),
       makeMatch({ matchId: '3mo', completedAt: now - 90 * DAY, opponentNames: ['ThreeMonths-Opp'] }),
-      makeMatch({ matchId: '1y', completedAt: now - 400 * DAY, opponentNames: ['OneYear-Opp'] }),
+      makeMatch({ matchId: '365d', completedAt: now - 365 * DAY, opponentNames: ['OneYear-Opp'] }),
     ];
     render(() => <RecentMatches matches={matches} hasMore={false} loadingMore={false} />);
-    expect(screen.getByLabelText(/Today-Opp/)).toHaveTextContent(/today/);
-    expect(screen.getByLabelText(/Yesterday-Opp/)).toHaveTextContent(/1d/);
-    expect(screen.getByLabelText(/ThreeDays-Opp/)).toHaveTextContent(/3d/);
-    expect(screen.getByLabelText(/TwoWeeks-Opp/)).toHaveTextContent(/2w/);
-    expect(screen.getByLabelText(/ThreeMonths-Opp/)).toHaveTextContent(/3mo/);
-    expect(screen.getByLabelText(/OneYear-Opp/)).toHaveTextContent(/1y/);
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Today-Opp/)).toHaveTextContent(/today/);
+      expect(screen.getByLabelText(/Yesterday-Opp/)).toHaveTextContent(/1d/);
+      expect(screen.getByLabelText(/ThreeDays-Opp/)).toHaveTextContent(/3d/);
+      expect(screen.getByLabelText(/OneWeek-Opp/)).toHaveTextContent(/1w/);
+      expect(screen.getByLabelText(/TwoWeeks-Opp/)).toHaveTextContent(/2w/);
+      expect(screen.getByLabelText(/OneMonth-Opp/)).toHaveTextContent(/1mo/);
+      expect(screen.getByLabelText(/ThreeMonths-Opp/)).toHaveTextContent(/3mo/);
+      expect(screen.getByLabelText(/OneYear-Opp/)).toHaveTextContent(/1y/);
+    });
   });
 });
 ```
@@ -402,7 +423,9 @@ export class ProfilePage {
 
   async expectEmptyState() {
     await expect(this.emptyState).toBeVisible();
-    await expect(this.page.getByText('Start a Match')).toBeVisible();
+    const cta = this.page.getByRole('link', { name: 'Start a Match' });
+    await expect(cta).toBeVisible();
+    await expect(cta).toHaveAttribute('href', '/new');
   }
 
   async clickLoadMore() {
@@ -586,6 +609,36 @@ test.describe('Profile Page', () => {
     await expect(page.getByText('Sign in required')).toBeVisible({ timeout: 10000 });
   });
 
+  test('shows stats but handles missing matches gracefully', async ({ page }) => {
+    await page.goto('/');
+    await signInAsTestUser(page, { displayName: 'Stats Only', email: 'statsonly@example.com' });
+    const uid = await getCurrentUserUid(page);
+
+    // Seed profile + stats but NO match refs
+    await seedFirestoreDocAdmin('users', uid, makeUserProfile({
+      displayName: 'Stats Only',
+      displayNameLower: 'stats only',
+      email: 'statsonly@example.com',
+    }));
+    await seedFirestoreDocAdmin(`users/${uid}/stats`, 'summary', makeStatsSummary({
+      totalMatches: 5,
+      wins: 3,
+      losses: 2,
+      winRate: 0.6,
+    }));
+
+    const profile = new ProfilePage(page);
+    await profile.goto();
+
+    // Header and stats should show
+    await profile.expectHeaderVisible('Stats Only', 'statsonly@example.com');
+    await profile.expectWinRate('60%');
+    await profile.expectTotalMatches(5);
+
+    // Match list should not be visible (no match refs seeded)
+    await expect(page.locator('ul[aria-label="Recent match results"]')).not.toBeVisible();
+  });
+
   test('Load More button loads additional matches', async ({ page }) => {
     await page.goto('/');
     await signInAsTestUser(page, { displayName: 'Paginated User', email: 'paginated@example.com' });
@@ -633,7 +686,7 @@ test.describe('Profile Page', () => {
 **Step 2: Run E2E tests to verify they pass**
 
 Run: `npx playwright test e2e/profile/profile.spec.ts --project=emulator`
-Expected: 4 tests PASS
+Expected: 5 tests PASS
 
 **Step 3: Commit**
 
@@ -649,7 +702,7 @@ git commit -m "test: add profile page E2E tests"
 **Step 1: Run all unit tests**
 
 Run: `npx vitest run src/features/profile/__tests__/`
-Expected: All tests PASS (existing 41 + new 26 = 67 tests)
+Expected: All tests PASS (existing 41 + new 28 = 69 tests)
 
 **Step 2: Run full E2E suite**
 
