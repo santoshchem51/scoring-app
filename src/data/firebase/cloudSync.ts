@@ -65,6 +65,8 @@ export const cloudSync = {
           poolId: cloudMatch.poolId,
           bracketSlotId: cloudMatch.bracketSlotId,
           court: cloudMatch.court,
+          scorerRole: cloudMatch.scorerRole,
+          scorerTeam: cloudMatch.scorerTeam,
         };
         await matchRepository.save(localMatch);
         synced++;
