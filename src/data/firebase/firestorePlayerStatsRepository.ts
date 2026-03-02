@@ -117,6 +117,9 @@ async function resolveParticipantUids(
 ): Promise<Array<{ uid: string; playerTeam: 1 | 2; result: 'win' | 'loss' }>> {
   const participants: Array<{ uid: string; playerTeam: 1 | 2; result: 'win' | 'loss' }> = [];
 
+  // Early guard: no stats for abandoned matches (winningSide is null)
+  if (match.winningSide === null) return [];
+
   const isTournamentMatch = !!(match.tournamentId && (match.tournamentTeam1Id || match.tournamentTeam2Id));
 
   if (isTournamentMatch) {
@@ -141,18 +144,7 @@ async function resolveParticipantUids(
         participants.push({ uid: reg.userId, playerTeam, result });
       }
 
-      // Guard: detect duplicate UIDs across teams (data corruption)
-      const seen = new Set<string>();
-      const deduped: typeof participants = [];
-      for (const p of participants) {
-        if (seen.has(p.uid)) {
-          console.warn('Duplicate UID across teams (data corruption), skipping:', p.uid);
-          continue;
-        }
-        seen.add(p.uid);
-        deduped.push(p);
-      }
-      return deduped;
+      // Fall through to shared dedup guard below
     } catch (err) {
       // Return empty — don't fall through to casual path and give scorer phantom stats
       console.warn('Failed to resolve tournament participant UIDs, skipping stats:', err);
@@ -160,13 +152,41 @@ async function resolveParticipantUids(
     }
   }
 
-  // Casual match: only scorer gets stats
-  if (!isTournamentMatch && participants.length === 0) {
-    const result: 'win' | 'loss' = match.winningSide === 1 ? 'win' : 'loss';
-    participants.push({ uid: scorerUid, playerTeam: 1, result });
+  // Casual match: give stats to linked players, fallback to scorer
+  if (!isTournamentMatch) {
+    const team1Uids = match.team1PlayerIds ?? [];
+    const team2Uids = match.team2PlayerIds ?? [];
+
+    // Phase 2+: if player IDs populated, give all linked players stats
+    for (const uid of team1Uids) {
+      const result: 'win' | 'loss' = match.winningSide === 1 ? 'win' : 'loss';
+      participants.push({ uid, playerTeam: 1, result });
+    }
+    for (const uid of team2Uids) {
+      const result: 'win' | 'loss' = match.winningSide === 2 ? 'win' : 'loss';
+      participants.push({ uid, playerTeam: 2, result });
+    }
+
+    // Fallback: scorer gets stats if no playerIds and not spectating
+    if (participants.length === 0 && match.scorerRole !== 'spectator') {
+      const team: 1 | 2 = match.scorerTeam ?? 1;
+      const result: 'win' | 'loss' = match.winningSide === team ? 'win' : 'loss';
+      participants.push({ uid: scorerUid, playerTeam: team, result });
+    }
   }
 
-  return participants;
+  // Shared dedup guard: remove duplicate UIDs (first occurrence wins)
+  const seen = new Set<string>();
+  const deduped: typeof participants = [];
+  for (const p of participants) {
+    if (seen.has(p.uid)) {
+      console.warn('Duplicate UID across teams, skipping:', p.uid);
+      continue;
+    }
+    seen.add(p.uid);
+    deduped.push(p);
+  }
+  return deduped;
 }
 
 interface StatsEnrichment {

@@ -132,6 +132,8 @@ function makeTournamentMatch(overrides: Partial<Match> = {}): Match {
 function makeCasualMatch(overrides: Partial<Match> = {}): Match {
   return makeMatch({
     id: 'casual-match-1',
+    team1PlayerIds: [],
+    team2PlayerIds: [],
     ...overrides,
   });
 }
@@ -435,12 +437,12 @@ describe('firestorePlayerStatsRepository', () => {
         .mockResolvedValueOnce({ exists: () => false })  // matchRef
         .mockResolvedValueOnce({ exists: () => false }); // stats
 
-      const match = makeMatch();
+      const match = makeCasualMatch();
       await firestorePlayerStatsRepository.processMatchCompletion(
         match, 'scorer-uid',
       );
 
-      // Only scorer gets stats (casual match = no tournament)
+      // Only scorer gets stats (casual match = no tournament, empty playerIds)
       // 2 transaction.set calls: matchRef + stats for scorer
       expect(mockTransactionSet).toHaveBeenCalledTimes(2);
     });
@@ -999,6 +1001,88 @@ describe('firestorePlayerStatsRepository', () => {
       // writePublicTier writes via setDoc
       expect(mockSetDoc).toHaveBeenCalledTimes(1);
       expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'users', 'user-1', 'public', 'tier');
+    });
+  });
+
+  describe('winningSide null guard', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockTransactionGet.mockResolvedValue({ exists: () => false });
+    });
+
+    it('returns no participants when winningSide is null (abandoned match)', async () => {
+      const match = makeCasualMatch({ winningSide: null, status: 'abandoned' });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+      expect(mockTransactionSet).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('casual path with scorerRole/scorerTeam', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockTransactionGet.mockResolvedValue({ exists: () => false });
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+    });
+
+    it('spectator scorer gets no stats', async () => {
+      const match = makeCasualMatch({ scorerRole: 'spectator' });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+      expect(mockTransactionSet).not.toHaveBeenCalled();
+    });
+
+    it('scorer on team 2 gets correct result when team 2 wins', async () => {
+      const match = makeCasualMatch({ scorerRole: 'player', scorerTeam: 2, winningSide: 2 });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+      expect(mockTransactionSet).toHaveBeenCalled();
+      const matchRefArg = mockTransactionSet.mock.calls[0][1];
+      expect(matchRefArg.playerTeam).toBe(2);
+      expect(matchRefArg.result).toBe('win');
+    });
+
+    it('scorer on team 2 gets loss when team 1 wins', async () => {
+      const match = makeCasualMatch({ scorerRole: 'player', scorerTeam: 2, winningSide: 1 });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+      expect(mockTransactionSet).toHaveBeenCalled();
+      const matchRefArg = mockTransactionSet.mock.calls[0][1];
+      expect(matchRefArg.playerTeam).toBe(2);
+      expect(matchRefArg.result).toBe('loss');
+    });
+
+    it('undefined scorerRole defaults to player (backward compat)', async () => {
+      const match = makeCasualMatch(); // no scorerRole, no scorerTeam
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+      expect(mockTransactionSet).toHaveBeenCalled();
+      const matchRefArg = mockTransactionSet.mock.calls[0][1];
+      expect(matchRefArg.playerTeam).toBe(1);
+      expect(matchRefArg.result).toBe('win');
+    });
+
+    it('respects team1PlayerIds/team2PlayerIds when populated (Phase 2+ ready)', async () => {
+      const match = makeCasualMatch({
+        team1PlayerIds: ['uid-A'],
+        team2PlayerIds: ['uid-B'],
+        winningSide: 1,
+      });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+      expect(mockRunTransaction).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('dedup guard (shared)', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockTransactionGet.mockResolvedValue({ exists: () => false });
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+    });
+
+    it('deduplicates UIDs in casual team arrays', async () => {
+      const match = makeCasualMatch({
+        team1PlayerIds: ['uid-A'],
+        team2PlayerIds: ['uid-A'],
+        winningSide: 1,
+      });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+      expect(mockRunTransaction).toHaveBeenCalledTimes(1);
     });
   });
 });
