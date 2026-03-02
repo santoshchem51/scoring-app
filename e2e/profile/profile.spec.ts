@@ -104,7 +104,7 @@ test.describe('Profile Page', () => {
     await profile.expectWinRate('60%');
     await profile.expectTotalMatches(5);
 
-    await expect(page.locator('ul[aria-label="Recent match results"]')).not.toBeVisible();
+    await expect(profile.matchesList).not.toBeVisible();
   });
 
   test('Load More button loads additional matches', async ({ page }) => {
