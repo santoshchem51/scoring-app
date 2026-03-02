@@ -28,22 +28,17 @@ test.describe('Cloud Sync (Manual Plan 6.2)', () => {
       { timeout: 10000 },
     );
 
-    // Give the fire-and-forget syncUserProfile time to complete after reload
-    await page.waitForTimeout(3000);
-
-    // Query Firestore emulator REST API directly (from Node.js, not from the page)
-    const response = await fetch(
-      `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}`,
-      { headers: { Authorization: 'Bearer owner' } },
-    );
-
-    expect(response.ok).toBe(true);
-    const doc = await response.json();
-
-    // Verify the document has the expected fields
-    expect(doc.fields).toBeDefined();
-    expect(doc.fields.displayName?.stringValue).toBe('Synced User');
-    expect(doc.fields.email?.stringValue).toBe(email);
+    // Poll Firestore emulator until the profile document appears
+    await expect(async () => {
+      const response = await fetch(
+        `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}`,
+        { headers: { Authorization: 'Bearer owner' } },
+      );
+      expect(response.ok).toBe(true);
+      const doc = await response.json();
+      expect(doc.fields?.displayName?.stringValue).toBe('Synced User');
+      expect(doc.fields?.email?.stringValue).toBe(email);
+    }).toPass({ timeout: 15000 });
   });
 
   test('sync errors do not crash the app', async ({ page }) => {

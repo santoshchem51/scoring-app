@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures';
-import { signInAsTestUser, signOut } from '../helpers/emulator-auth';
+import { signInAsTestUser } from '../helpers/emulator-auth';
 import { randomUUID } from 'crypto';
 
 test.describe('Auth Sign-In / Sign-Out (Manual Plan 6.1)', () => {

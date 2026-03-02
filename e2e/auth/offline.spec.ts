@@ -3,34 +3,17 @@ import { GameSetupPage } from '../pages/GameSetupPage';
 import { ScoringPage } from '../pages/ScoringPage';
 
 test.describe('Offline Functionality (Manual Plan 6.3)', () => {
-  test('app loads from cache when offline', async ({ page }) => {
-    // Navigate to /new (not /) because the landing page doesn't render BottomNav.
-    // The /new route loads inside the App shell which includes BottomNav with <nav>.
+  test.fixme('app loads from cache when offline', async ({ page }) => {
+    // TODO: This test requires a production build with service worker.
+    // In dev mode, there is no service worker to cache assets.
+    // Run against `npx vite build && npx vite preview` for a real test.
     await page.goto('/new', { timeout: 15000 });
-    await expect(page.locator('nav')).toBeVisible({ timeout: 10000 });
-
-    // Give service worker time to install and cache resources
-    await page.waitForTimeout(3000);
-
-    // Go offline
+    await expect(page.getByRole('navigation')).toBeVisible({ timeout: 10000 });
     await page.context().setOffline(true);
-
-    // Reload the page — should load from service worker cache
     try {
       await page.reload({ timeout: 15000 });
-
-      // Verify the basic app shell loads (nav bar)
-      await expect(page.locator('nav')).toBeVisible({ timeout: 10000 });
-    } catch {
-      // TODO: Service worker caching may not work in test environment.
-      // The Vite dev server (port 5199) does not register a service worker
-      // by default — PWA caching only activates in production builds.
-      // This test will pass once running against a production build.
-      console.warn(
-        '[offline.spec] Service worker not available in dev mode — skipping offline load assertion',
-      );
+      await expect(page.getByRole('navigation')).toBeVisible({ timeout: 10000 });
     } finally {
-      // Always restore online state for cleanup
       await page.context().setOffline(false);
     }
   });
