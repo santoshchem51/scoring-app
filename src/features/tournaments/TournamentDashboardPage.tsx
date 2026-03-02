@@ -83,7 +83,8 @@ const TournamentDashboardPage: Component = () => {
   // --- Live Data (replaces createResource + refetch) ---
   const live = useTournamentLive(() => params.id);
 
-  // Fetch user's existing registration for RegistrationForm
+  // Fetch user's existing registration for RegistrationForm.
+  // initialValue prevents this resource from triggering App-level Suspense.
   const [existingRegistration, { refetch: refetchExistingReg }] = createResource(
     () => {
       const u = user();
@@ -95,9 +96,12 @@ const TournamentDashboardPage: Component = () => {
       if (!source) return Promise.resolve(undefined);
       return firestoreRegistrationRepository.getByUser(source.tournamentId, source.userId);
     },
+    { initialValue: undefined },
   );
 
-  // Check if user is invited to this tournament
+  // Check if user is invited to this tournament.
+  // Uses a collection group query that matches the security rule
+  // (invitedUserId == currentUser), so it works for any authenticated user.
   const [isInvited] = createResource(
     () => {
       const u = user();
@@ -107,12 +111,18 @@ const TournamentDashboardPage: Component = () => {
     },
     async (source) => {
       if (!source) return false;
-      const invitations = await firestoreInvitationRepository.getByTournament(source.tournamentId);
-      return invitations.some((inv) => inv.invitedUserId === source.userId);
+      try {
+        return await firestoreInvitationRepository.isUserInvited(source.tournamentId, source.userId);
+      } catch {
+        return false;
+      }
     },
+    { initialValue: false },
   );
 
-  // Check if user is a member of the tournament's buddy group
+  // Check if user is a member of the tournament's buddy group.
+  // Uses a collection group query that matches the security rule
+  // (userId == currentUser), so it works for any authenticated user.
   const [isGroupMember] = createResource(
     () => {
       const u = user();
@@ -122,9 +132,13 @@ const TournamentDashboardPage: Component = () => {
     },
     async (source) => {
       if (!source) return false;
-      const member = await firestoreBuddyGroupRepository.getMember(source.groupId, source.userId);
-      return member !== null;
+      try {
+        return await firestoreBuddyGroupRepository.isUserMember(source.groupId, source.userId);
+      } catch {
+        return false;
+      }
     },
+    { initialValue: false },
   );
 
   // --- Derived State ---

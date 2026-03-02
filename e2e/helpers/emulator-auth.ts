@@ -1,8 +1,5 @@
 import type { Page } from '@playwright/test';
-
-const AUTH_EMULATOR = 'http://127.0.0.1:9099';
-const FIRESTORE_EMULATOR = 'http://127.0.0.1:8180';
-const PROJECT_ID = 'picklescore-b0a71';
+import { AUTH_EMULATOR, FIRESTORE_EMULATOR, PROJECT_ID } from './emulator-config';
 
 /**
  * Clear all data from Auth and Firestore emulators via REST API.
@@ -11,11 +8,15 @@ export async function clearEmulators() {
   await Promise.all([
     fetch(`${AUTH_EMULATOR}/emulator/v1/projects/${PROJECT_ID}/accounts`, {
       method: 'DELETE',
-    }).catch(() => {}),
+    }).catch(() => {
+      console.warn('[clearEmulators] Auth emulator not reachable — skipping');
+    }),
     fetch(
       `${FIRESTORE_EMULATOR}/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`,
       { method: 'DELETE' },
-    ).catch(() => {}),
+    ).catch(() => {
+      console.warn('[clearEmulators] Firestore emulator not reachable — skipping');
+    }),
   ]);
 }
 
@@ -84,7 +85,10 @@ export async function signInAsTestUser(
   );
 
   // Wait for auth state to propagate through onAuthStateChanged → RequireAuth
-  await page.waitForTimeout(1000);
+  await page.waitForFunction(
+    () => (window as any).__TEST_FIREBASE__?.auth?.currentUser !== null,
+    { timeout: 10000 },
+  );
 }
 
 /**
@@ -97,7 +101,25 @@ export async function signOut(page: Page) {
     const { signOut } = (window as any).__TEST_FIREBASE_AUTH__;
     await signOut(auth);
   });
-  await page.waitForTimeout(300);
+  await page.waitForFunction(
+    () => (window as any).__TEST_FIREBASE__?.auth?.currentUser === null,
+    { timeout: 10000 },
+  );
+}
+
+// ── Shared page helpers ────────────────────────────────────────────────
+
+/** Get the current user's UID from the Firebase auth globals on the page. */
+export async function getCurrentUserUid(page: Page): Promise<string> {
+  return page.evaluate(
+    () => (window as any).__TEST_FIREBASE__?.auth?.currentUser?.uid as string,
+  );
+}
+
+/** Navigate to the tournament dashboard and wait for it to load. */
+export async function goToTournamentDashboard(page: Page, tournamentId: string) {
+  await page.goto(`/tournaments/${tournamentId}`);
+  await page.waitForSelector('text=Status', { timeout: 15000 });
 }
 
 // ── Admin seeding (bypasses security rules via Bearer owner) ──────────

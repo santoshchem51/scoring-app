@@ -23,6 +23,20 @@ export const firestoreInvitationRepository = {
     return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as TournamentInvitation);
   },
 
+  /** Check if a specific user has an invitation for a tournament.
+   *  Uses a collection group query that satisfies the security rule
+   *  `resource.data.invitedUserId == request.auth.uid`, so it works
+   *  for any authenticated user (not just the organizer). */
+  async isUserInvited(tournamentId: string, userId: string): Promise<boolean> {
+    const q = query(
+      collectionGroup(firestore, 'invitations'),
+      where('invitedUserId', '==', userId),
+      where('tournamentId', '==', tournamentId),
+    );
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+  },
+
   async updateStatus(tournamentId: string, userId: string, status: 'accepted' | 'declined'): Promise<void> {
     const ref = doc(firestore, 'tournaments', tournamentId, 'invitations', userId);
     await updateDoc(ref, { status, respondedAt: Date.now(), updatedAt: serverTimestamp() });

@@ -13,6 +13,7 @@ const TournamentCreatePage = lazy(() => import('../features/tournaments/Tourname
 const TournamentDashboardPage = lazy(() => import('../features/tournaments/TournamentDashboardPage'));
 const PublicTournamentPage = lazy(() => import('../features/tournaments/PublicTournamentPage'));
 const LandingPage = lazy(() => import('../features/landing/LandingPage'));
+const ProfilePage = lazy(() => import('../features/profile/ProfilePage'));
 const BuddiesPage = lazy(() => import('../features/buddies/BuddiesPage'));
 const CreateGroupPage = lazy(() => import('../features/buddies/CreateGroupPage'));
 const GroupDetailPage = lazy(() => import('../features/buddies/GroupDetailPage'));
@@ -64,6 +65,9 @@ export default function AppRouter() {
       </Route>
       <Route path="/s/:code" component={PublicSessionPage} />
       <Route path="/g/:code" component={GroupInvitePage} />
+      <Route path="/profile" component={RequireAuth}>
+        <Route path="/" component={ProfilePage} />
+      </Route>
       <Route path="/settings" component={SettingsPage} />
       <Route path="*" component={NotFoundPage} />
     </Router>

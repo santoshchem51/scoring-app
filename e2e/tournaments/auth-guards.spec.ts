@@ -1,21 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { TournamentBrowsePage } from '../pages/TournamentBrowsePage';
 
 test.describe('Tournament Auth Guards', () => {
   test('tournament browse page is publicly accessible', async ({ page }) => {
-    await page.goto('/tournaments');
-
-    // Page title "Tournaments" visible in the top nav
-    await expect(page.getByText('Tournaments', { exact: true })).toBeVisible({
-      timeout: 15000,
-    });
-
-    // Browse tab controls are visible without sign-in
-    await expect(
-      page.getByPlaceholder('Search name or location...'),
-    ).toBeVisible();
-    await expect(
-      page.getByLabel('Filter by status'),
-    ).toBeVisible();
+    const browse = new TournamentBrowsePage(page);
+    await browse.goto();
+    await browse.expectPageLoaded();
   });
 
   test('tournament create requires sign in', async ({ page }) => {

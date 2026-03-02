@@ -60,6 +60,19 @@ export const firestoreBuddyGroupRepository = {
     return snap.data() as BuddyGroupMember;
   },
 
+  /** Check if a user is a member of a specific group.
+   *  Uses a collection group query that satisfies the security rule
+   *  `resource.data.userId == request.auth.uid`, so it works for
+   *  any authenticated user (even non-members). */
+  async isUserMember(groupId: string, userId: string): Promise<boolean> {
+    const q = query(
+      collectionGroup(firestore, 'members'),
+      where('userId', '==', userId),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.some((d) => d.ref.parent.parent?.id === groupId);
+  },
+
   async getGroupsForUser(userId: string): Promise<string[]> {
     const q = query(collectionGroup(firestore, 'members'), where('userId', '==', userId));
     const snap = await getDocs(q);

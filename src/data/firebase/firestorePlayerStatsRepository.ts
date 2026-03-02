@@ -1,4 +1,4 @@
-import { doc, getDocs, collection, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, query, orderBy, limit as fbLimit, startAfter, runTransaction } from 'firebase/firestore';
 import { firestore } from './config';
 import type { Match, MatchRef, StatsSummary, RecentResult } from '../types';
 import { computeTierScore, computeTier, computeTierConfidence } from '../../shared/utils/tierEngine';
@@ -208,5 +208,26 @@ export const firestorePlayerStatsRepository = {
         }),
       ),
     );
+  },
+
+  async getStatsSummary(uid: string): Promise<StatsSummary | null> {
+    const ref = doc(firestore, 'users', uid, 'stats', 'summary');
+    const snap = await getDoc(ref);
+    return snap.exists() ? (snap.data() as StatsSummary) : null;
+  },
+
+  async getRecentMatchRefs(
+    uid: string,
+    maxResults: number = 10,
+    startAfterTimestamp?: number,
+  ): Promise<MatchRef[]> {
+    const q = query(
+      collection(firestore, 'users', uid, 'matchRefs'),
+      orderBy('completedAt', 'desc'),
+      ...(startAfterTimestamp !== undefined ? [startAfter(startAfterTimestamp)] : []),
+      fbLimit(maxResults),
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => d.data() as MatchRef);
   },
 };

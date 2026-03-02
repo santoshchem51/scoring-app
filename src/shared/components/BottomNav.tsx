@@ -1,7 +1,7 @@
 import { Show, createResource } from 'solid-js';
 import type { Component } from 'solid-js';
 import { A, useLocation } from '@solidjs/router';
-import { Plus, Clock, Users, Sparkles, Heart, Settings } from 'lucide-solid';
+import { Plus, Clock, Users, Sparkles, Heart } from 'lucide-solid';
 import { useAuth } from '../hooks/useAuth';
 import { useBuddyNotifications } from '../../features/buddies/hooks/useBuddyNotifications';
 import { firestoreInvitationRepository } from '../../data/firebase/firestoreInvitationRepository';
@@ -80,13 +80,6 @@ const BottomNav: Component = () => {
             <span class="relative">Buddies</span>
           </A>
         </Show>
-        <A href="/settings" class={linkClass('/settings')} aria-current={isActive('/settings') ? 'page' : undefined} aria-label="Settings">
-          <Show when={isActive('/settings')}>
-            <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
-          </Show>
-          <Settings size={24} class="relative" />
-          <span class="relative">Settings</span>
-        </A>
       </div>
     </nav>
   );
