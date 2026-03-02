@@ -128,3 +128,61 @@ export function makePool(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+export function makeUserProfile(overrides: Record<string, unknown> = {}) {
+  return {
+    displayName: 'Test Player',
+    displayNameLower: 'test player',
+    email: 'testplayer@example.com',
+    photoURL: null,
+    createdAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export function makeStatsSummary(overrides: Record<string, unknown> = {}) {
+  return {
+    schemaVersion: 1,
+    totalMatches: 10,
+    wins: 7,
+    losses: 3,
+    winRate: 0.7,
+    currentStreak: { type: 'W', count: 3 },
+    bestWinStreak: 5,
+    singles: { matches: 6, wins: 4, losses: 2 },
+    doubles: { matches: 4, wins: 3, losses: 1 },
+    recentResults: [],
+    tier: 'intermediate',
+    tierConfidence: 'medium',
+    tierUpdatedAt: Date.now(),
+    lastPlayedAt: Date.now(),
+    updatedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export function makeMatchRefSeed(overrides: Record<string, unknown> = {}) {
+  const id = `match-${randomUUID().slice(0, 8)}`;
+  return {
+    id,
+    data: {
+      matchId: id,
+      startedAt: Date.now() - 7200000,
+      completedAt: Date.now() - 3600000,
+      gameType: 'singles',
+      scoringMode: 'sideout',
+      result: 'win',
+      scores: '11-7, 11-4',
+      gameScores: [[11, 7], [11, 4]],
+      playerTeam: 1,
+      opponentNames: ['Opponent'],
+      opponentIds: [],
+      partnerName: null,
+      partnerId: null,
+      ownerId: 'test-user',
+      tournamentId: null,
+      tournamentName: null,
+      ...overrides,
+    },
+  };
+}
