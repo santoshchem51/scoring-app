@@ -45,12 +45,12 @@ test.describe('Notification Badge', () => {
     const uid = await getCurrentUserUid(page);
 
     // Seed 3 unread notifications
-    for (let i = 0; i < 3; i++) {
-      const notif = makeNotification(uid, {
-        message: `notification ${i + 1}`,
-      });
-      await seedFirestoreDocAdmin(`users/${uid}/buddyNotifications`, notif.id, notif);
-    }
+    await Promise.all(
+      Array.from({ length: 3 }, (_, i) => {
+        const notif = makeNotification(uid, { message: `Notification ${i + 1}` });
+        return seedFirestoreDocAdmin(`users/${uid}/buddyNotifications`, notif.id, notif);
+      })
+    );
 
     // Navigate to a non-root page where the bottom nav is visible
     await page.goto('/new');
@@ -65,12 +65,12 @@ test.describe('Notification Badge', () => {
     const uid = await getCurrentUserUid(page);
 
     // Seed 12 unread notifications
-    for (let i = 0; i < 12; i++) {
-      const notif = makeNotification(uid, {
-        message: `notification ${i + 1}`,
-      });
-      await seedFirestoreDocAdmin(`users/${uid}/buddyNotifications`, notif.id, notif);
-    }
+    await Promise.all(
+      Array.from({ length: 12 }, (_, i) => {
+        const notif = makeNotification(uid, { message: `Notification ${i + 1}` });
+        return seedFirestoreDocAdmin(`users/${uid}/buddyNotifications`, notif.id, notif);
+      })
+    );
 
     // Navigate to a non-root page where the bottom nav is visible
     await page.goto('/new');

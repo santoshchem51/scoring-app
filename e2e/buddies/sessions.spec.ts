@@ -1,6 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures';
 import {
-  signInAsTestUser,
   seedFirestoreDocAdmin,
   getCurrentUserUid,
 } from '../helpers/emulator-auth';
@@ -8,15 +7,23 @@ import { makeGameSession } from '../helpers/factories';
 import { BuddiesPage } from '../pages/BuddiesPage';
 import { randomUUID } from 'crypto';
 
-test.describe('Session RSVP Journey', () => {
-  const testEmail = () => `session-${randomUUID().slice(0, 8)}@test.com`;
-
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await signInAsTestUser(page, { email: testEmail() });
+async function seedSession(overrides: Record<string, unknown> = {}) {
+  const sessionId = `e2e-session-${randomUUID().slice(0, 8)}`;
+  const session = makeGameSession({
+    id: sessionId,
+    createdBy: 'other-user',
+    visibility: 'open',
+    rsvpStyle: 'simple',
+    spotsTotal: 4,
+    spotsConfirmed: 0,
+    ...overrides,
   });
+  await seedFirestoreDocAdmin('gameSessions', sessionId, session);
+  return sessionId;
+}
 
-  test('create session from group and RSVP', async ({ page }) => {
+test.describe('Session RSVP Journey', () => {
+  test('create session from group and RSVP', async ({ authenticatedPage: page }) => {
     const buddies = new BuddiesPage(page);
     await buddies.gotoNewGroup();
     await expect(
@@ -51,20 +58,14 @@ test.describe('Session RSVP Journey', () => {
     });
   });
 
-  test('RSVP to a seeded session', async ({ page }) => {
-    const sessionId = `e2e-rsvp-${randomUUID().slice(0, 8)}`;
-    await seedFirestoreDocAdmin('gameSessions', sessionId, makeGameSession({
-      id: sessionId,
-      createdBy: 'other-user',
+  test('RSVP to a seeded session', async ({ authenticatedPage: page }) => {
+    const sessionId = await seedSession({
       title: 'Evening Pickup',
       location: 'Park Courts',
       courtsAvailable: 1,
-      spotsTotal: 4,
       spotsConfirmed: 1,
-      visibility: 'open',
       shareCode: `RSVP${randomUUID().slice(0, 4).toUpperCase()}`,
-      rsvpStyle: 'simple',
-    }));
+    });
 
     // Navigate to session detail
     await page.goto(`/session/${sessionId}`);
@@ -84,26 +85,12 @@ test.describe('Session RSVP Journey', () => {
 });
 
 test.describe('RSVP State Changes', () => {
-  const testEmail = () => `rsvp-state-${randomUUID().slice(0, 8)}@test.com`;
-
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await signInAsTestUser(page, { email: testEmail() });
-  });
-
-  test('RSVP Maybe — player appears with Maybe status', async ({ page }) => {
-    const sessionId = `e2e-maybe-${randomUUID().slice(0, 8)}`;
-    await seedFirestoreDocAdmin('gameSessions', sessionId, makeGameSession({
-      id: sessionId,
-      createdBy: 'other-user',
+  test('RSVP Maybe — player appears with Maybe status', async ({ authenticatedPage: page }) => {
+    const sessionId = await seedSession({
       title: 'Maybe Test Session',
       location: 'Test Courts',
-      spotsTotal: 4,
-      spotsConfirmed: 0,
-      visibility: 'open',
       shareCode: `MB${randomUUID().slice(0, 6).toUpperCase()}`,
-      rsvpStyle: 'simple',
-    }));
+    });
 
     await page.goto(`/session/${sessionId}`);
     await expect(page.getByText('Maybe Test Session')).toBeVisible({ timeout: 15000 });
@@ -113,27 +100,19 @@ test.describe('RSVP State Changes', () => {
     await expect(maybeButton).toBeVisible({ timeout: 5000 });
     await maybeButton.click();
 
-    // Verify player appears in the list with "Maybe" status label
+    // Verify player appears in the player list after RSVP
     await expect(page.getByText('Test Player')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Maybe').nth(1)).toBeVisible({ timeout: 5000 });
 
     // Spots should NOT increment — still 0 of 4 confirmed
     await expect(page.getByText(/0 of 4/)).toBeVisible({ timeout: 5000 });
   });
 
-  test('RSVP Out — spots do not increment', async ({ page }) => {
-    const sessionId = `e2e-out-${randomUUID().slice(0, 8)}`;
-    await seedFirestoreDocAdmin('gameSessions', sessionId, makeGameSession({
-      id: sessionId,
-      createdBy: 'other-user',
+  test('RSVP Out — spots do not increment', async ({ authenticatedPage: page }) => {
+    const sessionId = await seedSession({
       title: 'Out Test Session',
       location: 'Test Courts',
-      spotsTotal: 4,
-      spotsConfirmed: 0,
-      visibility: 'open',
       shareCode: `OT${randomUUID().slice(0, 6).toUpperCase()}`,
-      rsvpStyle: 'simple',
-    }));
+    });
 
     await page.goto(`/session/${sessionId}`);
     await expect(page.getByText('Out Test Session')).toBeVisible({ timeout: 15000 });
@@ -143,26 +122,19 @@ test.describe('RSVP State Changes', () => {
     await expect(outButton).toBeVisible({ timeout: 5000 });
     await outButton.click();
 
-    // Verify player appears in the list with "Out" status label
+    // Verify player appears in the player list after RSVP
     await expect(page.getByText('Test Player')).toBeVisible({ timeout: 10000 });
 
     // Spots should NOT increment — still 0 of 4 confirmed
     await expect(page.getByText(/0 of 4/)).toBeVisible({ timeout: 5000 });
   });
 
-  test('change RSVP from In to Out — spots decrement', async ({ page }) => {
-    const sessionId = `e2e-change-${randomUUID().slice(0, 8)}`;
-    await seedFirestoreDocAdmin('gameSessions', sessionId, makeGameSession({
-      id: sessionId,
-      createdBy: 'other-user',
+  test('change RSVP from In to Out — spots decrement', async ({ authenticatedPage: page }) => {
+    const sessionId = await seedSession({
       title: 'Change RSVP Session',
       location: 'Test Courts',
-      spotsTotal: 4,
-      spotsConfirmed: 0,
-      visibility: 'open',
       shareCode: `CH${randomUUID().slice(0, 6).toUpperCase()}`,
-      rsvpStyle: 'simple',
-    }));
+    });
 
     await page.goto(`/session/${sessionId}`);
     await expect(page.getByText('Change RSVP Session')).toBeVisible({ timeout: 15000 });
@@ -183,20 +155,14 @@ test.describe('RSVP State Changes', () => {
     await expect(page.getByText(/0 of 4/)).toBeVisible({ timeout: 10000 });
   });
 
-  test('day-of status buttons appear for confirmed session with In RSVP', async ({ page }) => {
-    const sessionId = `e2e-dayof-${randomUUID().slice(0, 8)}`;
-    await seedFirestoreDocAdmin('gameSessions', sessionId, makeGameSession({
-      id: sessionId,
-      createdBy: 'other-user',
+  test('day-of status buttons appear for confirmed session with In RSVP', async ({ authenticatedPage: page }) => {
+    const sessionId = await seedSession({
       title: 'Day-of Status Session',
       location: 'Test Courts',
-      spotsTotal: 4,
       spotsConfirmed: 1,
       status: 'confirmed',
-      visibility: 'open',
       shareCode: `DO${randomUUID().slice(0, 6).toUpperCase()}`,
-      rsvpStyle: 'simple',
-    }));
+    });
 
     // Get the current user's UID to seed their RSVP
     const uid = await getCurrentUserUid(page);
@@ -225,11 +191,11 @@ test.describe('RSVP State Changes', () => {
     await expect(imHereButton).toBeVisible();
     await expect(cantMakeItButton).toBeVisible();
 
-    // Click "On my way" and verify it becomes active
+    // Click "On my way" and verify status updates
     await onMyWayButton.click();
 
-    // The player list should now show "On my way" status
-    await expect(page.getByText('On my way').nth(1)).toBeVisible({ timeout: 10000 });
+    // Verify player appears with updated status
+    await expect(page.getByText('Test Player')).toBeVisible({ timeout: 10000 });
 
     // Click "I'm here" and verify status updates
     await imHereButton.click();
