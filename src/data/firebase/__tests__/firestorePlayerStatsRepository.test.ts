@@ -116,7 +116,69 @@ function makeEmptyStats(): StatsSummary {
     tierUpdatedAt: 0,
     lastPlayedAt: 0,
     updatedAt: 0,
+    uniqueOpponentUids: [],
   };
+}
+
+function makeTournamentMatch(overrides: Partial<Match> = {}): Match {
+  return makeMatch({
+    tournamentId: 'tourney-1',
+    tournamentTeam1Id: 'team-1',
+    tournamentTeam2Id: 'team-2',
+    ...overrides,
+  });
+}
+
+function makeCasualMatch(overrides: Partial<Match> = {}): Match {
+  return makeMatch({
+    id: 'casual-match-1',
+    ...overrides,
+  });
+}
+
+/** Sets up mockGetDocs to return registrations for resolveParticipantUids */
+function mockRegistrations(regs: Array<{ userId: string; teamId: string }>) {
+  mockGetDocs.mockResolvedValueOnce({
+    docs: regs.map((r, i) => ({ id: `reg-${i}`, data: () => r })),
+  });
+}
+
+/** Sets up mockGetDoc for fetchPublicTiers + tournament config lookup */
+function mockTierLookups(
+  tiersByUid: Record<string, import('../../types').Tier>,
+  uids: string[],
+  tournamentConfig?: { defaultTier?: import('../../types').Tier },
+) {
+  // fetchPublicTiers: one getDoc per uid
+  for (const uid of uids) {
+    const tier = tiersByUid[uid];
+    if (tier) {
+      mockGetDoc.mockResolvedValueOnce({ exists: () => true, data: () => ({ tier }) });
+    } else {
+      mockGetDoc.mockResolvedValueOnce({ exists: () => false });
+    }
+  }
+  // Tournament config lookup
+  if (tournamentConfig !== undefined) {
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ config: tournamentConfig }),
+    });
+  }
+}
+
+/** Sets up transaction.get mocks for N participants (matchRef not-exists + stats not-exists) */
+function mockTransactionForParticipants(count: number, existingStats?: StatsSummary) {
+  for (let i = 0; i < count; i++) {
+    mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // matchRef
+  }
+  for (let i = 0; i < count; i++) {
+    if (existingStats) {
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => true, data: () => ({ ...existingStats }) });
+    } else {
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // stats
+    }
+  }
 }
 
 describe('firestorePlayerStatsRepository', () => {
@@ -530,6 +592,385 @@ describe('firestorePlayerStatsRepository', () => {
       await firestorePlayerStatsRepository.getRecentMatchRefs('user-1');
 
       expect(mockLimit).toHaveBeenCalledWith(10);
+    });
+  });
+
+  // ============================================================
+  // Tournament enrichment tests (Task 5)
+  // ============================================================
+
+  describe('resolveOpponentTier (via processMatchCompletion)', () => {
+    it('singles match: uses opponent real tier directly', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      // resolveParticipantUids: 2 registrations (singles, one per team)
+      mockRegistrations([
+        { userId: 'uid-A', teamId: 'team-1' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      // fetchPublicTiers: uid-B is 'advanced', uid-A is 'intermediate'
+      mockTierLookups(
+        { 'uid-A': 'intermediate', 'uid-B': 'advanced' },
+        ['uid-A', 'uid-B'],
+        { defaultTier: 'beginner' },
+      );
+
+      // Both participants get transaction calls
+      mockTransactionForParticipants(2);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // uid-A (team 1, won): opponent is uid-B with tier 'advanced'
+      // Promise.all transaction SET order: [0] uid-A matchRef, [1] uid-A stats,
+      //   [2] uid-B matchRef, [3] uid-B stats
+      const uidAStats = mockTransactionSet.mock.calls[1][1] as StatsSummary;
+      expect(uidAStats.recentResults[0].opponentTier).toBe('advanced');
+
+      // uid-B (team 2, lost): opponent is uid-A with tier 'intermediate'
+      const uidBStats = mockTransactionSet.mock.calls[3][1] as StatsSummary;
+      expect(uidBStats.recentResults[0].opponentTier).toBe('intermediate');
+    });
+
+    it('doubles match: averages opponents tier multipliers via nearestTier', async () => {
+      const match = makeTournamentMatch({
+        winningSide: 1,
+        config: { gameType: 'doubles', scoringMode: 'rally', matchFormat: 'single', pointsToWin: 11 },
+      });
+
+      // 4 registrations: 2 per team
+      mockRegistrations([
+        { userId: 'uid-A1', teamId: 'team-1' },
+        { userId: 'uid-A2', teamId: 'team-1' },
+        { userId: 'uid-B1', teamId: 'team-2' },
+        { userId: 'uid-B2', teamId: 'team-2' },
+      ]);
+
+      // uid-B1 = 'intermediate' (0.8), uid-B2 = 'advanced' (1.0)
+      // avg = (0.8 + 1.0) / 2 = 0.9 → nearestTier(0.9) = 'advanced' (dist 0.1 vs 0.1 for intermediate, tiebreak: closer to 1.0)
+      mockTierLookups(
+        { 'uid-A1': 'beginner', 'uid-A2': 'beginner', 'uid-B1': 'intermediate', 'uid-B2': 'advanced' },
+        ['uid-A1', 'uid-A2', 'uid-B1', 'uid-B2'],
+        { defaultTier: 'beginner' },
+      );
+
+      mockTransactionForParticipants(4);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // uid-A1 (team 1): opponents are uid-B1 (intermediate=0.8) + uid-B2 (advanced=1.0)
+      // avg multiplier = 0.9, nearestTier(0.9) → 'advanced' (0.9 is equidistant from 0.8 and 1.0, tiebreak → closer to 1.0 = advanced)
+      // SET order: [0] A1 ref, [1] A1 stats, [2] A2 ref, [3] A2 stats, [4] B1 ref, [5] B1 stats, ...
+      const uidA1Stats = mockTransactionSet.mock.calls[1][1] as StatsSummary;
+      expect(uidA1Stats.recentResults[0].opponentTier).toBe('advanced');
+    });
+
+    it('missing opponent tier: falls back to tournament defaultTier', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      mockRegistrations([
+        { userId: 'uid-A', teamId: 'team-1' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      // uid-B has no public tier doc; tournament defaultTier = 'intermediate'
+      mockTierLookups(
+        { 'uid-A': 'beginner' },
+        ['uid-A', 'uid-B'],
+        { defaultTier: 'intermediate' },
+      );
+
+      mockTransactionForParticipants(2);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // uid-A's opponent is uid-B whose tier is missing → fallback to 'intermediate'
+      const uidAStats = mockTransactionSet.mock.calls[1][1] as StatsSummary;
+      expect(uidAStats.recentResults[0].opponentTier).toBe('intermediate');
+    });
+
+    it('all opponents missing, no defaultTier: falls back to beginner', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      mockRegistrations([
+        { userId: 'uid-A', teamId: 'team-1' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      // No public tier docs for anyone; tournament config has no defaultTier
+      mockTierLookups({}, ['uid-A', 'uid-B'], {});
+
+      mockTransactionForParticipants(2);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // Fallback: defaultTier resolves to 'beginner' when config has no defaultTier
+      const uidAStats = mockTransactionSet.mock.calls[1][1] as StatsSummary;
+      expect(uidAStats.recentResults[0].opponentTier).toBe('beginner');
+    });
+  });
+
+  describe('fetchPublicTiers (via processMatchCompletion)', () => {
+    it('fetches public/tier doc for each participant', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      mockRegistrations([
+        { userId: 'uid-A', teamId: 'team-1' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      mockTierLookups(
+        { 'uid-A': 'advanced' },
+        ['uid-A', 'uid-B'],
+        { defaultTier: 'beginner' },
+      );
+
+      mockTransactionForParticipants(2);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // getDoc called: 2x for fetchPublicTiers + 1x for tournament config = 3 total
+      expect(mockGetDoc).toHaveBeenCalledTimes(3);
+
+      // Verify it asked for the right doc paths
+      expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'users', 'uid-A', 'public', 'tier');
+      expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'users', 'uid-B', 'public', 'tier');
+    });
+
+    it('handles non-existent docs gracefully (returns empty for those)', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      mockRegistrations([
+        { userId: 'uid-A', teamId: 'team-1' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      // Both public tier docs don't exist
+      mockTierLookups({}, ['uid-A', 'uid-B'], { defaultTier: 'intermediate' });
+
+      mockTransactionForParticipants(2);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // Both players' opponent tier should fall back to 'intermediate' (tournament default)
+      // SET order: [0] uid-A ref, [1] uid-A stats, [2] uid-B ref, [3] uid-B stats
+      const uidAStats = mockTransactionSet.mock.calls[1][1] as StatsSummary;
+      expect(uidAStats.recentResults[0].opponentTier).toBe('intermediate');
+      const uidBStats = mockTransactionSet.mock.calls[3][1] as StatsSummary;
+      expect(uidBStats.recentResults[0].opponentTier).toBe('intermediate');
+    });
+  });
+
+  describe('duplicate UID guard in resolveParticipantUids', () => {
+    it('deduplicates when same UID appears on both teams', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      // Same UID on both teams (data corruption)
+      mockRegistrations([
+        { userId: 'uid-dupe', teamId: 'team-1' },
+        { userId: 'uid-dupe', teamId: 'team-2' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      // fetchPublicTiers: 2 unique UIDs (uid-dupe, uid-B)
+      mockTierLookups(
+        {},
+        ['uid-dupe', 'uid-B'],
+        { defaultTier: 'beginner' },
+      );
+
+      // Only 2 participants after dedup
+      mockTransactionForParticipants(2);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // Only 2 participants should get stats (uid-dupe kept on team-1, second occurrence skipped)
+      // 2 participants x 2 writes = 4 transaction.set calls
+      expect(mockTransactionSet).toHaveBeenCalledTimes(4);
+    });
+  });
+
+  describe('enriched matchRef fields', () => {
+    it('tournament match: opponentIds populated from opposing team UIDs', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      mockRegistrations([
+        { userId: 'uid-A', teamId: 'team-1' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      mockTierLookups({}, ['uid-A', 'uid-B'], { defaultTier: 'beginner' });
+      mockTransactionForParticipants(2);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // uid-A matchRef (first transaction.set call): opponent is uid-B
+      const uidARef = mockTransactionSet.mock.calls[0][1] as MatchRef;
+      expect(uidARef.opponentIds).toEqual(['uid-B']);
+
+      // uid-B matchRef: SET order [0] A ref, [1] A stats, [2] B ref, [3] B stats
+      const uidBRef = mockTransactionSet.mock.calls[2][1] as MatchRef;
+      expect(uidBRef.opponentIds).toEqual(['uid-A']);
+    });
+
+    it('tournament doubles match: partnerId populated from same team', async () => {
+      const match = makeTournamentMatch({
+        winningSide: 1,
+        config: { gameType: 'doubles', scoringMode: 'rally', matchFormat: 'single', pointsToWin: 11 },
+      });
+
+      mockRegistrations([
+        { userId: 'uid-A1', teamId: 'team-1' },
+        { userId: 'uid-A2', teamId: 'team-1' },
+        { userId: 'uid-B1', teamId: 'team-2' },
+        { userId: 'uid-B2', teamId: 'team-2' },
+      ]);
+
+      mockTierLookups({}, ['uid-A1', 'uid-A2', 'uid-B1', 'uid-B2'], { defaultTier: 'beginner' });
+      mockTransactionForParticipants(4);
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // uid-A1's matchRef: partner = uid-A2, opponents = [uid-B1, uid-B2]
+      const uidA1Ref = mockTransactionSet.mock.calls[0][1] as MatchRef;
+      expect(uidA1Ref.partnerId).toBe('uid-A2');
+      expect(uidA1Ref.opponentIds).toEqual(['uid-B1', 'uid-B2']);
+
+      // uid-A2's matchRef at [2]: partner = uid-A1
+      const uidA2Ref = mockTransactionSet.mock.calls[2][1] as MatchRef;
+      expect(uidA2Ref.partnerId).toBe('uid-A1');
+      expect(uidA2Ref.opponentIds).toEqual(['uid-B1', 'uid-B2']);
+
+      // uid-B1's matchRef at [4]: partner = uid-B2, opponents = [uid-A1, uid-A2]
+      const uidB1Ref = mockTransactionSet.mock.calls[4][1] as MatchRef;
+      expect(uidB1Ref.partnerId).toBe('uid-B2');
+      expect(uidB1Ref.opponentIds).toEqual(['uid-A1', 'uid-A2']);
+    });
+
+    it('casual match: opponentIds stays [], partnerId stays null', async () => {
+      const match = makeCasualMatch();
+
+      // Casual: no getDocs call for registrations
+      mockTransactionGet
+        .mockResolvedValueOnce({ exists: () => false })  // matchRef
+        .mockResolvedValueOnce({ exists: () => false }); // stats
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      const ref = mockTransactionSet.mock.calls[0][1] as MatchRef;
+      expect(ref.opponentIds).toEqual([]);
+      expect(ref.partnerId).toBeNull();
+    });
+  });
+
+  describe('uniqueOpponentUids tracking', () => {
+    it('new opponent UIDs merged into existing set', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      mockRegistrations([
+        { userId: 'uid-A', teamId: 'team-1' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      mockTierLookups({}, ['uid-A', 'uid-B'], { defaultTier: 'beginner' });
+
+      // uid-A already has stats with some unique opponents
+      const existingStats = makeEmptyStats();
+      existingStats.totalMatches = 3;
+      existingStats.wins = 2;
+      existingStats.losses = 1;
+      existingStats.uniqueOpponentUids = ['uid-old-1', 'uid-old-2'];
+
+      // uid-A matchRef (not exists), uid-B matchRef (not exists)
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-A matchRef
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-B matchRef
+      // uid-A stats (exists with prior opponents), uid-B stats (not exists)
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => true, data: () => ({ ...existingStats }) });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-B stats
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // uid-A's stats at [1]: SET order [0] A ref, [1] A stats, [2] B ref, [3] B stats
+      const uidAStats = mockTransactionSet.mock.calls[1][1] as StatsSummary;
+      expect(uidAStats.uniqueOpponentUids).toContain('uid-old-1');
+      expect(uidAStats.uniqueOpponentUids).toContain('uid-old-2');
+      expect(uidAStats.uniqueOpponentUids).toContain('uid-B');
+      expect(uidAStats.uniqueOpponentUids).toHaveLength(3);
+    });
+
+    it('duplicate opponents not added twice', async () => {
+      const match = makeTournamentMatch({ winningSide: 1 });
+
+      mockRegistrations([
+        { userId: 'uid-A', teamId: 'team-1' },
+        { userId: 'uid-B', teamId: 'team-2' },
+      ]);
+
+      mockTierLookups({}, ['uid-A', 'uid-B'], { defaultTier: 'beginner' });
+
+      // uid-A already has uid-B in unique opponents
+      const existingStats = makeEmptyStats();
+      existingStats.totalMatches = 5;
+      existingStats.wins = 3;
+      existingStats.losses = 2;
+      existingStats.uniqueOpponentUids = ['uid-B', 'uid-C'];
+
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-A matchRef
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-B matchRef
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => true, data: () => ({ ...existingStats }) });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-B stats
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      // uid-A's uniqueOpponentUids should still have exactly uid-B and uid-C (no duplicate uid-B)
+      const uidAStats = mockTransactionSet.mock.calls[1][1] as StatsSummary;
+      expect(uidAStats.uniqueOpponentUids).toEqual(expect.arrayContaining(['uid-B', 'uid-C']));
+      expect(uidAStats.uniqueOpponentUids).toHaveLength(2);
+    });
+
+    it('casual matches do not update uniqueOpponentUids', async () => {
+      const match = makeCasualMatch();
+
+      mockTransactionGet
+        .mockResolvedValueOnce({ exists: () => false })  // matchRef
+        .mockResolvedValueOnce({ exists: () => false }); // stats
+
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+
+      const stats = mockTransactionSet.mock.calls[1][1] as StatsSummary;
+      expect(stats.uniqueOpponentUids).toEqual([]);
+    });
+  });
+
+  describe('tierUpdated flag (idempotency)', () => {
+    it('when match already processed, writePublicTier is NOT called', async () => {
+      // matchRef already exists → transaction returns early
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => true });
+
+      const match = makeMatch();
+      await firestorePlayerStatsRepository.updatePlayerStats(
+        'user-1', match, 1, 'win', 'scorer-uid',
+      );
+
+      // setDoc (used by writePublicTier) should NOT be called
+      expect(mockSetDoc).not.toHaveBeenCalled();
+      // transaction.set should NOT be called (no writes)
+      expect(mockTransactionSet).not.toHaveBeenCalled();
+    });
+
+    it('writePublicTier IS called when match is newly processed', async () => {
+      mockTransactionGet
+        .mockResolvedValueOnce({ exists: () => false })  // matchRef
+        .mockResolvedValueOnce({ exists: () => false }); // stats
+
+      const match = makeMatch();
+      await firestorePlayerStatsRepository.updatePlayerStats(
+        'user-1', match, 1, 'win', 'scorer-uid',
+      );
+
+      // writePublicTier writes via setDoc
+      expect(mockSetDoc).toHaveBeenCalledTimes(1);
+      expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'users', 'user-1', 'public', 'tier');
     });
   });
 });
