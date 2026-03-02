@@ -167,7 +167,8 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToTournamentDashboard(page, tournament.id);
+      // Don't use goToTournamentDashboard — restricted pages may not show "Status" text
+      await page.goto(`/tournaments/${tournament.id}`);
 
       await expect(
         page.getByText('This tournament is invite only.'),
@@ -211,7 +212,8 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
         invitation,
       );
 
-      await goToTournamentDashboard(page, tournament.id);
+      // Don't use goToTournamentDashboard — the async invitation check may delay "Status" text
+      await page.goto(`/tournaments/${tournament.id}`);
 
       // Invited user should see the Join button (not restriction message)
       const joinBtn = page.getByRole('button', { name: 'Join Tournament' });
@@ -242,7 +244,8 @@ test.describe('Tournament Registration (Manual Plan 4.2-4.6)', () => {
       });
       await seedFirestoreDocAdmin('tournaments', tournament.id, tournament);
 
-      await goToTournamentDashboard(page, tournament.id);
+      // Don't use goToTournamentDashboard — restricted pages may not show "Status" text
+      await page.goto(`/tournaments/${tournament.id}`);
 
       // Should see restriction message
       await expect(

@@ -14,7 +14,7 @@ test.describe('Navigation', () => {
   test('navigating to History tab', async ({ page }) => {
     const nav = new NavigationBar(page);
     await nav.goToHistory();
-    await expect(page.getByRole('banner').getByRole('link', { name: 'Match History' })).toBeVisible();
+    await expect(page.getByRole('navigation').getByRole('link', { name: 'Match History' })).toBeVisible();
   });
 
   test('navigating to Players tab shows input', async ({ page }) => {
@@ -36,6 +36,6 @@ test.describe('Navigation', () => {
     await nav.goToSettings();
     await expect(page.getByText('Display')).toBeVisible();
     await nav.goToNew();
-    await expect(page.getByRole('banner').getByRole('link', { name: 'New Game' })).toBeVisible();
+    await expect(page.getByRole('navigation').getByRole('link', { name: 'New Game' })).toBeVisible();
   });
 });

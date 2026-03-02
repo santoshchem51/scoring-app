@@ -61,7 +61,7 @@ test.describe('MP-3.1: Match Setup', () => {
     await setup.startGame();
 
     await scoring.expectOnScoringScreen();
-    await expect(page.getByText('Aces')).toBeVisible();
-    await expect(page.getByText('Smashers')).toBeVisible();
+    await expect(page.getByText('Aces', { exact: true })).toBeVisible();
+    await expect(page.getByText('Smashers', { exact: true })).toBeVisible();
   });
 });

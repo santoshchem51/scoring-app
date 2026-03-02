@@ -322,13 +322,18 @@ test.describe('Tournament Dashboard (Manual Plan 4.8)', () => {
     await expect(page.getByText('Test Player One')).toBeVisible({ timeout: 10000 });
 
     // Add a second player with skill rating.
-    // Select skill level BEFORE filling the name — Playwright's selectOption focuses
-    // the <select>, which blurs the text input and can reset it in SolidJS's
-    // controlled-input model. Selecting first avoids that race.
+    // Wait for the form to fully reset after first add (SolidJS signal update).
+    await expect(playerNameInput).toHaveValue('', { timeout: 5000 });
+
+    // Fill name first to enable the button, then set skill.
+    await playerNameInput.fill('Test Player Two');
+    await expect(
+      page.getByRole('button', { name: 'Add Player', exact: true }),
+    ).toBeEnabled({ timeout: 5000 });
+
     // The organizer form's <select> has no id attribute, while the RegistrationForm's
     // has id="skill-rating" — use select:not([id]) to target the correct one.
     await page.locator('select:not([id])').selectOption('3.5');
-    await playerNameInput.fill('Test Player Two');
     await page.getByRole('button', { name: 'Add Player', exact: true }).click();
 
     // Verify count increments

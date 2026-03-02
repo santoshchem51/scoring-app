@@ -37,7 +37,14 @@ test.describe('Browse tab - logged out', () => {
   test('shows empty state when no public tournaments exist', async ({ page }) => {
     const browse = new TournamentBrowsePage(page);
     await browse.goto();
-    await browse.expectEmpty({ timeout: 15000 });
+    // Use a filter combination that no other test seeds (completed + pool-bracket)
+    // to reliably trigger an empty state even when parallel tests seed data.
+    await expect(page.getByLabel('Filter by status')).toBeVisible({ timeout: 15000 });
+    await browse.filterByStatus('completed');
+    await browse.filterByFormat('pool-bracket');
+    await expect(
+      page.getByRole('heading', { name: /No tournaments/ }),
+    ).toBeVisible({ timeout: 15000 });
   });
 });
 

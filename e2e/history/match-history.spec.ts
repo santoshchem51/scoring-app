@@ -55,8 +55,8 @@ test.describe('Match History (Manual Plan 2.1)', () => {
     await expect(card.getByText('Team 2')).toBeVisible();
 
     // Scores — Team 1 won 11-0 (quick game, all points to Team 1)
-    await expect(card.getByText('11')).toBeVisible();
-    await expect(card.getByText('0')).toBeVisible();
+    await expect(card.getByText('11', { exact: true })).toBeVisible();
+    await expect(card.getByText('0', { exact: true })).toBeVisible();
 
     // Game type info: "Doubles · To 11" (no best-of suffix for single format)
     await expect(card.getByText('Doubles · To 11')).toBeVisible();

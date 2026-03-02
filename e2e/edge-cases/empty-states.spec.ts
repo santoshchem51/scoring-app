@@ -34,7 +34,16 @@ test.describe('Empty States (Manual Plan 10.2)', () => {
     const browse = new TournamentBrowsePage(page);
     await browse.goto();
 
-    await browse.expectEmpty({ timeout: 10000 });
+    // Use a filter combination that no other test seeds (completed + pool-bracket)
+    // to reliably trigger an empty state even when parallel tests seed data.
+    await expect(
+      page.getByLabel('Filter by status'),
+    ).toBeVisible({ timeout: 15000 });
+    await browse.filterByStatus('completed');
+    await browse.filterByFormat('pool-bracket');
+    await expect(
+      page.getByRole('heading', { name: /No tournaments/ }),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test('buddies page shows empty state when no groups (authenticated)', async ({

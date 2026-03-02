@@ -13,8 +13,8 @@ export class NavigationBar {
   async goToNew()         { await this.nav.getByText('New').click(); }
   async goToHistory()     { await this.nav.getByText('History').click(); }
   async goToPlayers()     { await this.nav.getByText('Players').click(); }
-  async goToSettings()    { await this.nav.getByText('Settings').click(); }
-  async goToTournaments() { await this.nav.getByText('Tournaments').click(); }
+  async goToSettings()    { await this.page.goto('/settings'); }
+  async goToTournaments() { await this.nav.getByText('Tourneys').click(); }
   async goToBuddies()     { await this.nav.getByText('Buddies').click(); }
 
   // ── Assertions ──
@@ -22,7 +22,7 @@ export class NavigationBar {
     await expect(this.nav.getByText('New')).toBeVisible();
     await expect(this.nav.getByText('History')).toBeVisible();
     await expect(this.nav.getByText('Players')).toBeVisible();
-    await expect(this.nav.getByText('Settings')).toBeVisible();
+    await expect(this.nav.getByText('Tourneys')).toBeVisible();
   }
 
   async expectBuddiesTab() {

@@ -114,21 +114,21 @@ test.describe('Tournament Creation (Manual Plan 4.1)', () => {
     });
 
     await expect(
-      accessFieldset.getByRole('button', { name: 'Open' }),
+      accessFieldset.getByRole('button', { name: /^Open / }),
     ).toBeVisible();
     await expect(
-      accessFieldset.getByRole('button', { name: 'Approval Required' }),
+      accessFieldset.getByRole('button', { name: /^Approval Required/ }),
     ).toBeVisible();
     await expect(
-      accessFieldset.getByRole('button', { name: 'Invite Only' }),
+      accessFieldset.getByRole('button', { name: /^Invite Only/ }),
     ).toBeVisible();
     await expect(
-      accessFieldset.getByRole('button', { name: 'Buddy Group' }),
+      accessFieldset.getByRole('button', { name: /^Buddy Group/ }),
     ).toBeVisible();
 
     // Open is selected by default
     await expect(
-      accessFieldset.getByRole('button', { name: 'Open' }),
+      accessFieldset.getByRole('button', { name: /^Open / }),
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -168,7 +168,7 @@ test.describe('Tournament Creation (Manual Plan 4.1)', () => {
       has: page.locator('legend', { hasText: 'Who Can Join?' }),
     });
     await expect(
-      accessFieldset.getByRole('button', { name: 'Open' }),
+      accessFieldset.getByRole('button', { name: /^Open / }),
     ).toHaveAttribute('aria-pressed', 'true');
 
     await submitAndWaitForDashboard(page, name);
