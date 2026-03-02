@@ -195,6 +195,11 @@ export const firestorePlayerStatsRepository = {
       const existingRef = await transaction.get(matchRefDoc);
       if (existingRef.exists()) return;
 
+      // Compute once for all enrichment blocks
+      const opponentUids = enrichment?.isTournamentMatch
+        ? enrichment.participants.filter((p) => p.playerTeam !== playerTeam).map((p) => p.uid)
+        : [];
+
       // 2. Read existing stats
       const existingStatsSnap = await transaction.get(statsDoc);
       const stats: StatsSummary = existingStatsSnap.exists()
@@ -207,9 +212,6 @@ export const firestorePlayerStatsRepository = {
 
       // Enrich matchRef for tournament matches
       if (enrichment?.isTournamentMatch) {
-        const opponentUids = enrichment.participants
-          .filter((p) => p.playerTeam !== playerTeam)
-          .map((p) => p.uid);
         const partnerUid = match.config.gameType === 'doubles'
           ? enrichment.participants.find((p) => p.playerTeam === playerTeam && p.uid !== uid)?.uid ?? null
           : null;
@@ -242,9 +244,6 @@ export const firestorePlayerStatsRepository = {
       // Resolve opponent tier
       let opponentTier: Tier = 'beginner';
       if (enrichment?.isTournamentMatch) {
-        const opponentUids = enrichment.participants
-          .filter((p) => p.playerTeam !== playerTeam)
-          .map((p) => p.uid);
         opponentTier = resolveOpponentTier(opponentUids, enrichment.tierMap, enrichment.fallbackTier, match.config.gameType);
       }
 
@@ -263,9 +262,6 @@ export const firestorePlayerStatsRepository = {
 
       // Unique opponents: merge new opponent UIDs for tournament matches
       if (enrichment?.isTournamentMatch) {
-        const opponentUids = enrichment.participants
-          .filter((p) => p.playerTeam !== playerTeam)
-          .map((p) => p.uid);
         const existingUids = new Set(stats.uniqueOpponentUids ?? []);
         for (const oid of opponentUids) {
           existingUids.add(oid);
