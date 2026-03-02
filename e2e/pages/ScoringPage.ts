@@ -75,4 +75,12 @@ export class ScoringPage {
   async expectPointsToWin(points: number) {
     await expect(this.page.getByText(`to ${points}`)).toBeVisible();
   }
+
+  async expectTeamIndicator(teamName: string) {
+    await expect(this.page.getByText(`You're on ${teamName}`)).toBeVisible({ timeout: 10000 });
+  }
+
+  async expectNoTeamIndicator() {
+    await expect(this.page.locator('text=/You\'re on/')).not.toBeVisible();
+  }
 }

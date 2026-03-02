@@ -50,6 +50,43 @@ export class GameSetupPage {
     await section.getByRole('button', { name: labels[games] }).click();
   }
 
+  // ── Your Role Actions ──
+  async expandYourRole() {
+    await this.page.getByRole('button', { name: 'Change' }).click();
+  }
+
+  async selectScoringForOthers() {
+    await this.page.getByRole('button', { name: /Scoring for Others/ }).click();
+  }
+
+  async selectImPlaying() {
+    await this.page.getByRole('button', { name: /I'm Playing/ }).click();
+  }
+
+  async selectScorerTeam(team: 1 | 2) {
+    const roleSection = this.page.locator('fieldset', { has: this.page.getByText('Your Role') });
+    const teamContainer = roleSection.locator('.flex.gap-3');
+    await teamContainer.locator('button').nth(team - 1).click();
+  }
+
+  async collapseYourRole() {
+    await this.page.getByRole('button', { name: 'Done' }).click();
+  }
+
+  // ── Your Role Assertions ──
+  async expectRoleCollapsed(roleText: string) {
+    await expect(this.page.getByText(roleText)).toBeVisible();
+    await expect(this.page.getByRole('button', { name: 'Change' })).toBeVisible();
+  }
+
+  async expectTeamSelectorVisible() {
+    await expect(this.page.getByText('Which team are you on?')).toBeVisible();
+  }
+
+  async expectTeamSelectorHidden() {
+    await expect(this.page.getByText('Which team are you on?')).not.toBeVisible();
+  }
+
   // ── Assertions ──
   async expectSetupVisible() {
     await expect(this.page.getByRole('link', { name: 'New Game' })).toBeVisible();
