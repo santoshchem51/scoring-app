@@ -6,7 +6,7 @@ import OptionCard from '../../shared/components/OptionCard';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
 import type {
-  TournamentFormat, GameType, ScoringMode, MatchFormat, Tournament, TournamentRules, TournamentAccessMode,
+  TournamentFormat, GameType, ScoringMode, MatchFormat, Tournament, TournamentRules, TournamentAccessMode, Tier,
 } from '../../data/types';
 import { validateTournamentForm } from './engine/validateTournament';
 import type { TournamentFormErrors } from './engine/validateTournament';
@@ -30,6 +30,7 @@ const TournamentCreatePage: Component = () => {
   const [scoringMode, setScoringMode] = createSignal<ScoringMode>('sideout');
   const [matchFormat, setMatchFormat] = createSignal<MatchFormat>('single');
   const [pointsToWin, setPointsToWin] = createSignal<11 | 15 | 21>(11);
+  const [defaultTier, setDefaultTier] = createSignal<Tier>('beginner');
   const [poolCount, _setPoolCount] = createSignal(2);
   const [teamsAdvancing, _setTeamsAdvancing] = createSignal(2);
   const [maxPlayers, setMaxPlayers] = createSignal('');
@@ -98,6 +99,7 @@ const TournamentCreatePage: Component = () => {
           pointsToWin: pointsToWin(),
           poolCount: format() === 'round-robin' ? 1 : poolCount(),
           teamsPerPoolAdvancing: teamsAdvancing(),
+          defaultTier: defaultTier(),
         },
         organizerId: currentUser.uid,
         scorekeeperIds: [],
@@ -228,6 +230,17 @@ const TournamentCreatePage: Component = () => {
             <OptionCard label="1 Game" selected={matchFormat() === 'single'} onClick={() => setMatchFormat('single')} />
             <OptionCard label="Best of 3" selected={matchFormat() === 'best-of-3'} onClick={() => setMatchFormat('best-of-3')} />
             <OptionCard label="Best of 5" selected={matchFormat() === 'best-of-5'} onClick={() => setMatchFormat('best-of-5')} />
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Default Skill Level</legend>
+          <p class="text-xs text-on-surface-muted mb-2">Used for rating players without match history</p>
+          <div class="grid grid-cols-4 gap-3">
+            <OptionCard label="Beginner" selected={defaultTier() === 'beginner'} onClick={() => setDefaultTier('beginner')} />
+            <OptionCard label="Intermediate" selected={defaultTier() === 'intermediate'} onClick={() => setDefaultTier('intermediate')} />
+            <OptionCard label="Advanced" selected={defaultTier() === 'advanced'} onClick={() => setDefaultTier('advanced')} />
+            <OptionCard label="Expert" selected={defaultTier() === 'expert'} onClick={() => setDefaultTier('expert')} />
           </div>
         </fieldset>
 
