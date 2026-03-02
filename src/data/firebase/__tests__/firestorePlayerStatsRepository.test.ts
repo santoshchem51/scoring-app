@@ -5,6 +5,7 @@ const {
   mockDoc,
   mockGetDoc,
   mockGetDocs,
+  mockSetDoc,
   mockCollection,
   mockQuery,
   mockOrderBy,
@@ -26,6 +27,7 @@ const {
     mockDoc: vi.fn(() => 'mock-doc-ref'),
     mockGetDoc: vi.fn(),
     mockGetDocs: vi.fn(() => Promise.resolve({ docs: [] })),
+    mockSetDoc: vi.fn(() => Promise.resolve()),
     mockCollection: vi.fn(() => 'mock-collection-ref'),
     mockQuery: vi.fn(() => 'mock-query'),
     mockOrderBy: vi.fn(() => 'mock-order-by'),
@@ -41,6 +43,7 @@ vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   getDoc: mockGetDoc,
   getDocs: mockGetDocs,
+  setDoc: mockSetDoc,
   collection: mockCollection,
   query: mockQuery,
   orderBy: mockOrderBy,
@@ -389,6 +392,13 @@ describe('firestorePlayerStatsRepository', () => {
         ],
       });
 
+      // fetchPublicTiers: one getDoc per participant UID (no public tier docs exist yet)
+      mockGetDoc
+        .mockResolvedValueOnce({ exists: () => false })  // uid-A public tier
+        .mockResolvedValueOnce({ exists: () => false })  // uid-B public tier
+        // Tournament config lookup
+        .mockResolvedValueOnce({ exists: () => true, data: () => ({ config: { defaultTier: 'beginner' } }) });
+
       // Both participants run transactions concurrently (Promise.all).
       // Due to microtask interleaving, get calls alternate:
       //   uid-A matchRef, uid-B matchRef, uid-A stats, uid-B stats
@@ -410,6 +420,8 @@ describe('firestorePlayerStatsRepository', () => {
 
       // 2 participants x 2 writes each (matchRef + stats) = 4 transaction.set calls
       expect(mockTransactionSet).toHaveBeenCalledTimes(4);
+      // writePublicTier called once per participant = 2 setDoc calls
+      expect(mockSetDoc).toHaveBeenCalledTimes(2);
     });
 
     it('swallows errors for individual players without blocking others', async () => {

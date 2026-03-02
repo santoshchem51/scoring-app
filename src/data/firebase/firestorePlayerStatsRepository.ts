@@ -1,7 +1,7 @@
-import { doc, getDoc, getDocs, collection, query, orderBy, limit as fbLimit, startAfter, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, collection, query, orderBy, limit as fbLimit, startAfter, runTransaction } from 'firebase/firestore';
 import { firestore } from './config';
-import type { Match, MatchRef, StatsSummary, RecentResult } from '../types';
-import { computeTierScore, computeTier, computeTierConfidence } from '../../shared/utils/tierEngine';
+import type { Match, MatchRef, StatsSummary, RecentResult, Tier } from '../types';
+import { computeTierScore, computeTier, computeTierConfidence, nearestTier, TIER_MULTIPLIER } from '../../shared/utils/tierEngine';
 
 const RING_BUFFER_SIZE = 50;
 
@@ -84,6 +84,38 @@ function estimateUniqueOpponents(matchCount: number): number {
   return Math.ceil(matchCount * 0.7);
 }
 
+async function fetchPublicTiers(uids: string[]): Promise<Record<string, Tier>> {
+  if (uids.length === 0) return {};
+  const snapshots = await Promise.all(
+    uids.map((uid) => getDoc(doc(firestore, 'users', uid, 'public', 'tier'))),
+  );
+  const tiers: Record<string, Tier> = {};
+  for (let i = 0; i < uids.length; i++) {
+    if (snapshots[i].exists()) {
+      tiers[uids[i]] = (snapshots[i].data() as { tier: Tier }).tier;
+    }
+  }
+  return tiers;
+}
+
+function resolveOpponentTier(
+  opponentUids: string[],
+  tierMap: Record<string, Tier>,
+  fallbackTier: Tier,
+  gameType: 'singles' | 'doubles',
+): Tier {
+  const tiers = opponentUids.map((uid) => tierMap[uid] ?? fallbackTier);
+  if (tiers.length === 0) return fallbackTier;
+  if (gameType === 'singles' || tiers.length === 1) return tiers[0];
+  // Doubles: average multipliers, map to nearest tier
+  const avgMultiplier = tiers.reduce((sum, t) => sum + TIER_MULTIPLIER[t], 0) / tiers.length;
+  return nearestTier(avgMultiplier);
+}
+
+async function writePublicTier(uid: string, tier: Tier): Promise<void> {
+  await setDoc(doc(firestore, 'users', uid, 'public', 'tier'), { tier });
+}
+
 async function resolveParticipantUids(
   match: Match,
   scorerUid: string,
@@ -113,6 +145,19 @@ async function resolveParticipantUids(
         const result: 'win' | 'loss' = match.winningSide === playerTeam ? 'win' : 'loss';
         participants.push({ uid: reg.userId, playerTeam, result });
       }
+
+      // Guard: detect duplicate UIDs across teams (data corruption)
+      const seen = new Set<string>();
+      const deduped: typeof participants = [];
+      for (const p of participants) {
+        if (seen.has(p.uid)) {
+          console.warn('Duplicate UID across teams (data corruption), skipping:', p.uid);
+          continue;
+        }
+        seen.add(p.uid);
+        deduped.push(p);
+      }
+      return deduped;
     } catch (err) {
       // Return empty — don't fall through to casual path and give scorer phantom stats
       console.warn('Failed to resolve tournament participant UIDs, skipping stats:', err);
@@ -129,6 +174,13 @@ async function resolveParticipantUids(
   return participants;
 }
 
+interface StatsEnrichment {
+  isTournamentMatch: boolean;
+  participants: Array<{ uid: string; playerTeam: 1 | 2; result: 'win' | 'loss' }>;
+  tierMap: Record<string, Tier>;
+  fallbackTier: Tier;
+}
+
 export const firestorePlayerStatsRepository = {
   async updatePlayerStats(
     uid: string,
@@ -136,9 +188,12 @@ export const firestorePlayerStatsRepository = {
     playerTeam: 1 | 2,
     result: 'win' | 'loss',
     scorerUid: string,
+    enrichment?: StatsEnrichment,
   ): Promise<void> {
     const matchRefDoc = doc(firestore, 'users', uid, 'matchRefs', match.id);
     const statsDoc = doc(firestore, 'users', uid, 'stats', 'summary');
+
+    let newTier: Tier = 'beginner';
 
     await runTransaction(firestore, async (transaction) => {
       // 1. Idempotency check: skip if matchRef already exists
@@ -154,6 +209,18 @@ export const firestorePlayerStatsRepository = {
       // 3. Build matchRef
       const matchRef = buildMatchRef(match, playerTeam, result);
       matchRef.ownerId = scorerUid;
+
+      // Enrich matchRef for tournament matches
+      if (enrichment?.isTournamentMatch) {
+        const opponentUids = enrichment.participants
+          .filter((p) => p.playerTeam !== playerTeam)
+          .map((p) => p.uid);
+        const partnerUid = match.config.gameType === 'doubles'
+          ? enrichment.participants.find((p) => p.playerTeam === playerTeam && p.uid !== uid)?.uid ?? null
+          : null;
+        matchRef.opponentIds = opponentUids;
+        matchRef.partnerId = partnerUid;
+      }
 
       // 4. Update stats
       const isWin = result === 'win';
@@ -177,10 +244,19 @@ export const firestorePlayerStatsRepository = {
         stats.bestWinStreak = newStreak.count;
       }
 
+      // Resolve opponent tier
+      let opponentTier: Tier = 'beginner';
+      if (enrichment?.isTournamentMatch) {
+        const opponentUids = enrichment.participants
+          .filter((p) => p.playerTeam !== playerTeam)
+          .map((p) => p.uid);
+        opponentTier = resolveOpponentTier(opponentUids, enrichment.tierMap, enrichment.fallbackTier, match.config.gameType);
+      }
+
       // Ring buffer
       const newResult: RecentResult = {
         result,
-        opponentTier: 'beginner', // v1: default opponent tier (circular bootstrap)
+        opponentTier,
         completedAt: match.completedAt ?? Date.now(),
         gameType,
       };
@@ -189,7 +265,19 @@ export const firestorePlayerStatsRepository = {
       // Tier computation
       const score = computeTierScore(stats.recentResults);
       stats.tier = computeTier(score, stats.tier);
-      const uniqueOpponents = estimateUniqueOpponents(stats.totalMatches);
+
+      // Unique opponents: merge new opponent UIDs for tournament matches
+      if (enrichment?.isTournamentMatch) {
+        const opponentUids = enrichment.participants
+          .filter((p) => p.playerTeam !== playerTeam)
+          .map((p) => p.uid);
+        const existingUids = new Set(stats.uniqueOpponentUids ?? []);
+        for (const oid of opponentUids) {
+          existingUids.add(oid);
+        }
+        stats.uniqueOpponentUids = [...existingUids];
+      }
+      const uniqueOpponents = (stats.uniqueOpponentUids ?? []).length || estimateUniqueOpponents(stats.totalMatches);
       stats.tierConfidence = computeTierConfidence(stats.totalMatches, uniqueOpponents);
       stats.tierUpdatedAt = Date.now();
 
@@ -199,6 +287,13 @@ export const firestorePlayerStatsRepository = {
       // 5. Write both docs atomically
       transaction.set(matchRefDoc, matchRef);
       transaction.set(statsDoc, stats, { merge: true });
+
+      newTier = stats.tier;
+    });
+
+    // Write public tier doc (outside transaction — eventual consistency is fine)
+    await writePublicTier(uid, newTier).catch((err) => {
+      console.warn('Failed to write public tier for', uid, err);
     });
   },
 
@@ -207,10 +302,36 @@ export const firestorePlayerStatsRepository = {
     scorerUid: string,
   ): Promise<void> {
     const participants = await resolveParticipantUids(match, scorerUid);
+    if (participants.length === 0) return;
+
+    const isTournamentMatch = !!(match.tournamentId && (match.tournamentTeam1Id || match.tournamentTeam2Id));
+
+    let tierMap: Record<string, Tier> = {};
+    let fallbackTier: Tier = 'beginner';
+
+    if (isTournamentMatch) {
+      const allUids = participants.map((p) => p.uid);
+      tierMap = await fetchPublicTiers(allUids);
+
+      try {
+        const tournamentSnap = await getDoc(doc(firestore, 'tournaments', match.tournamentId!));
+        if (tournamentSnap.exists()) {
+          const config = tournamentSnap.data()?.config;
+          fallbackTier = config?.defaultTier ?? 'beginner';
+        }
+      } catch {
+        // Fallback silently
+      }
+    }
 
     await Promise.all(
       participants.map(({ uid, playerTeam, result }) =>
-        this.updatePlayerStats(uid, match, playerTeam, result, scorerUid).catch((err) => {
+        this.updatePlayerStats(uid, match, playerTeam, result, scorerUid, {
+          isTournamentMatch,
+          participants,
+          tierMap,
+          fallbackTier,
+        }).catch((err) => {
           console.warn('Stats update failed for user:', uid, err);
         }),
       ),
