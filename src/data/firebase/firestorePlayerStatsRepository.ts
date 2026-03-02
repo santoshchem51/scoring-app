@@ -5,16 +5,10 @@ import { computeTierScore, computeTier, computeTierConfidence, nearestTier, TIER
 
 const RING_BUFFER_SIZE = 50;
 
-interface MatchRefEnrichment {
-  opponentIds?: string[];
-  partnerId?: string | null;
-}
-
 function buildMatchRef(
   match: Match,
   playerTeam: 1 | 2,
   result: 'win' | 'loss',
-  enrichment?: MatchRefEnrichment,
 ): MatchRef {
   const opponentTeam = playerTeam === 1 ? 2 : 1;
   const opponentNames = opponentTeam === 1 ? [match.team1Name] : [match.team2Name];
@@ -38,9 +32,9 @@ function buildMatchRef(
     gameScores,
     playerTeam,
     opponentNames,
-    opponentIds: enrichment?.opponentIds ?? [],
+    opponentIds: [],
     partnerName,
-    partnerId: enrichment?.partnerId ?? null,
+    partnerId: null,
     ownerId: '',
     tournamentId: match.tournamentId ?? null,
     tournamentName: null,
@@ -194,6 +188,7 @@ export const firestorePlayerStatsRepository = {
     const statsDoc = doc(firestore, 'users', uid, 'stats', 'summary');
 
     let newTier: Tier = 'beginner';
+    let tierUpdated = false;
 
     await runTransaction(firestore, async (transaction) => {
       // 1. Idempotency check: skip if matchRef already exists
@@ -289,12 +284,15 @@ export const firestorePlayerStatsRepository = {
       transaction.set(statsDoc, stats, { merge: true });
 
       newTier = stats.tier;
+      tierUpdated = true;
     });
 
-    // Write public tier doc (outside transaction — eventual consistency is fine)
-    await writePublicTier(uid, newTier).catch((err) => {
-      console.warn('Failed to write public tier for', uid, err);
-    });
+    // Only write public tier if we actually processed the match
+    if (tierUpdated) {
+      await writePublicTier(uid, newTier).catch((err) => {
+        console.warn('Failed to write public tier for', uid, err);
+      });
+    }
   },
 
   async processMatchCompletion(
