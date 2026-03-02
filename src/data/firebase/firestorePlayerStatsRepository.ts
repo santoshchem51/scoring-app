@@ -5,10 +5,16 @@ import { computeTierScore, computeTier, computeTierConfidence } from '../../shar
 
 const RING_BUFFER_SIZE = 50;
 
+interface MatchRefEnrichment {
+  opponentIds?: string[];
+  partnerId?: string | null;
+}
+
 function buildMatchRef(
   match: Match,
   playerTeam: 1 | 2,
   result: 'win' | 'loss',
+  enrichment?: MatchRefEnrichment,
 ): MatchRef {
   const opponentTeam = playerTeam === 1 ? 2 : 1;
   const opponentNames = opponentTeam === 1 ? [match.team1Name] : [match.team2Name];
@@ -32,9 +38,9 @@ function buildMatchRef(
     gameScores,
     playerTeam,
     opponentNames,
-    opponentIds: [],
+    opponentIds: enrichment?.opponentIds ?? [],
     partnerName,
-    partnerId: null,
+    partnerId: enrichment?.partnerId ?? null,
     ownerId: '',
     tournamentId: match.tournamentId ?? null,
     tournamentName: null,
