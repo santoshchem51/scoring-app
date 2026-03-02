@@ -140,6 +140,32 @@ export interface StatsSummary {
   uniqueOpponentUids: string[];
 }
 
+// --- Leaderboard types (Wave C) ---
+
+export interface Last30dStats {
+  totalMatches: number;
+  wins: number;
+  winRate: number;
+  compositeScore: number;
+}
+
+export interface LeaderboardEntry {
+  uid: string;
+  displayName: string;
+  photoURL: string | null;
+  tier: Tier;
+  tierConfidence: TierConfidence;
+  totalMatches: number;
+  wins: number;
+  winRate: number;
+  currentStreak: { type: 'W' | 'L'; count: number };
+  compositeScore: number;
+  last30d: Last30dStats;
+  lastPlayedAt: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
 // --- Tournament types (Layer 2) ---
 
 export type TournamentVisibility = 'private' | 'public';
