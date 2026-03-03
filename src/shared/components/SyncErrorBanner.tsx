@@ -4,10 +4,12 @@ import { useAuth } from '../hooks/useAuth';
 import { cloudSync } from '../../data/firebase/cloudSync';
 
 export const SyncErrorBanner: Component = () => {
-  const { syncError } = useAuth();
+  const { syncError, setSyncError } = useAuth();
 
   const retry = () => {
-    cloudSync.pullCloudMatchesToLocal().catch(() => {});
+    cloudSync.pullCloudMatchesToLocal()
+      .then(() => setSyncError(false))
+      .catch(() => {});
   };
 
   return (

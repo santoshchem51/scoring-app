@@ -44,7 +44,7 @@ let sleepResolve: (() => void) | null = null;
 let onlineListener: (() => void) | null = null;
 let offlineListener: (() => void) | null = null;
 
-/** Set of entityIds currently being processed — prevents per-entity overlap. */
+/** Set of `type:entityId` keys currently being processed — prevents per-entity overlap. */
 const inFlightEntities = new Set<string>();
 
 // ── runStartupCleanup ────────────────────────────────────────────────
@@ -213,18 +213,22 @@ async function processOnce(): Promise<void> {
   }
 
   // Filter out jobs whose entities are already in-flight (per-entity serialization)
-  const eligibleJobs = jobs.filter((job) => !inFlightEntities.has(job.entityId));
+  const entityKey = (job: SyncJob) => `${job.type}:${job.entityId}`;
+  const eligibleJobs = jobs.filter((job) => !inFlightEntities.has(entityKey(job)));
 
-  // Put back non-eligible jobs (reset to pending)
+  // Put back non-eligible jobs (reset to pending without incrementing retryCount)
   for (const job of jobs) {
-    if (inFlightEntities.has(job.entityId)) {
-      await retryJob(job.id, Date.now());
+    if (inFlightEntities.has(entityKey(job))) {
+      await db.syncQueue.update(job.id, {
+        status: 'pending',
+        nextRetryAt: Date.now(),
+      });
     }
   }
 
   // Mark entities as in-flight
   for (const job of eligibleJobs) {
-    inFlightEntities.add(job.entityId);
+    inFlightEntities.add(entityKey(job));
   }
 
   // Execute all eligible jobs concurrently
@@ -236,7 +240,7 @@ async function processOnce(): Promise<void> {
       } catch (err) {
         await handleJobError(job, err);
       } finally {
-        inFlightEntities.delete(job.entityId);
+        inFlightEntities.delete(`${job.type}:${job.entityId}`);
       }
     }),
   );

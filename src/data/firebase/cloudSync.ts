@@ -54,54 +54,57 @@ export const cloudSync = {
     const cloudMatches = Array.from(matchMap.values());
     let synced = 0;
 
-    for (const cloudMatch of cloudMatches) {
-      // Recency guard: check local state before writing
-      const existing = await matchRepository.getById(cloudMatch.id);
+    // Batched transaction: single liveQuery notification for all writes
+    await db.transaction('rw', db.matches, db.syncQueue, async () => {
+      for (const cloudMatch of cloudMatches) {
+        // Recency guard: check local state before writing
+        const existing = await matchRepository.getById(cloudMatch.id);
 
-      if (existing) {
-        // Never overwrite active scoring
-        if (existing.status === 'in-progress') continue;
+        if (existing) {
+          // Never overwrite active scoring
+          if (existing.status === 'in-progress') continue;
 
-        // Skip if there's a pending/processing/awaitingAuth sync job for this match
-        const syncJob = await db.syncQueue.get(`match:${cloudMatch.id}`);
-        if (
-          syncJob &&
-          (syncJob.status === 'pending' ||
-            syncJob.status === 'processing' ||
-            syncJob.status === 'awaitingAuth')
-        ) {
-          continue;
+          // Skip if there's a pending/processing/awaitingAuth sync job for this match
+          const syncJob = await db.syncQueue.get(`match:${cloudMatch.id}`);
+          if (
+            syncJob &&
+            (syncJob.status === 'pending' ||
+              syncJob.status === 'processing' ||
+              syncJob.status === 'awaitingAuth')
+          ) {
+            continue;
+          }
         }
-      }
 
-      const localMatch: Match = {
-        id: cloudMatch.id,
-        config: cloudMatch.config,
-        team1PlayerIds: cloudMatch.team1PlayerIds,
-        team2PlayerIds: cloudMatch.team2PlayerIds,
-        team1Name: cloudMatch.team1Name,
-        team2Name: cloudMatch.team2Name,
-        team1Color: cloudMatch.team1Color,
-        team2Color: cloudMatch.team2Color,
-        games: cloudMatch.games,
-        winningSide: cloudMatch.winningSide,
-        status: cloudMatch.status,
-        startedAt: cloudMatch.startedAt,
-        completedAt: cloudMatch.completedAt,
-        lastSnapshot: cloudMatch.lastSnapshot,
-        tournamentId: cloudMatch.tournamentId,
-        tournamentTeam1Id: cloudMatch.tournamentTeam1Id,
-        tournamentTeam2Id: cloudMatch.tournamentTeam2Id,
-        poolId: cloudMatch.poolId,
-        bracketSlotId: cloudMatch.bracketSlotId,
-        court: cloudMatch.court,
-        scorerRole: cloudMatch.scorerRole,
-        scorerTeam: cloudMatch.scorerTeam,
-        ownerUid: cloudMatch.ownerId,
-      };
-      await matchRepository.save(localMatch);
-      synced++;
-    }
+        const localMatch: Match = {
+          id: cloudMatch.id,
+          config: cloudMatch.config,
+          team1PlayerIds: cloudMatch.team1PlayerIds,
+          team2PlayerIds: cloudMatch.team2PlayerIds,
+          team1Name: cloudMatch.team1Name,
+          team2Name: cloudMatch.team2Name,
+          team1Color: cloudMatch.team1Color,
+          team2Color: cloudMatch.team2Color,
+          games: cloudMatch.games,
+          winningSide: cloudMatch.winningSide,
+          status: cloudMatch.status,
+          startedAt: cloudMatch.startedAt,
+          completedAt: cloudMatch.completedAt,
+          lastSnapshot: cloudMatch.lastSnapshot,
+          tournamentId: cloudMatch.tournamentId,
+          tournamentTeam1Id: cloudMatch.tournamentTeam1Id,
+          tournamentTeam2Id: cloudMatch.tournamentTeam2Id,
+          poolId: cloudMatch.poolId,
+          bracketSlotId: cloudMatch.bracketSlotId,
+          court: cloudMatch.court,
+          scorerRole: cloudMatch.scorerRole,
+          scorerTeam: cloudMatch.scorerTeam,
+          ownerUid: cloudMatch.ownerId,
+        };
+        await matchRepository.save(localMatch);
+        synced++;
+      }
+    });
     return synced;
   },
 

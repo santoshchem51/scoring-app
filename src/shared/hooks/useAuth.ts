@@ -79,5 +79,5 @@ export function useAuth() {
     await firebaseSignOut(auth);
   };
 
-  return { user, loading, syncing, syncError, signIn, signOut };
+  return { user, loading, syncing, syncError, setSyncError, signIn, signOut };
 }

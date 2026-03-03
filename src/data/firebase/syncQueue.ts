@@ -295,10 +295,21 @@ export async function getNextRetryTime(): Promise<number | null> {
 
 /** Count of pending + processing + awaitingAuth jobs. */
 export async function getPendingCount(): Promise<number> {
-  const all = await db.syncQueue.toArray();
-  return all.filter(
-    (j) => j.status === 'pending' || j.status === 'processing' || j.status === 'awaitingAuth',
-  ).length;
+  const [pending, processing, awaitingAuth] = await Promise.all([
+    db.syncQueue
+      .where('[status+nextRetryAt]')
+      .between(['pending', Dexie.minKey], ['pending', Dexie.maxKey], true, true)
+      .count(),
+    db.syncQueue
+      .where('[status+nextRetryAt]')
+      .between(['processing', Dexie.minKey], ['processing', Dexie.maxKey], true, true)
+      .count(),
+    db.syncQueue
+      .where('[status+nextRetryAt]')
+      .between(['awaitingAuth', Dexie.minKey], ['awaitingAuth', Dexie.maxKey], true, true)
+      .count(),
+  ]);
+  return pending + processing + awaitingAuth;
 }
 
 // ── getFailedCount ───────────────────────────────────────────────────
