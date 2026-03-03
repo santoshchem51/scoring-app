@@ -53,6 +53,23 @@ async function seedBuddyGroupForUser(
   return groupId;
 }
 
+/** Seed a user profile doc so global search can find them */
+async function seedUserProfile(
+  userId: string,
+  displayName: string,
+  opts?: { profileVisibility?: 'public' | 'private'; photoURL?: string | null },
+) {
+  await seedFirestoreDocAdmin('users', userId, {
+    id: userId,
+    displayName,
+    displayNameLower: displayName.toLowerCase(),
+    email: `${userId}@test.com`,
+    photoURL: opts?.photoURL ?? null,
+    createdAt: Date.now(),
+    profileVisibility: opts?.profileVisibility ?? 'public',
+  });
+}
+
 test.describe('Casual Phase 2: Buddy Picker', () => {
   test('expand picker, assign buddy to team, start match → scoring page loads', async ({
     authenticatedPage: page,
@@ -170,5 +187,67 @@ test.describe('Casual Phase 2: Buddy Picker', () => {
     // Click the BuddyPicker collapsed row which shows "Players: Alice (T1)"
     await page.getByRole('button', { name: /Players:.*Alice/ }).click();
     await expect(page.getByText(/Team 1: 1\/2/)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('search for user → assign to team → start match → scoring page loads', async ({
+    authenticatedPage: page,
+  }) => {
+    const setup = new GameSetupPage(page);
+
+    // Seed a searchable user profile (not a buddy)
+    await seedUserProfile('search-dana', 'Dana');
+
+    await setup.goto();
+
+    // Expand BuddyPicker and search
+    await setup.expandBuddyPicker();
+    await setup.searchPlayers('da');
+
+    // Wait for search result
+    await setup.expectSearchResult('Dana');
+
+    // Tap result → action sheet → assign to Team 2
+    await setup.tapSearchResult('Dana');
+    const actionSheet = page.locator('[data-testid="sheet-backdrop"]').locator('..');
+    await expect(actionSheet.getByRole('heading', { name: 'Dana' })).toBeVisible();
+    await actionSheet.getByRole('button', { name: /Team 2/ }).click();
+
+    // Collapse and start match
+    await page.getByText('Done').click();
+    await setup.startGame();
+
+    // Verify scoring page loaded
+    await expect(
+      page.getByRole('button', { name: /Score point/ }).first(),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test('search result that is already a buddy does not appear in search', async ({
+    authenticatedPage: page,
+  }) => {
+    const uid = await getCurrentUserUid(page);
+    const setup = new GameSetupPage(page);
+
+    // Seed buddy group with Eve
+    await seedBuddyGroupForUser(uid, [
+      { userId: 'buddy-eve', displayName: 'Eve' },
+    ]);
+    // Also seed Eve as a user profile (she's both a buddy AND a user)
+    await seedUserProfile('buddy-eve', 'Eve');
+    // Seed another non-buddy user with similar name
+    await seedUserProfile('search-evelyn', 'Evelyn');
+
+    await setup.goto();
+
+    // Expand and search
+    await setup.expandBuddyPicker();
+    await expect(page.getByText('Eve')).toBeVisible({ timeout: 10000 });
+    await setup.searchPlayers('ev');
+
+    // Evelyn should appear, Eve should NOT (already a buddy)
+    await setup.expectSearchResult('Evelyn');
+    // Eve appears in buddy row but NOT in search results
+    const searchResults = page.locator('button', { hasText: /Tap to assign/ });
+    await expect(searchResults.filter({ hasText: 'Eve' }).filter({ hasNotText: 'Evelyn' })).toHaveCount(0);
   });
 });

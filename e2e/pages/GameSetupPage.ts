@@ -75,6 +75,24 @@ export class GameSetupPage {
     await this.page.getByRole('button', { name: 'Done' }).click();
   }
 
+  // ── Buddy Picker Search Actions ──
+  async expandBuddyPicker() {
+    await this.page.getByText(/Add Players/).click();
+  }
+
+  async searchPlayers(query: string) {
+    const input = this.page.getByPlaceholder('Search players...');
+    await input.fill(query);
+  }
+
+  async expectSearchResult(name: string) {
+    await expect(this.page.getByRole('button', { name: new RegExp(`${name}.*Tap to assign`) })).toBeVisible({ timeout: 10000 });
+  }
+
+  async tapSearchResult(name: string) {
+    await this.page.getByRole('button', { name: new RegExp(`${name}.*Tap to assign`) }).click();
+  }
+
   // ── Your Role Assertions ──
   async expectRoleCollapsed(roleText: string) {
     await expect(this.page.getByText(roleText)).toBeVisible();
