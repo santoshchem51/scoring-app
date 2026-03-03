@@ -158,6 +158,19 @@ async function resolveParticipantUids(
     const team1Uids = match.team1PlayerIds ?? [];
     const team2Uids = match.team2PlayerIds ?? [];
 
+    // Capacity guard: reject invalid team sizes
+    const maxPerTeam = match.config.gameType === 'singles' ? 1 : 2;
+    if (team1Uids.length > maxPerTeam || team2Uids.length > maxPerTeam) {
+      console.warn('Invalid team size for casual match, skipping stats:', {
+        matchId: match.id,
+        gameType: match.config.gameType,
+        team1Count: team1Uids.length,
+        team2Count: team2Uids.length,
+        maxPerTeam,
+      });
+      return [];
+    }
+
     // Phase 2+: if player IDs populated, give all linked players stats
     for (const uid of team1Uids) {
       const result: 'win' | 'loss' = match.winningSide === 1 ? 'win' : 'loss';

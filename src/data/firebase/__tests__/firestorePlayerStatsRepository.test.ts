@@ -1105,6 +1105,77 @@ describe('firestorePlayerStatsRepository', () => {
     });
   });
 
+  describe('capacity guard', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockTransactionGet.mockResolvedValue({ exists: () => false });
+      mockGetDoc.mockResolvedValue({ exists: () => false });
+    });
+
+    it('rejects team with more than 2 players in doubles', async () => {
+      const match = makeCasualMatch({
+        config: { gameType: 'doubles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
+        team1PlayerIds: ['uid-A', 'uid-B', 'uid-C'],
+        team2PlayerIds: ['uid-D'],
+        winningSide: 1,
+      });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'uid-A');
+      expect(mockTransactionSet).not.toHaveBeenCalled();
+    });
+
+    it('rejects team with more than 1 player in singles', async () => {
+      const match = makeCasualMatch({
+        config: { gameType: 'singles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
+        team1PlayerIds: ['uid-A', 'uid-B'],
+        team2PlayerIds: ['uid-C'],
+        winningSide: 1,
+      });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'uid-A');
+      expect(mockTransactionSet).not.toHaveBeenCalled();
+    });
+
+    it('allows exactly 2 players per team in doubles', async () => {
+      const match = makeCasualMatch({
+        config: { gameType: 'doubles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
+        team1PlayerIds: ['uid-A', 'uid-B'],
+        team2PlayerIds: ['uid-C', 'uid-D'],
+        winningSide: 1,
+      });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'uid-A');
+      // 4 participants x 2 writes each (matchRef + stats) = 8
+      expect(mockTransactionSet).toHaveBeenCalledTimes(8);
+    });
+
+    it('scorer in team array does not double-count with fallback', async () => {
+      const match = makeCasualMatch({
+        team1PlayerIds: ['scorer-uid'],
+        team2PlayerIds: [],
+        winningSide: 1,
+        scorerRole: 'player',
+        scorerTeam: 1,
+      });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
+      // 1 participant x 2 writes (matchRef + stats) = 2
+      expect(mockTransactionSet).toHaveBeenCalledTimes(2);
+    });
+
+    it('partial linking: 1 UID on team 1, empty team 2, correct stats', async () => {
+      const match = makeCasualMatch({
+        team1PlayerIds: ['uid-A'],
+        team2PlayerIds: [],
+        winningSide: 1,
+        scorerRole: 'player',
+        scorerTeam: 1,
+      });
+      await firestorePlayerStatsRepository.processMatchCompletion(match, 'uid-A');
+      // 1 participant x 2 writes (matchRef + stats) = 2
+      expect(mockTransactionSet).toHaveBeenCalledTimes(2);
+      // Stats is the second transaction.set call (index 1)
+      const statsArg = mockTransactionSet.mock.calls[1][1];
+      expect(statsArg.wins).toBe(1);
+    });
+  });
+
   describe('dedup guard (shared)', () => {
     beforeEach(() => {
       vi.clearAllMocks();
