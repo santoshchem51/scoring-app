@@ -122,6 +122,10 @@ export function useLeaderboard() {
       const s = parts[0] as LeaderboardScope;
       const tf = parts[1] as LeaderboardTimeframe;
       const uid = parts[2] === 'anon' ? undefined : parts[2];
+
+      // Skip Firestore query for unauthenticated users (security rules require auth for reads)
+      if (!uid) return { entries: [], userEntry: null, userRank: null };
+
       const uids = s === 'friends' ? (friendUids() ?? []) : [];
       return fetchLeaderboardData(s, tf, uid, uids);
     },
