@@ -12,10 +12,10 @@ export const cloudSync = {
    * Save a match to Firestore if user is signed in.
    * Fire-and-forget — failures are logged, never block the UI.
    */
-  syncMatchToCloud(match: Match): void {
+  syncMatchToCloud(match: Match, sharedWith: string[] = []): void {
     const user = auth.currentUser;
     if (!user) return;
-    firestoreMatchRepository.save(match, user.uid).catch((err) => {
+    firestoreMatchRepository.save(match, user.uid, sharedWith).catch((err) => {
       console.warn('Cloud sync failed for match:', match.id, err);
     });
   },

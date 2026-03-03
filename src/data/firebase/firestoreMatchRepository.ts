@@ -24,11 +24,16 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
   return result as T;
 }
 
-function toCloudMatch(match: Match, ownerId: string, visibility: MatchVisibility = 'private'): CloudMatch {
+function toCloudMatch(
+  match: Match,
+  ownerId: string,
+  sharedWith: string[] = [],
+  visibility: MatchVisibility = 'private',
+): CloudMatch {
   const raw = {
     ...match,
     ownerId,
-    sharedWith: [] as string[],
+    sharedWith,
     visibility,
     syncedAt: Date.now(),
   };
@@ -36,9 +41,9 @@ function toCloudMatch(match: Match, ownerId: string, visibility: MatchVisibility
 }
 
 export const firestoreMatchRepository = {
-  async save(match: Match, ownerId: string): Promise<void> {
+  async save(match: Match, ownerId: string, sharedWith: string[] = []): Promise<void> {
     const ref = doc(firestore, 'matches', match.id);
-    const cloudMatch = toCloudMatch(match, ownerId);
+    const cloudMatch = toCloudMatch(match, ownerId, sharedWith);
     await setDoc(ref, {
       ...cloudMatch,
       updatedAt: serverTimestamp(),
@@ -56,6 +61,16 @@ export const firestoreMatchRepository = {
     const q = query(
       collection(firestore, 'matches'),
       where('ownerId', '==', ownerId),
+      orderBy('startedAt', 'desc'),
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as CloudMatch);
+  },
+
+  async getBySharedWith(userId: string): Promise<CloudMatch[]> {
+    const q = query(
+      collection(firestore, 'matches'),
+      where('sharedWith', 'array-contains', userId),
       orderBy('startedAt', 'desc'),
     );
     const snapshot = await getDocs(q);

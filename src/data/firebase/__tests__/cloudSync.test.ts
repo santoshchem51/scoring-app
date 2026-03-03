@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { CloudMatch } from '../../types';
+import type { CloudMatch, Match } from '../../types';
 
 // Mock all Firebase modules
 vi.mock('firebase/firestore', () => ({
@@ -34,8 +34,9 @@ vi.mock('../../repositories/matchRepository', () => ({
 }));
 
 const mockFirestoreMatchRepository = {
-  save: vi.fn(),
+  save: vi.fn().mockResolvedValue(undefined),
   getByOwner: vi.fn(() => []),
+  getBySharedWith: vi.fn(() => []),
 };
 vi.mock('../../firebase/firestoreMatchRepository', () => ({
   firestoreMatchRepository: mockFirestoreMatchRepository,
@@ -115,5 +116,53 @@ describe('cloudSync', () => {
     const savedMatch = mockMatchRepository.save.mock.calls[0][0];
     expect(savedMatch.scorerRole).toBe('spectator');
     expect(savedMatch.scorerTeam).toBe(2);
+  });
+
+  describe('syncMatchToCloud with sharedWith', () => {
+    const makeTestMatch = (): Match => ({
+      id: 'match-sw-1',
+      config: { gameType: 'doubles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
+      team1PlayerIds: ['buddy-1'],
+      team2PlayerIds: ['buddy-2'],
+      team1Name: 'Team A',
+      team2Name: 'Team B',
+      games: [],
+      winningSide: null,
+      status: 'in-progress',
+      startedAt: 1000,
+      completedAt: null,
+    });
+
+    beforeEach(() => {
+      mockAuth.currentUser = { uid: 'test-user-uid' };
+    });
+
+    it('passes sharedWith to firestoreMatchRepository.save when provided', async () => {
+      const match = makeTestMatch();
+      const mod = await import('../cloudSync');
+      mod.cloudSync.syncMatchToCloud(match, ['buddy-1', 'buddy-2']);
+
+      await vi.waitFor(() => {
+        expect(mockFirestoreMatchRepository.save).toHaveBeenCalledWith(
+          match,
+          'test-user-uid',
+          ['buddy-1', 'buddy-2'],
+        );
+      });
+    });
+
+    it('defaults to empty sharedWith when not provided (backward compat)', async () => {
+      const match = makeTestMatch();
+      const mod = await import('../cloudSync');
+      mod.cloudSync.syncMatchToCloud(match);
+
+      await vi.waitFor(() => {
+        expect(mockFirestoreMatchRepository.save).toHaveBeenCalledWith(
+          match,
+          'test-user-uid',
+          [],
+        );
+      });
+    });
   });
 });
