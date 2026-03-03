@@ -10,6 +10,9 @@ import { settings } from '../../stores/settingsStore';
 import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants/teamColors';
 import { cloudSync } from '../../data/firebase/cloudSync';
 import { Zap } from 'lucide-solid';
+import BuddyPicker from './components/BuddyPicker';
+import { buildTeamArrays } from './helpers/buddyPickerHelpers';
+import { useAuth } from '../../shared/hooks/useAuth';
 
 const GameSetupPage: Component = () => {
   const navigate = useNavigate();
@@ -25,8 +28,23 @@ const GameSetupPage: Component = () => {
   const [scorerRole, setScorerRole] = createSignal<'player' | 'spectator'>('player');
   const [scorerTeam, setScorerTeam] = createSignal<1 | 2>(1);
   const [roleExpanded, setRoleExpanded] = createSignal(false);
+  const [buddyAssignments, setBuddyAssignments] = createSignal<Record<string, 1 | 2>>({});
+
+  const { user } = useAuth();
 
   const canStart = () => team1Name().trim() !== '' && team2Name().trim() !== '';
+
+  const handleBuddyAssign = (userId: string, team: 1 | 2) => {
+    setBuddyAssignments((prev) => ({ ...prev, [userId]: team }));
+  };
+
+  const handleBuddyUnassign = (userId: string) => {
+    setBuddyAssignments((prev) => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
+  };
 
   const startGame = async () => {
     const config: MatchConfig = {
@@ -36,11 +54,17 @@ const GameSetupPage: Component = () => {
       pointsToWin: pointsToWin(),
     };
 
+    const { team1, team2, sharedWith } = buildTeamArrays(buddyAssignments(), {
+      scorerUid: user()?.uid ?? '',
+      scorerRole: scorerRole(),
+      scorerTeam: scorerTeam(),
+    });
+
     const match: Match = {
       id: crypto.randomUUID(),
       config,
-      team1PlayerIds: [],
-      team2PlayerIds: [],
+      team1PlayerIds: team1,
+      team2PlayerIds: team2,
       team1Name: team1Name().trim(),
       team2Name: team2Name().trim(),
       team1Color: team1Color(),
@@ -56,7 +80,7 @@ const GameSetupPage: Component = () => {
 
     try {
       await matchRepository.save(match);
-      cloudSync.syncMatchToCloud(match);
+      cloudSync.syncMatchToCloud(match, sharedWith);
       navigate(`/score/${match.id}`);
     } catch (err) {
       console.error('Failed to save match:', err);
@@ -202,6 +226,23 @@ const GameSetupPage: Component = () => {
             </fieldset>
           </div>
         </div>
+
+        {/* Add Players */}
+        <Show when={user()}>
+          <BuddyPicker
+            buddyAssignments={buddyAssignments()}
+            scorerRole={scorerRole()}
+            scorerTeam={scorerTeam()}
+            scorerUid={user()!.uid}
+            team1Name={team1Name()}
+            team2Name={team2Name()}
+            team1Color={team1Color()}
+            team2Color={team2Color()}
+            gameType={gameType()}
+            onAssign={handleBuddyAssign}
+            onUnassign={handleBuddyUnassign}
+          />
+        </Show>
 
         {/* Your Role */}
         <div class="mt-6">
