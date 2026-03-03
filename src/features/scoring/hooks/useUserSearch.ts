@@ -10,7 +10,7 @@ export interface SearchUserResult {
 
 interface UseUserSearchConfig {
   scorerUid: string;
-  buddyUserIds: string[];
+  buddyUserIds: () => string[];
 }
 
 export function useUserSearch(config: UseUserSearchConfig) {
@@ -31,7 +31,7 @@ export function useUserSearch(config: UseUserSearchConfig) {
     debounceTimer = setTimeout(async () => {
       try {
         const raw = await firestoreUserRepository.searchByNamePrefix(query, 10);
-        const excludeIds = new Set([config.scorerUid, ...config.buddyUserIds]);
+        const excludeIds = new Set([config.scorerUid, ...config.buddyUserIds()]);
         const filtered = raw
           .filter((u: UserProfile) => !excludeIds.has(u.id))
           .map((u: UserProfile): SearchUserResult => ({

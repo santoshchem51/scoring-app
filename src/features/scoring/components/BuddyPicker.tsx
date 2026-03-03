@@ -39,7 +39,7 @@ const BuddyPicker: Component<BuddyPickerProps> = (props) => {
   const { buddies, loading, error, load } = useBuddyPickerData(() => props.scorerUid);
   const userSearch = useUserSearch({
     scorerUid: props.scorerUid,
-    buddyUserIds: buddies().map((b) => b.userId),
+    buddyUserIds: () => buddies().map((b) => b.userId),
   });
 
   const maxPerTeam = () => (props.gameType === 'singles' ? 1 : 2);

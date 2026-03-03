@@ -43,7 +43,7 @@ describe('useUserSearch', () => {
     await createRoot(async (dispose) => {
       const hook = useUserSearch({
         scorerUid: 'scorer-1',
-        buddyUserIds: [],
+        buddyUserIds: () => [],
       });
 
       hook.search('a');
@@ -61,7 +61,7 @@ describe('useUserSearch', () => {
     await createRoot(async (dispose) => {
       const hook = useUserSearch({
         scorerUid: 'scorer-1',
-        buddyUserIds: [],
+        buddyUserIds: () => [],
       });
 
       hook.search('al');
@@ -85,7 +85,7 @@ describe('useUserSearch', () => {
     await createRoot(async (dispose) => {
       const hook = useUserSearch({
         scorerUid: 'scorer-1',
-        buddyUserIds: [],
+        buddyUserIds: () => [],
       });
 
       hook.search('al');
@@ -107,7 +107,7 @@ describe('useUserSearch', () => {
     await createRoot(async (dispose) => {
       const hook = useUserSearch({
         scorerUid: 'scorer-1',
-        buddyUserIds: ['buddy-1', 'buddy-2'],
+        buddyUserIds: () => ['buddy-1', 'buddy-2'],
       });
 
       hook.search('bo');
@@ -130,7 +130,7 @@ describe('useUserSearch', () => {
     await createRoot(async (dispose) => {
       const hook = useUserSearch({
         scorerUid: 'scorer-1',
-        buddyUserIds: [],
+        buddyUserIds: () => [],
       });
 
       hook.search('pr');
@@ -151,7 +151,7 @@ describe('useUserSearch', () => {
     await createRoot(async (dispose) => {
       const hook = useUserSearch({
         scorerUid: 'scorer-1',
-        buddyUserIds: [],
+        buddyUserIds: () => [],
       });
 
       hook.search('al');
@@ -170,7 +170,7 @@ describe('useUserSearch', () => {
     await createRoot(async (dispose) => {
       const hook = useUserSearch({
         scorerUid: 'scorer-1',
-        buddyUserIds: [],
+        buddyUserIds: () => [],
       });
 
       hook.search('al');
