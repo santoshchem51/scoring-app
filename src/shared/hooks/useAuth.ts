@@ -28,7 +28,7 @@ function initAuthListener() {
       setSyncing(true);
       try {
         await cloudSync.syncUserProfile();
-        await cloudSync.pushLocalMatchesToCloud();
+        await cloudSync.enqueueLocalMatchPush();
         await cloudSync.pullCloudMatchesToLocal();
       } catch (err) {
         console.warn('Sync on sign-in failed:', err);

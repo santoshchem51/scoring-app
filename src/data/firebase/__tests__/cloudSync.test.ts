@@ -1,4 +1,6 @@
+import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { db } from '../../db';
 import type { CloudMatch, Match } from '../../types';
 
 // Mock all Firebase modules
@@ -28,6 +30,7 @@ vi.mock('../../firebase/config', () => ({
 const mockMatchRepository = {
   save: vi.fn(),
   getAll: vi.fn(() => []),
+  getById: vi.fn().mockResolvedValue(undefined),
 };
 vi.mock('../../repositories/matchRepository', () => ({
   matchRepository: mockMatchRepository,
@@ -55,8 +58,10 @@ vi.mock('../../firebase/firestorePlayerStatsRepository', () => ({
 }));
 
 describe('cloudSync', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    await db.syncQueue.clear();
+    await db.matches.clear();
   });
 
   it('should export cloudSync object', async () => {
@@ -98,6 +103,7 @@ describe('cloudSync', () => {
     };
 
     mockFirestoreMatchRepository.getByOwner.mockResolvedValue([cloudMatch]);
+    mockMatchRepository.getById.mockResolvedValue(undefined);
 
     const mod = await import('../cloudSync');
     const synced = await mod.cloudSync.pullCloudMatchesToLocal();
@@ -128,17 +134,19 @@ describe('cloudSync', () => {
       mockAuth.currentUser = { uid: 'test-user-uid' };
     });
 
-    it('passes sharedWith to firestoreMatchRepository.save when provided', async () => {
+    it('enqueues match with sharedWith when provided', async () => {
       const match = makeTestMatch();
       const mod = await import('../cloudSync');
       mod.cloudSync.syncMatchToCloud(match, ['buddy-1', 'buddy-2']);
 
-      await vi.waitFor(() => {
-        expect(mockFirestoreMatchRepository.save).toHaveBeenCalledWith(
-          match,
-          'test-user-uid',
-          ['buddy-1', 'buddy-2'],
-        );
+      await vi.waitFor(async () => {
+        const job = await db.syncQueue.get('match:match-sw-1');
+        expect(job).toBeDefined();
+        expect(job!.context).toEqual({
+          type: 'match',
+          ownerId: 'test-user-uid',
+          sharedWith: ['buddy-1', 'buddy-2'],
+        });
       });
     });
 
@@ -147,12 +155,10 @@ describe('cloudSync', () => {
       const mod = await import('../cloudSync');
       mod.cloudSync.syncMatchToCloud(match);
 
-      await vi.waitFor(() => {
-        expect(mockFirestoreMatchRepository.save).toHaveBeenCalledWith(
-          match,
-          'test-user-uid',
-          [],
-        );
+      await vi.waitFor(async () => {
+        const job = await db.syncQueue.get('match:match-sw-1');
+        expect(job).toBeDefined();
+        expect((job!.context as { sharedWith: string[] }).sharedWith).toEqual([]);
       });
     });
   });
@@ -179,6 +185,7 @@ describe('cloudSync', () => {
 
     beforeEach(() => {
       mockAuth.currentUser = { uid: 'user-1' };
+      mockMatchRepository.getById.mockResolvedValue(undefined);
     });
 
     it('pulls both owned and shared matches', async () => {
