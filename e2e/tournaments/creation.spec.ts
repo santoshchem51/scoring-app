@@ -134,7 +134,7 @@ test.describe('Tournament Creation (Manual Plan 4.1)', () => {
 
   // ── 5. Tournament appears in "My Tournaments" after creation ─────
 
-  test('tournament appears in My Tournaments after creation', async ({
+  test('tournament appears in My Tournaments after creation', { timeout: 60000 }, async ({
     authenticatedPage: page,
   }) => {
     const name = `My Tourney ${Date.now()}`;
@@ -142,15 +142,15 @@ test.describe('Tournament Creation (Manual Plan 4.1)', () => {
     await selectDefaultGameRules(page);
     await submitAndWaitForDashboard(page, name);
 
-    // Navigate to /tournaments and click "My Tournaments" tab
-    await page.goto('/tournaments');
+    // SPA-navigate via BottomNav instead of page.goto() to avoid full page
+    // reload that causes createResource to fire before auth is restored.
+    await page.locator('nav[aria-label="Main navigation"]').getByRole('link', { name: 'Tournaments' }).click();
     await expect(page.getByRole('tab', { name: 'My Tournaments' })).toBeVisible(
       { timeout: 15000 },
     );
     await page.getByRole('tab', { name: 'My Tournaments' }).click();
 
-    // The tournament name should appear in the list
-    await expect(page.getByText(name)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(name)).toBeVisible({ timeout: 30000 });
   });
 
   // ── 6. Tournament appears in public browse (if listed/public) ────

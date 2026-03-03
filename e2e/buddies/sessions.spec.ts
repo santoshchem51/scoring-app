@@ -199,6 +199,6 @@ test.describe('RSVP State Changes', () => {
 
     // Click "I'm here" and verify status updates
     await imHereButton.click();
-    await expect(page.getByText('Here')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Here', { exact: true })).toBeVisible({ timeout: 10000 });
   });
 });

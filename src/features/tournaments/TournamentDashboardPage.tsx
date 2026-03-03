@@ -336,11 +336,12 @@ const TournamentDashboardPage: Component = () => {
         const allPoolStandings: PoolStanding[][] = [];
 
         for (const pool of currentPools) {
-          // Calculate standings using the pool's team IDs and any completed matches
-          // For now, use the existing standings from the pool (updated during match play)
-          const standings = calculateStandings(pool.teamIds, [], (m) => ({ team1: m.team1Name, team2: m.team2Name }));
+          // Use existing standings from the pool (maintained during match play)
+          const standings = [...pool.standings].sort((a, b) => {
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            return b.pointDiff - a.pointDiff;
+          });
           allPoolStandings.push(standings);
-          await firestorePoolRepository.updateStandings(t.id, pool.id, standings);
         }
 
         const teamsPerPoolAdvancing = t.config.teamsPerPoolAdvancing ?? 2;
@@ -362,13 +363,6 @@ const TournamentDashboardPage: Component = () => {
 
       // pool-play -> completed (for round-robin)
       else if (currentStatus === 'pool-play' && next === 'completed' && fmt === 'round-robin') {
-        const currentPools = live.pools();
-
-        for (const pool of currentPools) {
-          const standings = calculateStandings(pool.teamIds, [], (m) => ({ team1: m.team1Name, team2: m.team2Name }));
-          await firestorePoolRepository.updateStandings(t.id, pool.id, standings);
-        }
-
         await firestoreTournamentRepository.updateStatus(t.id, next);
       }
 
