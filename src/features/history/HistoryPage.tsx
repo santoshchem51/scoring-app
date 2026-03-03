@@ -6,6 +6,7 @@ import EmptyState from '../../shared/components/EmptyState';
 import { Clock } from 'lucide-solid';
 import { useLiveQuery } from '../../data/useLiveQuery';
 import { matchRepository } from '../../data/repositories/matchRepository';
+import { SyncErrorBanner } from '../../shared/components/SyncErrorBanner';
 
 const HistoryPage: Component = () => {
   const { data: matches } = useLiveQuery(() => matchRepository.getCompleted());
@@ -13,6 +14,7 @@ const HistoryPage: Component = () => {
   return (
     <PageLayout title="Match History">
       <div class="p-4 space-y-3">
+        <SyncErrorBanner />
         <Show
           when={matches() && matches()!.length > 0}
           fallback={

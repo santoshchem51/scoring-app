@@ -9,6 +9,7 @@ import RecentMatches from './components/RecentMatches';
 import EmptyState from '../../shared/components/EmptyState';
 import Skeleton from '../../shared/components/Skeleton';
 import PageLayout from '../../shared/components/PageLayout';
+import { SyncErrorBanner } from '../../shared/components/SyncErrorBanner';
 
 const ProfileSkeleton: Component = () => (
   <div class="space-y-4" role="status" aria-label="Loading profile">
@@ -44,6 +45,7 @@ const ProfilePage: Component = () => {
   return (
     <PageLayout title="My Profile">
     <div class="px-4 pt-2">
+      <SyncErrorBanner />
       <Show when={!data.loading} fallback={<ProfileSkeleton />}>
         {/* Header always shows (Google info available) */}
         <Show when={data()?.profile}>
