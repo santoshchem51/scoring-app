@@ -16,6 +16,20 @@ vi.mock('../../hooks/useBuddyPickerData', () => ({
   }),
 }));
 
+const mockSearch = vi.fn();
+const mockClear = vi.fn();
+const mockSearchResults = vi.fn().mockReturnValue([]);
+const mockSearchLoading = vi.fn().mockReturnValue(false);
+
+vi.mock('../../hooks/useUserSearch', () => ({
+  useUserSearch: () => ({
+    results: mockSearchResults,
+    loading: mockSearchLoading,
+    search: mockSearch,
+    clear: mockClear,
+  }),
+}));
+
 import BuddyPicker from '../BuddyPicker';
 
 function makeMember(userId: string, displayName: string): BuddyGroupMember {
@@ -34,6 +48,9 @@ const baseProps = {
   gameType: 'doubles' as const,
   onAssign: vi.fn(),
   onUnassign: vi.fn(),
+  searchUserInfo: {} as Record<string, { displayName: string; photoURL: string | null }>,
+  onSearchAssign: vi.fn(),
+  onSearchUnassign: vi.fn(),
 };
 
 describe('BuddyPicker', () => {
@@ -42,6 +59,8 @@ describe('BuddyPicker', () => {
     mockBuddies.mockReturnValue([]);
     mockLoading.mockReturnValue(false);
     mockError.mockReturnValue(null);
+    mockSearchResults.mockReturnValue([]);
+    mockSearchLoading.mockReturnValue(false);
   });
 
   it('renders collapsed by default with "Add Players" text', () => {
@@ -107,5 +126,57 @@ describe('BuddyPicker', () => {
     await fireEvent.click(screen.getByText(/Add Players/));
     expect(screen.getAllByText(/Team 1:/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Team 2:/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows search input when expanded', async () => {
+    mockBuddies.mockReturnValue([makeMember('u1', 'Alice')]);
+    render(() => <BuddyPicker {...baseProps} />);
+    await fireEvent.click(screen.getByText(/Add Players/));
+    expect(screen.getByPlaceholderText('Search players...')).toBeInTheDocument();
+  });
+
+  it('calls search when typing 2+ characters', async () => {
+    mockBuddies.mockReturnValue([makeMember('u1', 'Alice')]);
+    render(() => <BuddyPicker {...baseProps} />);
+    await fireEvent.click(screen.getByText(/Add Players/));
+    const input = screen.getByPlaceholderText('Search players...');
+    await fireEvent.input(input, { target: { value: 'bo' } });
+    expect(mockSearch).toHaveBeenCalledWith('bo');
+  });
+
+  it('displays search results below input', async () => {
+    mockBuddies.mockReturnValue([makeMember('u1', 'Alice')]);
+    mockSearchResults.mockReturnValue([
+      { id: 'search-1', displayName: 'SearchUser', photoURL: null },
+    ]);
+    render(() => <BuddyPicker {...baseProps} />);
+    await fireEvent.click(screen.getByText(/Add Players/));
+    expect(screen.getByText('SearchUser')).toBeInTheDocument();
+  });
+
+  it('tapping search result opens action sheet', async () => {
+    mockBuddies.mockReturnValue([makeMember('u1', 'Alice')]);
+    mockSearchResults.mockReturnValue([
+      { id: 'search-1', displayName: 'SearchUser', photoURL: null },
+    ]);
+    render(() => <BuddyPicker {...baseProps} />);
+    await fireEvent.click(screen.getByText(/Add Players/));
+    await fireEvent.click(screen.getByRole('button', { name: /SearchUser.*Tap to assign/ }));
+    expect(screen.getByRole('heading', { name: 'SearchUser' })).toBeInTheDocument();
+  });
+
+  it('assigned search user appears in avatar row', async () => {
+    mockBuddies.mockReturnValue([makeMember('u1', 'Alice')]);
+    const searchUserInfo = { 'search-1': { displayName: 'SearchUser', photoURL: null } };
+    const assignments = { 'search-1': 1 as const };
+    render(() => (
+      <BuddyPicker
+        {...baseProps}
+        buddyAssignments={assignments}
+        searchUserInfo={searchUserInfo}
+      />
+    ));
+    await fireEvent.click(screen.getByText(/Players/));
+    expect(screen.getByText('SearchUser')).toBeInTheDocument();
   });
 });
