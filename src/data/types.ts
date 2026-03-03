@@ -47,6 +47,7 @@ export interface Match {
   lastSnapshot?: string | null;
   scorerRole?: 'player' | 'spectator';  // undefined = 'player' (backward compat)
   scorerTeam?: 1 | 2;                    // undefined = 1 (backward compat)
+  ownerUid?: string;
 }
 
 export interface ScoreEvent {
