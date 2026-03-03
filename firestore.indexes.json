@@ -17,6 +17,14 @@
       ]
     },
     {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sharedWith", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "startedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "gameSessions",
       "queryScope": "COLLECTION",
       "fields": [
