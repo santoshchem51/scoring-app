@@ -230,7 +230,12 @@ export const firestorePlayerStatsRepository = {
         ? (existingStatsSnap.data() as StatsSummary)
         : createEmptyStats();
 
-      // 3. Build matchRef
+      // 3. Pre-read leaderboard doc (needed for createdAt preservation)
+      // Firestore requires ALL reads before ANY writes in a transaction
+      const leaderboardDocRef = doc(firestore, 'leaderboard', uid);
+      const existingLeaderboard = await transaction.get(leaderboardDocRef);
+
+      // 4. Build matchRef
       const matchRef = buildMatchRef(match, playerTeam, result);
       matchRef.ownerId = scorerUid;
 
@@ -243,7 +248,7 @@ export const firestorePlayerStatsRepository = {
         matchRef.partnerId = partnerUid;
       }
 
-      // 4. Update stats
+      // 5. Update stats
       const isWin = result === 'win';
       const gameType = match.config.gameType;
 
@@ -299,20 +304,18 @@ export const firestorePlayerStatsRepository = {
       stats.lastPlayedAt = match.completedAt ?? Date.now();
       stats.updatedAt = Date.now();
 
-      // 5. Write both docs atomically
+      // 6. Write both docs atomically
       transaction.set(matchRefDoc, matchRef);
       transaction.set(statsDoc, stats, { merge: true });
 
-      // 6. Write leaderboard entry if player qualifies (>= 5 matches)
+      // 7. Write leaderboard entry if player qualifies (>= 5 matches)
       const now = stats.updatedAt;
       const leaderboardEntry = buildLeaderboardEntry(uid, displayName, photoURL, stats, now);
       if (leaderboardEntry) {
-        const leaderboardDoc = doc(firestore, 'leaderboard', uid);
-        const existingLeaderboard = await transaction.get(leaderboardDoc);
         if (existingLeaderboard.exists()) {
           leaderboardEntry.createdAt = existingLeaderboard.data()!.createdAt as number;
         }
-        transaction.set(leaderboardDoc, leaderboardEntry);
+        transaction.set(leaderboardDocRef, leaderboardEntry);
       }
 
       newTier = stats.tier;

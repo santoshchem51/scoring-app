@@ -177,7 +177,7 @@ function mockTierLookups(
   }
 }
 
-/** Sets up transaction.get mocks for N participants (matchRef not-exists + stats not-exists) */
+/** Sets up transaction.get mocks for N participants (matchRef not-exists + stats not-exists + leaderboard not-exists) */
 function mockTransactionForParticipants(count: number, existingStats?: StatsSummary) {
   for (let i = 0; i < count; i++) {
     mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // matchRef
@@ -188,6 +188,9 @@ function mockTransactionForParticipants(count: number, existingStats?: StatsSumm
     } else {
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // stats
     }
+  }
+  for (let i = 0; i < count; i++) {
+    mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // leaderboard
   }
 }
 
@@ -201,6 +204,8 @@ describe('firestorePlayerStatsRepository', () => {
       // No existing matchRef
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       // No existing stats
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      // No existing leaderboard doc
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch();
@@ -291,6 +296,8 @@ describe('firestorePlayerStatsRepository', () => {
         exists: () => true,
         data: () => existingStats,
       });
+      // Leaderboard doc (totalMatches will be 4 < 5, no leaderboard write)
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch({ winningSide: 2 });
       await firestorePlayerStatsRepository.updatePlayerStats(
@@ -328,6 +335,7 @@ describe('firestorePlayerStatsRepository', () => {
     it('builds matchRef with correct fields', async () => {
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       const match = makeMatch({
         id: 'match-42',
@@ -355,6 +363,7 @@ describe('firestorePlayerStatsRepository', () => {
     it('tracks a loss as first match correctly', async () => {
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       const match = makeMatch({ winningSide: 2 });
       await firestorePlayerStatsRepository.updatePlayerStats(
@@ -373,6 +382,7 @@ describe('firestorePlayerStatsRepository', () => {
     it('records correct perspective for team-2 player', async () => {
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       const match = makeMatch({ winningSide: 2 });
       await firestorePlayerStatsRepository.updatePlayerStats(
@@ -393,6 +403,7 @@ describe('firestorePlayerStatsRepository', () => {
     it('sets matchRef ownerId to scorerUid, not participant uid', async () => {
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
@@ -407,6 +418,7 @@ describe('firestorePlayerStatsRepository', () => {
     it('writes stats with merge: true', async () => {
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
@@ -421,6 +433,7 @@ describe('firestorePlayerStatsRepository', () => {
     it('tracks doubles stats separately', async () => {
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       const match = makeMatch({
         config: {
@@ -444,10 +457,11 @@ describe('firestorePlayerStatsRepository', () => {
 
   describe('processMatchCompletion', () => {
     it('writes stats for scorer only on casual match', async () => {
-      // matchRef check (not exists) + stats check (not exists) for scorer
+      // matchRef check (not exists) + stats check (not exists) + leaderboard (not exists) for scorer
       mockTransactionGet
         .mockResolvedValueOnce({ exists: () => false })  // matchRef
-        .mockResolvedValueOnce({ exists: () => false }); // stats
+        .mockResolvedValueOnce({ exists: () => false })  // stats
+        .mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       const match = makeCasualMatch();
       await firestorePlayerStatsRepository.processMatchCompletion(
@@ -477,12 +491,14 @@ describe('firestorePlayerStatsRepository', () => {
 
       // Both participants run transactions concurrently (Promise.all).
       // Due to microtask interleaving, get calls alternate:
-      //   uid-A matchRef, uid-B matchRef, uid-A stats, uid-B stats
+      //   uid-A matchRef, uid-B matchRef, uid-A stats, uid-B stats, uid-A leaderboard, uid-B leaderboard
       mockTransactionGet
         .mockResolvedValueOnce({ exists: () => false })  // uid-A matchRef
         .mockResolvedValueOnce({ exists: () => false })  // uid-B matchRef
         .mockResolvedValueOnce({ exists: () => false })  // uid-A stats
-        .mockResolvedValueOnce({ exists: () => false }); // uid-B stats
+        .mockResolvedValueOnce({ exists: () => false })  // uid-B stats
+        .mockResolvedValueOnce({ exists: () => false })  // uid-A leaderboard
+        .mockResolvedValueOnce({ exists: () => false }); // uid-B leaderboard
 
       const match = makeMatch({
         tournamentId: 'tourn-1',
@@ -895,7 +911,8 @@ describe('firestorePlayerStatsRepository', () => {
       // Casual: no getDocs call for registrations
       mockTransactionGet
         .mockResolvedValueOnce({ exists: () => false })  // matchRef
-        .mockResolvedValueOnce({ exists: () => false }); // stats
+        .mockResolvedValueOnce({ exists: () => false })  // stats
+        .mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
 
@@ -929,6 +946,9 @@ describe('firestorePlayerStatsRepository', () => {
       // uid-A stats (exists with prior opponents), uid-B stats (not exists)
       mockTransactionGet.mockResolvedValueOnce({ exists: () => true, data: () => ({ ...existingStats }) });
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-B stats
+      // leaderboard docs
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-A leaderboard
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-B leaderboard
 
       await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
 
@@ -961,8 +981,9 @@ describe('firestorePlayerStatsRepository', () => {
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-B matchRef
       mockTransactionGet.mockResolvedValueOnce({ exists: () => true, data: () => ({ ...existingStats }) });
       mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-B stats
-      // uid-A leaderboard doc (totalMatches will be 6 >= 5, triggers leaderboard write)
-      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
+      // leaderboard docs
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-A leaderboard
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false }); // uid-B leaderboard
 
       await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
 
@@ -977,7 +998,8 @@ describe('firestorePlayerStatsRepository', () => {
 
       mockTransactionGet
         .mockResolvedValueOnce({ exists: () => false })  // matchRef
-        .mockResolvedValueOnce({ exists: () => false }); // stats
+        .mockResolvedValueOnce({ exists: () => false })  // stats
+        .mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       await firestorePlayerStatsRepository.processMatchCompletion(match, 'scorer-uid');
 
@@ -1005,7 +1027,8 @@ describe('firestorePlayerStatsRepository', () => {
     it('writePublicTier IS called when match is newly processed', async () => {
       mockTransactionGet
         .mockResolvedValueOnce({ exists: () => false })  // matchRef
-        .mockResolvedValueOnce({ exists: () => false }); // stats
+        .mockResolvedValueOnce({ exists: () => false })  // stats
+        .mockResolvedValueOnce({ exists: () => false }); // leaderboard
 
       const match = makeMatch();
       await firestorePlayerStatsRepository.updatePlayerStats(
@@ -1152,6 +1175,8 @@ describe('firestorePlayerStatsRepository', () => {
           uniqueOpponentUids: ['opp-1'],
         }),
       });
+      // Leaderboard doc (totalMatches will be 3 < 5, no leaderboard write)
+      mockTransactionGet.mockResolvedValueOnce({ exists: () => false });
 
       const match = makeMatch({ winningSide: 1 });
       await firestorePlayerStatsRepository.updatePlayerStats(
