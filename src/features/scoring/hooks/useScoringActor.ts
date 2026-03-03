@@ -118,7 +118,6 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
       };
       try {
         await scoreEventRepository.save(event);
-        cloudSync.syncScoreEventToCloud(event);
       } catch (err) {
         console.error('Failed to save score event:', err);
       }
@@ -147,7 +146,6 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
     };
     try {
       await scoreEventRepository.save(event);
-      cloudSync.syncScoreEventToCloud(event);
     } catch (err) {
       console.error('Failed to save score event:', err);
     }
@@ -173,7 +171,6 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
       };
       try {
         await scoreEventRepository.save(event);
-        cloudSync.syncScoreEventToCloud(event);
       } catch (err) {
         console.error('Failed to save score event:', err);
       }

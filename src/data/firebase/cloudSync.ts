@@ -1,11 +1,10 @@
 import { auth } from './config';
 import { firestoreMatchRepository } from './firestoreMatchRepository';
-import { firestoreScoreEventRepository } from './firestoreScoreEventRepository';
 import { firestoreTournamentRepository } from './firestoreTournamentRepository';
 import { firestoreUserRepository } from './firestoreUserRepository';
 import { firestorePlayerStatsRepository } from './firestorePlayerStatsRepository';
 import { matchRepository } from '../repositories/matchRepository';
-import type { Match, ScoreEvent, Tournament } from '../types';
+import type { Match, Tournament } from '../types';
 
 export const cloudSync = {
   /**
@@ -17,18 +16,6 @@ export const cloudSync = {
     if (!user) return;
     firestoreMatchRepository.save(match, user.uid, sharedWith).catch((err) => {
       console.warn('Cloud sync failed for match:', match.id, err);
-    });
-  },
-
-  /**
-   * Save a score event to Firestore if user is signed in.
-   * Fire-and-forget.
-   */
-  syncScoreEventToCloud(event: ScoreEvent): void {
-    const user = auth.currentUser;
-    if (!user) return;
-    firestoreScoreEventRepository.save(event, user.uid).catch((err) => {
-      console.warn('Cloud sync failed for score event:', event.id, err);
     });
   },
 

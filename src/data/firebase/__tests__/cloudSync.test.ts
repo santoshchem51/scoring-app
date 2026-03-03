@@ -42,10 +42,6 @@ vi.mock('../../firebase/firestoreMatchRepository', () => ({
   firestoreMatchRepository: mockFirestoreMatchRepository,
 }));
 
-vi.mock('../../firebase/firestoreScoreEventRepository', () => ({
-  firestoreScoreEventRepository: { save: vi.fn() },
-}));
-
 vi.mock('../../firebase/firestoreTournamentRepository', () => ({
   firestoreTournamentRepository: { save: vi.fn(), getByOrganizer: vi.fn(() => []) },
 }));
@@ -71,11 +67,6 @@ describe('cloudSync', () => {
   it('should have syncMatchToCloud method', async () => {
     const mod = await import('../cloudSync');
     expect(typeof mod.cloudSync.syncMatchToCloud).toBe('function');
-  });
-
-  it('should have syncScoreEventToCloud method', async () => {
-    const mod = await import('../cloudSync');
-    expect(typeof mod.cloudSync.syncScoreEventToCloud).toBe('function');
   });
 
   it('should have pullCloudMatchesToLocal method', async () => {

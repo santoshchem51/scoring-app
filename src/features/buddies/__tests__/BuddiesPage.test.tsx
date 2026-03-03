@@ -28,7 +28,6 @@ vi.mock('../../../data/firebase/cloudSync', () => ({
     pushLocalMatchesToCloud: vi.fn(() => Promise.resolve(0)),
     pullCloudMatchesToLocal: vi.fn(() => Promise.resolve(0)),
     syncMatchToCloud: vi.fn(),
-    syncScoreEventToCloud: vi.fn(),
   },
 }));
 
