@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { createSignal, Show } from 'solid-js';
+import { createSignal, createEffect, on, Show } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import OptionCard from '../../shared/components/OptionCard';
@@ -29,6 +29,9 @@ const GameSetupPage: Component = () => {
   const [scorerTeam, setScorerTeam] = createSignal<1 | 2>(1);
   const [roleExpanded, setRoleExpanded] = createSignal(false);
   const [buddyAssignments, setBuddyAssignments] = createSignal<Record<string, 1 | 2>>({});
+  const [searchUserInfo, setSearchUserInfo] = createSignal<
+    Record<string, { displayName: string; photoURL: string | null }>
+  >({});
 
   const { user } = useAuth();
 
@@ -45,6 +48,53 @@ const GameSetupPage: Component = () => {
       return next;
     });
   };
+
+  const handleSearchAssign = (
+    userId: string,
+    team: 1 | 2,
+    info: { displayName: string; photoURL: string | null },
+  ) => {
+    setSearchUserInfo((prev) => ({ ...prev, [userId]: info }));
+    setBuddyAssignments((prev) => ({ ...prev, [userId]: team }));
+  };
+
+  const handleSearchUnassign = (userId: string) => {
+    setSearchUserInfo((prev) => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
+    setBuddyAssignments((prev) => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
+  };
+
+  // Capacity pruning: when switching to singles, keep max 1 per team
+  createEffect(
+    on(gameType, (gt) => {
+      if (gt !== 'singles') return;
+      setBuddyAssignments((prev) => {
+        const pruned: Record<string, 1 | 2> = {};
+        let t1 = 0;
+        let t2 = 0;
+        for (const [uid, team] of Object.entries(prev)) {
+          if (team === 1 && t1 < 1) { pruned[uid] = 1; t1++; }
+          else if (team === 2 && t2 < 1) { pruned[uid] = 2; t2++; }
+        }
+        const removedUids = Object.keys(prev).filter((uid) => !(uid in pruned));
+        if (removedUids.length > 0) {
+          setSearchUserInfo((si) => {
+            const next = { ...si };
+            for (const uid of removedUids) delete next[uid];
+            return next;
+          });
+        }
+        return pruned;
+      });
+    }),
+  );
 
   const startGame = async () => {
     const config: MatchConfig = {
@@ -231,6 +281,7 @@ const GameSetupPage: Component = () => {
         <Show when={user()}>
           <BuddyPicker
             buddyAssignments={buddyAssignments()}
+            searchUserInfo={searchUserInfo()}
             scorerRole={scorerRole()}
             scorerTeam={scorerTeam()}
             scorerUid={user()!.uid}
@@ -241,6 +292,8 @@ const GameSetupPage: Component = () => {
             gameType={gameType()}
             onAssign={handleBuddyAssign}
             onUnassign={handleBuddyUnassign}
+            onSearchAssign={handleSearchAssign}
+            onSearchUnassign={handleSearchUnassign}
           />
         </Show>
 
