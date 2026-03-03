@@ -16,13 +16,19 @@ const PageLayout: Component<Props> = (props) => {
       mainRef.style.opacity = '1';
       return;
     }
-    mainRef.animate(
+    const anim = mainRef.animate(
       [
         { opacity: 0, transform: 'translateY(8px)' },
         { opacity: 1, transform: 'translateY(0)' },
       ],
       { duration: 200, easing: 'ease-out', fill: 'forwards' },
     );
+    anim.finished.then(() => {
+      if (mainRef) {
+        mainRef.style.opacity = '1';
+        anim.cancel();
+      }
+    });
   });
 
   return (
