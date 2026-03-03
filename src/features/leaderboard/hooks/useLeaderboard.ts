@@ -113,12 +113,17 @@ export function useLeaderboard() {
   );
 
   const [data] = createResource(
-    () => `${scope()}:${timeframe()}:${user()?.uid ?? 'anon'}`,
+    () => {
+      const uids = friendUids() ?? [];
+      return `${scope()}:${timeframe()}:${user()?.uid ?? 'anon'}:${uids.length}`;
+    },
     async (key) => {
-      const [s, tf, uid] = key.split(':') as [LeaderboardScope, LeaderboardTimeframe, string];
-      const resolvedUid = uid === 'anon' ? undefined : uid;
+      const parts = key.split(':');
+      const s = parts[0] as LeaderboardScope;
+      const tf = parts[1] as LeaderboardTimeframe;
+      const uid = parts[2] === 'anon' ? undefined : parts[2];
       const uids = s === 'friends' ? (friendUids() ?? []) : [];
-      return fetchLeaderboardData(s, tf, resolvedUid, uids);
+      return fetchLeaderboardData(s, tf, uid, uids);
     },
   );
 
