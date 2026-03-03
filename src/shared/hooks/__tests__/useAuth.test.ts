@@ -21,6 +21,16 @@ vi.mock('../../../data/firebase/cloudSync', () => ({
   },
 }));
 
+vi.mock('../../../data/firebase/syncQueue', () => ({
+  resetAwaitingAuthJobs: vi.fn(() => Promise.resolve(0)),
+}));
+
+vi.mock('../../../data/firebase/syncProcessor', () => ({
+  startProcessor: vi.fn(),
+  stopProcessor: vi.fn(),
+  wakeProcessor: vi.fn(),
+}));
+
 describe('useAuth', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -67,5 +77,12 @@ describe('useAuth', () => {
     const mod = await import('../useAuth');
     const authState = mod.useAuth();
     expect(typeof authState.syncing).toBe('function');
+  });
+
+  it('should provide syncError signal', async () => {
+    const mod = await import('../useAuth');
+    const authState = mod.useAuth();
+    expect(typeof authState.syncError).toBe('function');
+    expect(authState.syncError()).toBe(false);
   });
 });

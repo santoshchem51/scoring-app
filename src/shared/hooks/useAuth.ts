@@ -8,10 +8,13 @@ import {
 import type { User } from 'firebase/auth';
 import { auth } from '../../data/firebase/config';
 import { cloudSync } from '../../data/firebase/cloudSync';
+import { resetAwaitingAuthJobs } from '../../data/firebase/syncQueue';
+import { startProcessor, stopProcessor, wakeProcessor } from '../../data/firebase/syncProcessor';
 
 const [user, setUser] = createSignal<User | null>(null);
 const [loading, setLoading] = createSignal(true);
 const [syncing, setSyncing] = createSignal(false);
+const [syncError, setSyncError] = createSignal(false);
 
 let listenerInitialized = false;
 
@@ -26,15 +29,40 @@ function initAuthListener() {
     // Sync on sign-in
     if (firebaseUser && wasSignedOut) {
       setSyncing(true);
+      setSyncError(false);
+
+      // Step 1: blocking profile sync (fast, required by security rules)
+      await cloudSync.syncUserProfile();
+
+      // Step 2: non-blocking push — enqueue local matches
+      cloudSync.enqueueLocalMatchPush().catch((err) => {
+        console.warn('Match push enqueue failed:', err);
+      });
+
+      // Step 3: non-blocking pull — runs in background
+      cloudSync.pullCloudMatchesToLocal()
+        .then(() => setSyncing(false))
+        .catch(() => {
+          setSyncError(true);
+          setSyncing(false);
+        });
+
+      // Start the sync processor
+      startProcessor();
+
+      // Resume awaitingAuth jobs with fresh token
       try {
-        await cloudSync.syncUserProfile();
-        await cloudSync.enqueueLocalMatchPush();
-        await cloudSync.pullCloudMatchesToLocal();
-      } catch (err) {
-        console.warn('Sync on sign-in failed:', err);
-      } finally {
-        setSyncing(false);
+        await firebaseUser.getIdToken(true);
+        await resetAwaitingAuthJobs();
+        wakeProcessor();
+      } catch {
+        // Token refresh failed — processor will handle it
       }
+    }
+
+    // Clean up on sign-out
+    if (!firebaseUser) {
+      stopProcessor();
     }
   });
 }
@@ -51,5 +79,5 @@ export function useAuth() {
     await firebaseSignOut(auth);
   };
 
-  return { user, loading, syncing, signIn, signOut };
+  return { user, loading, syncing, syncError, signIn, signOut };
 }
