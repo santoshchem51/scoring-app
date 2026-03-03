@@ -41,7 +41,23 @@ export const cloudSync = {
     if (!user) return 0;
 
     try {
-      const cloudMatches = await firestoreMatchRepository.getByOwner(user.uid);
+      const [ownedMatches, sharedMatches] = await Promise.all([
+        firestoreMatchRepository.getByOwner(user.uid),
+        firestoreMatchRepository.getBySharedWith(user.uid),
+      ]);
+
+      // Deduplicate by match ID — owned takes precedence
+      const matchMap = new Map<string, typeof ownedMatches[number]>();
+      for (const m of ownedMatches) {
+        matchMap.set(m.id, m);
+      }
+      for (const m of sharedMatches) {
+        if (!matchMap.has(m.id)) {
+          matchMap.set(m.id, m);
+        }
+      }
+
+      const cloudMatches = Array.from(matchMap.values());
       let synced = 0;
       for (const cloudMatch of cloudMatches) {
         const localMatch: Match = {

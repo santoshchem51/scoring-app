@@ -165,4 +165,67 @@ describe('cloudSync', () => {
       });
     });
   });
+
+  describe('pullCloudMatchesToLocal with shared matches', () => {
+    const makeCloudMatch = (overrides: Partial<CloudMatch> = {}): CloudMatch => ({
+      id: 'match-pull-1',
+      config: { gameType: 'doubles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
+      team1PlayerIds: [],
+      team2PlayerIds: [],
+      team1Name: 'Team A',
+      team2Name: 'Team B',
+      games: [],
+      winningSide: null,
+      status: 'in-progress',
+      startedAt: 1000,
+      completedAt: null,
+      ownerId: 'user-1',
+      sharedWith: [],
+      visibility: 'private',
+      syncedAt: 2000,
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      mockAuth.currentUser = { uid: 'user-1' };
+    });
+
+    it('pulls both owned and shared matches', async () => {
+      const ownedMatch = makeCloudMatch({ id: 'owned-1', ownerId: 'user-1' });
+      const sharedMatch = makeCloudMatch({ id: 'shared-1', ownerId: 'other-uid', sharedWith: ['user-1'] });
+
+      mockFirestoreMatchRepository.getByOwner.mockResolvedValue([ownedMatch]);
+      mockFirestoreMatchRepository.getBySharedWith.mockResolvedValue([sharedMatch]);
+
+      const mod = await import('../cloudSync');
+      const count = await mod.cloudSync.pullCloudMatchesToLocal();
+
+      expect(count).toBe(2);
+      expect(mockMatchRepository.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('deduplicates matches that appear in both owned and shared', async () => {
+      const match = makeCloudMatch({ id: 'dup-1', ownerId: 'user-1', sharedWith: ['user-1'] });
+
+      mockFirestoreMatchRepository.getByOwner.mockResolvedValue([match]);
+      mockFirestoreMatchRepository.getBySharedWith.mockResolvedValue([match]);
+
+      const mod = await import('../cloudSync');
+      const count = await mod.cloudSync.pullCloudMatchesToLocal();
+
+      expect(count).toBe(1);
+      expect(mockMatchRepository.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('still works when getBySharedWith returns empty', async () => {
+      const ownedMatch = makeCloudMatch({ id: 'owned-2' });
+      mockFirestoreMatchRepository.getByOwner.mockResolvedValue([ownedMatch]);
+      mockFirestoreMatchRepository.getBySharedWith.mockResolvedValue([]);
+
+      const mod = await import('../cloudSync');
+      const count = await mod.cloudSync.pullCloudMatchesToLocal();
+
+      expect(count).toBe(1);
+    });
+  });
 });
