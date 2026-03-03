@@ -4,6 +4,8 @@ import { A } from '@solidjs/router';
 import { User, Settings } from 'lucide-solid';
 import { useAuth } from '../hooks/useAuth';
 import Logo, { LogoIcon } from './Logo';
+import { syncStatus, failedCount } from '../../data/firebase/useSyncStatus';
+import { wakeProcessor } from '../../data/firebase/syncProcessor';
 
 interface TopNavProps {
   pageTitle?: string;
@@ -113,7 +115,7 @@ const TopNav: Component<TopNavProps> = (props) => {
               type="button"
               onClick={() => menuOpen() ? closeMenu() : openMenu()}
               onKeyDown={handleTriggerKeyDown}
-              class="flex items-center active:scale-95 transition-transform"
+              class="relative flex items-center active:scale-95 transition-transform"
               aria-label="Account menu"
               aria-expanded={menuOpen()}
               aria-haspopup="menu"
@@ -141,6 +143,18 @@ const TopNav: Component<TopNavProps> = (props) => {
                     referrerpolicy="no-referrer"
                   />
                 </Show>
+              </Show>
+              <Show when={syncStatus() !== 'idle'}>
+                <span
+                  data-testid="sync-indicator"
+                  class={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface-light ${
+                    syncStatus() === 'failed'
+                      ? 'bg-amber-400'
+                      : syncStatus() === 'processing'
+                      ? 'bg-primary animate-pulse'
+                      : 'bg-primary'
+                  }`}
+                />
               </Show>
             </button>
 
@@ -214,6 +228,20 @@ const TopNav: Component<TopNavProps> = (props) => {
                     <Settings class="w-4 h-4 text-on-surface-muted" />
                     Settings
                   </A>
+                  <Show when={syncStatus() === 'failed'}>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      tabindex="-1"
+                      onClick={() => {
+                        wakeProcessor();
+                        closeMenu();
+                      }}
+                      class="w-full text-left px-4 py-3 text-sm text-amber-400 hover:bg-surface-lighter transition-colors focus-visible:bg-surface-lighter focus-visible:outline-none"
+                    >
+                      {failedCount()} sync{failedCount() === 1 ? '' : 's'} failed — Retry
+                    </button>
+                  </Show>
                   <button
                     type="button"
                     role="menuitem"
