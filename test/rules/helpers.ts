@@ -215,6 +215,28 @@ export function makeRegistration(userId: string, tournamentId: string, overrides
 
 // ── Buddy feature factories ─────────────────────────────────────────────
 
+// ── Leaderboard factory ─────────────────────────────────────────────────
+
+export function makeLeaderboardEntry(uid: string, overrides: Record<string, unknown> = {}) {
+  return {
+    uid,
+    displayName: 'Alice',
+    photoURL: null,
+    tier: 'intermediate',
+    tierConfidence: 'medium',
+    totalMatches: 10,
+    wins: 6,
+    winRate: 0.6,
+    currentStreak: { type: 'W', count: 2 },
+    compositeScore: 55,
+    last30d: { totalMatches: 5, wins: 3, winRate: 0.6, compositeScore: 50 },
+    lastPlayedAt: Date.now(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    ...overrides,
+  };
+}
+
 export function makeBuddyGroup(createdBy: string, overrides: Record<string, unknown> = {}) {
   return {
     id: 'group-1',

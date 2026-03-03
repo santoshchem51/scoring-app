@@ -498,6 +498,60 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ── Leaderboard (/leaderboard/{uid}) ──────────────────────────────
+    match /leaderboard/{uid} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() < 256
+        && request.resource.data.winRate is number
+        && request.resource.data.winRate >= 0
+        && request.resource.data.winRate <= 1
+        && request.resource.data.compositeScore is number
+        && request.resource.data.compositeScore >= 0
+        && request.resource.data.compositeScore <= 100
+        && request.resource.data.wins is number
+        && request.resource.data.totalMatches is number
+        && request.resource.data.wins <= request.resource.data.totalMatches
+        && request.resource.data.tier in ['beginner', 'intermediate', 'advanced', 'expert']
+        && request.resource.data.last30d is map
+        && request.resource.data.last30d.winRate is number
+        && request.resource.data.last30d.winRate >= 0
+        && request.resource.data.last30d.winRate <= 1
+        && request.resource.data.last30d.compositeScore is number
+        && request.resource.data.last30d.compositeScore >= 0
+        && request.resource.data.last30d.compositeScore <= 100;
+
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() < 256
+        && request.resource.data.winRate is number
+        && request.resource.data.winRate >= 0
+        && request.resource.data.winRate <= 1
+        && request.resource.data.compositeScore is number
+        && request.resource.data.compositeScore >= 0
+        && request.resource.data.compositeScore <= 100
+        && request.resource.data.wins is number
+        && request.resource.data.totalMatches is number
+        && request.resource.data.wins <= request.resource.data.totalMatches
+        && request.resource.data.tier in ['beginner', 'intermediate', 'advanced', 'expert']
+        && request.resource.data.last30d is map
+        && request.resource.data.last30d.winRate is number
+        && request.resource.data.last30d.winRate >= 0
+        && request.resource.data.last30d.winRate <= 1
+        && request.resource.data.last30d.compositeScore is number
+        && request.resource.data.last30d.compositeScore >= 0
+        && request.resource.data.last30d.compositeScore <= 100
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
     // ── Collection Group: Members (for "my groups" query) ──────────────
     match /{path=**}/members/{userId} {
       allow read: if request.auth != null
