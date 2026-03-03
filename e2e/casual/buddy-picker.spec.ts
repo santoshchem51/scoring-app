@@ -72,9 +72,13 @@ test.describe('Casual Phase 2: Buddy Picker', () => {
     await page.getByText(/Add Players/).click();
     await expect(page.getByText('Alice')).toBeVisible({ timeout: 10000 });
 
-    // Tap Alice → action sheet → Team 1
+    // Tap Alice → action sheet opens
     await page.getByRole('button', { name: /Alice/ }).click();
-    await page.getByText(/Team 1/).first().click();
+
+    // Scope to the action sheet (fixed z-50 overlay) and click Team 1
+    const actionSheet = page.locator('[data-testid="sheet-backdrop"]').locator('..');
+    await expect(actionSheet.getByRole('heading', { name: 'Alice' })).toBeVisible();
+    await actionSheet.getByRole('button', { name: /Team 1/ }).click();
 
     // Tap Done, then start match
     await page.getByText('Done').click();
@@ -105,11 +109,17 @@ test.describe('Casual Phase 2: Buddy Picker', () => {
     await expect(page.getByText('Alice')).toBeVisible({ timeout: 10000 });
 
     await page.getByRole('button', { name: /Alice/ }).click();
-    await page.getByText(/Team 1/).first().click();
+    const actionSheet = page.locator('[data-testid="sheet-backdrop"]').locator('..');
+    await expect(actionSheet.getByRole('heading', { name: 'Alice' })).toBeVisible();
+    await actionSheet.getByRole('button', { name: /Team 1/ }).click();
 
-    // Now tap Bob — Team 1 option should be disabled (full)
-    await page.getByRole('button', { name: /Bob/ }).click();
-    const team1Option = page.getByRole('button', { name: /Team 1/ }).first();
+    // Team 1 is now full (scorer + Alice = 2/2).
+    // Tap Alice AGAIN (already assigned) → action sheet opens (auto-assign skips assigned buddies)
+    await page.getByRole('button', { name: /Alice/ }).click();
+    await expect(actionSheet.getByRole('heading', { name: 'Alice' })).toBeVisible();
+
+    // Team 1 option should be disabled (full)
+    const team1Option = actionSheet.getByRole('button', { name: /Team 1/ });
     await expect(team1Option).toHaveAttribute('aria-disabled', 'true');
   });
 
@@ -138,20 +148,27 @@ test.describe('Casual Phase 2: Buddy Picker', () => {
 
     await setup.goto();
 
-    // Assign Alice to team 1
+    // Assign Alice to team 1 via action sheet
     await page.getByText(/Add Players/).click();
     await expect(page.getByText('Alice')).toBeVisible({ timeout: 10000 });
     await page.getByRole('button', { name: /Alice/ }).click();
-    await page.getByText(/Team 1/).first().click();
+    const actionSheet = page.locator('[data-testid="sheet-backdrop"]').locator('..');
+    await expect(actionSheet.getByRole('heading', { name: 'Alice' })).toBeVisible();
+    await actionSheet.getByRole('button', { name: /Team 1/ }).click();
     await page.getByText('Done').click();
 
-    // Change scorer role to spectator
-    await page.getByText('Change').click();
-    await page.getByText(/Scoring for Others/).click();
-    await page.getByText('Done').last().click();
+    // Change scorer role to spectator via "Your Role" section
+    // The "Your Role" Change is a <button> with exact name "Change",
+    // while BuddyPicker's collapsed row is a <div role="button"> with name "Players: Alice (T1) Change"
+    await page.getByRole('button', { name: 'Change', exact: true }).click();
+    await page.getByRole('button', { name: /Scoring for Others/ }).click();
+    // Collapse "Your Role" — the "Done" is inside the role fieldset
+    const roleFieldset = page.locator('fieldset', { hasText: 'Your Role' });
+    await roleFieldset.getByText('Done').click();
 
     // Re-expand buddy picker to check capacity updated
-    await page.getByText(/Change/).first().click();
+    // Click the BuddyPicker collapsed row which shows "Players: Alice (T1)"
+    await page.getByRole('button', { name: /Players:.*Alice/ }).click();
     await expect(page.getByText(/Team 1: 1\/2/)).toBeVisible({ timeout: 5000 });
   });
 });

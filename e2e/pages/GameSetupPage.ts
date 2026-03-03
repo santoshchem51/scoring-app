@@ -52,7 +52,9 @@ export class GameSetupPage {
 
   // ── Your Role Actions ──
   async expandYourRole() {
-    await this.page.getByRole('button', { name: 'Change' }).click();
+    // Use exact match to avoid ambiguity with BuddyPicker's collapsed row
+    // (which is a div[role="button"] with name "Players: ... Change")
+    await this.page.getByRole('button', { name: 'Change', exact: true }).click();
   }
 
   async selectScoringForOthers() {
