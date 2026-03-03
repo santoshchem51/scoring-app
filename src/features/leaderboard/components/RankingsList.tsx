@@ -6,6 +6,7 @@ import TierBadge from '../../profile/components/TierBadge';
 interface RankingsListProps {
   entries: LeaderboardEntry[];
   startRank: number;
+  currentUserUid?: string;
 }
 
 const RankingsList: Component<RankingsListProps> = (props) => {
@@ -14,9 +15,10 @@ const RankingsList: Component<RankingsListProps> = (props) => {
       <For each={props.entries}>
         {(entry, index) => {
           const rank = () => props.startRank + index();
+          const isCurrentUser = () => props.currentUserUid != null && entry.uid === props.currentUserUid;
 
           return (
-            <div class="flex items-center gap-3 bg-surface-light rounded-xl p-3 border border-border">
+            <div class={`flex items-center gap-3 bg-surface-light rounded-xl p-3 border ${isCurrentUser() ? 'border-primary/30' : 'border-border'}`}>
               {/* Rank number */}
               <span class="text-on-surface-muted font-bold text-sm w-6 text-center shrink-0">
                 {rank()}

@@ -133,7 +133,7 @@ const LeaderboardTab: Component = () => {
             </Show>
 
             <Show when={rest().length > 0}>
-              <RankingsList entries={rest()} startRank={4} />
+              <RankingsList entries={rest()} startRank={4} currentUserUid={user()?.uid} />
             </Show>
           </div>
         </Show>

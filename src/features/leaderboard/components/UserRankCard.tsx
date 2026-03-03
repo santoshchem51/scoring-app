@@ -45,7 +45,7 @@ const UserRankCard: Component<UserRankCardProps> = (props) => {
           <div class="flex items-center gap-3">
             {/* Rank */}
             <span class="text-primary font-bold text-lg shrink-0">
-              #{props.rank}
+              #{props.rank ?? '?'}
             </span>
 
             {/* Avatar */}

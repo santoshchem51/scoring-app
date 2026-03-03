@@ -73,10 +73,10 @@ describe('Leaderboard (/leaderboard/{uid})', () => {
     await assertSucceeds(setDoc(ref, makeLeaderboardEntry(uid)));
   });
 
-  it('denies creating entry for another user', async () => {
+  it('allows authenticated user to create entry for another user (cross-user tournament writes)', async () => {
     const db = authedContext(uid).firestore();
     const ref = doc(db, 'leaderboard', otherUid);
-    await assertFails(setDoc(ref, makeLeaderboardEntry(otherUid)));
+    await assertSucceeds(setDoc(ref, makeLeaderboardEntry(otherUid)));
   });
 
   it('denies unauthenticated create', async () => {
@@ -190,11 +190,14 @@ describe('Leaderboard (/leaderboard/{uid})', () => {
     }));
   });
 
-  it('denies updating another user leaderboard entry', async () => {
+  it('allows authenticated user to update another user leaderboard entry (cross-user tournament writes)', async () => {
     await seedDoc(`leaderboard/${uid}`, makeLeaderboardEntry(uid));
     const db = authedContext(otherUid).firestore();
     const ref = doc(db, 'leaderboard', uid);
-    await assertFails(updateDoc(ref, { compositeScore: 99 }));
+    await assertSucceeds(updateDoc(ref, {
+      compositeScore: 60,
+      last30d: { totalMatches: 5, wins: 3, winRate: 0.6, compositeScore: 50 },
+    }));
   });
 
   // ── createdAt immutability on update ────────────────────────────────

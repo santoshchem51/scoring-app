@@ -81,6 +81,21 @@ describe('RankingsList', () => {
     expect(screen.getByText('advanced')).toBeTruthy();
   });
 
+  it('highlights current user row with primary border', () => {
+    const entries = [
+      makeLeaderboardEntry({ uid: 'u4', displayName: 'Someone' }),
+      makeLeaderboardEntry({ uid: 'u5', displayName: 'Me' }),
+    ];
+    const { container } = render(() => (
+      <RankingsList entries={entries} startRank={4} currentUserUid="u5" />
+    ));
+    const rows = container.querySelectorAll('.rounded-xl');
+    // First row (u4) should NOT have primary border
+    expect(rows[0].className).toContain('border-border');
+    // Second row (u5) should have primary border
+    expect(rows[1].className).toContain('border-primary/30');
+  });
+
   it('hides streak when count is zero', () => {
     const entries = [
       makeLeaderboardEntry({
