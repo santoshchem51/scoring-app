@@ -4,6 +4,9 @@ import PageLayout from '../../shared/components/PageLayout';
 import OptionCard from '../../shared/components/OptionCard';
 import Logo from '../../shared/components/Logo';
 import { settings, setSettings } from '../../stores/settingsStore';
+import { syncStatus, pendingCount, failedCount } from '../../data/firebase/useSyncStatus';
+import { wakeProcessor } from '../../data/firebase/syncProcessor';
+import { useAuth } from '../../shared/hooks/useAuth';
 
 const SettingsPage: Component = () => {
   const [voices, setVoices] = createSignal<SpeechSynthesisVoice[]>([]);
@@ -235,6 +238,38 @@ const SettingsPage: Component = () => {
 
           {/* Right column */}
           <div class="space-y-6">
+            {/* Cloud Sync (signed-in users only) */}
+            <Show when={useAuth().user()}>
+              <fieldset>
+                <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+                  Cloud Sync
+                </legend>
+                <div class="bg-surface-light rounded-xl p-4 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="font-semibold text-on-surface text-sm">Status</div>
+                      <div class="text-xs text-on-surface-muted capitalize">{syncStatus()}</div>
+                    </div>
+                    <Show when={pendingCount() > 0 || failedCount() > 0}>
+                      <div class="text-xs text-on-surface-muted">
+                        {pendingCount() > 0 && `${pendingCount()} pending`}
+                        {pendingCount() > 0 && failedCount() > 0 && ' \u00b7 '}
+                        {failedCount() > 0 && `${failedCount()} failed`}
+                      </div>
+                    </Show>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => wakeProcessor()}
+                    disabled={syncStatus() === 'processing'}
+                    class="w-full bg-surface-lighter text-on-surface font-semibold text-sm py-2.5 rounded-lg active:scale-95 transition-transform disabled:opacity-50"
+                  >
+                    Sync Now
+                  </button>
+                </div>
+              </fieldset>
+            </Show>
+
             {/* Default Scoring Mode */}
             <fieldset>
               <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
