@@ -18,6 +18,7 @@ import {
 } from './syncQueue';
 import { classifyError } from './syncErrors';
 import { computeNextRetryAt, computeRateLimitRetryAt, isMaxRetriesExceeded } from './syncRetry';
+import { setSyncProcessing, updateSyncStatus } from './useSyncStatus';
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -203,8 +204,13 @@ async function processOnce(): Promise<void> {
     return;
   }
 
+  setSyncProcessing();
+
   const jobs = await claimNextJobs(MAX_CONCURRENT);
-  if (jobs.length === 0) return;
+  if (jobs.length === 0) {
+    await updateSyncStatus();
+    return;
+  }
 
   // Filter out jobs whose entities are already in-flight (per-entity serialization)
   const eligibleJobs = jobs.filter((job) => !inFlightEntities.has(job.entityId));
@@ -242,6 +248,8 @@ async function processOnce(): Promise<void> {
       console.error('[syncProcessor] Unexpected job settlement error:', result.reason);
     }
   }
+
+  await updateSyncStatus();
 }
 
 // ── Sleep with wake support ──────────────────────────────────────────
