@@ -167,6 +167,28 @@ export interface LeaderboardEntry {
   updatedAt: number;
 }
 
+// --- Achievement types (Wave D) ---
+
+export type AchievementTier = 'bronze' | 'silver' | 'gold';
+export type AchievementCategory = 'milestones' | 'streaks' | 'improvement' | 'social' | 'moments' | 'consistency';
+
+export type AchievementTriggerContext =
+  | { type: 'stats'; field: string; value: number }
+  | { type: 'match'; matchScore: string; outcome: string }
+  | { type: 'tier'; from: string; to: string };
+
+export interface UnlockedAchievement {
+  achievementId: string;
+  unlockedAt: number;
+  triggerMatchId: string;
+  triggerContext: AchievementTriggerContext;
+}
+
+export interface CachedAchievement extends UnlockedAchievement {
+  toastShown: 0 | 1;
+  syncedAt: number;
+}
+
 // --- Tournament types (Layer 2) ---
 
 export type TournamentVisibility = 'private' | 'public';
