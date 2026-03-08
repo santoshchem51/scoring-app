@@ -1,5 +1,8 @@
 # Fire-and-Forget Sync Redesign — Design Document
 
+> **Status:** Implemented (March 2026). All components built and integrated.
+> Hardening fixes applied via `docs/plans/2026-03-07-sync-hardening.md`.
+
 **Goal:** Replace the current fire-and-forget cloud sync (`.catch(console.warn)` with no retry) with a Dexie-backed sync queue that retries on failure, makes sign-in sync non-blocking, and surfaces sync status to the user.
 
 **Architecture:** Local-first stays unchanged — all data saves to Dexie first. A persistent sync queue (Dexie table) replaces direct Firestore fire-and-forget calls. A background processor drains the queue with exponential backoff, error classification, and multi-tab safety via Web Locks API.

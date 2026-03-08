@@ -90,20 +90,26 @@
 
 ## Up Next (Priority Order)
 
-### P1 — Fire-and-Forget Sync Redesign
-> Robust sync queue with retry, backoff, and error classification.
+### P1 — Sync Queue Hardening
+> Core sync queue is implemented. Hardening pass to fix specialist-review findings.
 >
-> *Design + implementation plan complete — ready to execute.*
+> *Fixes applied via `docs/plans/2026-03-07-sync-hardening.md`.*
 
-- [ ] SyncJob types + Dexie schema
-- [ ] Retry policy + exponential backoff with jitter
-- [ ] Error classification (retryable, rate-limited, auth-dependent, fatal)
-- [ ] Sync queue enqueue + claim operations
-- [ ] Queue processor (Web Locks, adaptive polling, bounded parallelism)
-- [ ] Refactor cloudSync.ts to use queue
-- [ ] useSyncStatus hook + TopNav indicator
-- [ ] Drop legacy syncScoreEventToCloud
-- [ ] Startup cleanup + auth recovery
+- [x] SyncJob types + Dexie schema
+- [x] Retry policy + exponential backoff with jitter
+- [x] Error classification (retryable, rate-limited, auth-dependent, fatal)
+- [x] Sync queue enqueue + claim operations
+- [x] Queue processor (Web Locks, adaptive polling, bounded parallelism)
+- [x] Refactor cloudSync.ts to use queue
+- [x] useSyncStatus hook + TopNav indicator
+- [x] Drop legacy syncScoreEventToCloud
+- [x] Startup cleanup + auth recovery
+- [x] Reset sync signals on sign-out
+- [x] Periodic stale job reclaim
+- [x] Per-type job timeouts
+- [x] Atomic resetAwaitingAuthJobs
+- [x] TopNav sync indicator accessibility
+- [x] Error classification hardening
 - [ ] Full test suite + E2E tests
 
 ### P2 — Layer 5: Notifications & Engagement
