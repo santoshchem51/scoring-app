@@ -9,6 +9,7 @@ import { wakeProcessor } from '../../data/firebase/syncProcessor';
 import { useAuth } from '../../shared/hooks/useAuth';
 
 const SettingsPage: Component = () => {
+  const { user } = useAuth();
   const [voices, setVoices] = createSignal<SpeechSynthesisVoice[]>([]);
 
   onMount(() => {
@@ -239,7 +240,7 @@ const SettingsPage: Component = () => {
           {/* Right column */}
           <div class="space-y-6">
             {/* Cloud Sync (signed-in users only) */}
-            <Show when={useAuth().user()}>
+            <Show when={user()}>
               <fieldset>
                 <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
                   Cloud Sync
