@@ -1,5 +1,5 @@
 import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
-import { doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import {
   setupTestEnv,
   teardownTestEnv,
@@ -1067,5 +1067,117 @@ describe('Regression tests', () => {
       format: 'single-elimination',
     });
     await assertSucceeds(setDoc(doc(db, 'tournaments/t1'), valid));
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// ACHIEVEMENTS (/users/{uid}/achievements/{achievementId})
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('Achievements (/users/{uid}/achievements/{achievementId})', () => {
+  const uid = 'user-1';
+  const otherUid = 'user-2';
+  const achievementId = 'first_rally';
+
+  function makeAchievementData(overrides: Record<string, unknown> = {}) {
+    return {
+      achievementId: 'first_rally',
+      unlockedAt: Timestamp.now(),
+      triggerMatchId: 'match-123',
+      triggerContext: { type: 'stats', field: 'totalMatches', value: 1 },
+      ...overrides,
+    };
+  }
+
+  // ── Read ────────────────────────────────────────────────────────────
+
+  it('owner can read own achievement', async () => {
+    await seedDoc(`users/${uid}/achievements/${achievementId}`, makeAchievementData());
+    const db = authedContext(uid).firestore();
+    await assertSucceeds(getDoc(doc(db, `users/${uid}/achievements/${achievementId}`)));
+  });
+
+  it('other user cannot read achievements', async () => {
+    await seedDoc(`users/${uid}/achievements/${achievementId}`, makeAchievementData());
+    const db = authedContext(otherUid).firestore();
+    await assertFails(getDoc(doc(db, `users/${uid}/achievements/${achievementId}`)));
+  });
+
+  it('unauthenticated cannot read achievements', async () => {
+    await seedDoc(`users/${uid}/achievements/${achievementId}`, makeAchievementData());
+    const db = unauthedContext().firestore();
+    await assertFails(getDoc(doc(db, `users/${uid}/achievements/${achievementId}`)));
+  });
+
+  // ── Create ─────────────────────────────────────────────────────────
+
+  it('owner can create valid achievement', async () => {
+    const db = authedContext(uid).firestore();
+    await assertSucceeds(
+      setDoc(doc(db, `users/${uid}/achievements/${achievementId}`), makeAchievementData())
+    );
+  });
+
+  it('owner can create without triggerContext', async () => {
+    const db = authedContext(uid).firestore();
+    const data = { achievementId: 'first_rally', unlockedAt: Timestamp.now(), triggerMatchId: 'match-123' };
+    await assertSucceeds(
+      setDoc(doc(db, `users/${uid}/achievements/${achievementId}`), data)
+    );
+  });
+
+  it('cross-user create fails', async () => {
+    const db = authedContext(otherUid).firestore();
+    await assertFails(
+      setDoc(doc(db, `users/${uid}/achievements/${achievementId}`), makeAchievementData())
+    );
+  });
+
+  it('missing required fields fails', async () => {
+    const db = authedContext(uid).firestore();
+    await assertFails(
+      setDoc(doc(db, `users/${uid}/achievements/${achievementId}`), {
+        achievementId: 'first_rally',
+        // missing unlockedAt and triggerMatchId
+      })
+    );
+  });
+
+  it('extra fields fails', async () => {
+    const db = authedContext(uid).firestore();
+    await assertFails(
+      setDoc(doc(db, `users/${uid}/achievements/${achievementId}`), {
+        ...makeAchievementData(),
+        extraField: 'not allowed',
+      })
+    );
+  });
+
+  it('achievementId mismatch fails', async () => {
+    const db = authedContext(uid).firestore();
+    await assertFails(
+      setDoc(doc(db, `users/${uid}/achievements/${achievementId}`), {
+        ...makeAchievementData(),
+        achievementId: 'wrong_id',
+      })
+    );
+  });
+
+  // ── Update/Delete ──────────────────────────────────────────────────
+
+  it('update is denied', async () => {
+    await seedDoc(`users/${uid}/achievements/${achievementId}`, makeAchievementData());
+    const db = authedContext(uid).firestore();
+    await assertFails(
+      updateDoc(doc(db, `users/${uid}/achievements/${achievementId}`), { triggerMatchId: 'changed' })
+    );
+  });
+
+  it('delete is denied', async () => {
+    await seedDoc(`users/${uid}/achievements/${achievementId}`, makeAchievementData());
+    const db = authedContext(uid).firestore();
+    await assertFails(
+      deleteDoc(doc(db, `users/${uid}/achievements/${achievementId}`))
+    );
   });
 });

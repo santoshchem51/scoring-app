@@ -552,6 +552,26 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
+    // ── Achievements (/users/{userId}/achievements/{achievementId}) ──
+    match /users/{userId}/achievements/{achievementId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.achievementId == achievementId
+        && request.resource.data.achievementId is string
+        && request.resource.data.unlockedAt is timestamp
+        && request.resource.data.triggerMatchId is string
+        && request.resource.data.keys().hasAll(
+             ['achievementId', 'unlockedAt', 'triggerMatchId'])
+        && request.resource.data.keys().hasOnly(
+             ['achievementId', 'unlockedAt', 'triggerMatchId', 'triggerContext'])
+        && (!('triggerContext' in request.resource.data)
+            || request.resource.data.triggerContext is map);
+
+      allow update, delete: if false;
+    }
+
     // ── Collection Group: Members (for "my groups" query) ──────────────
     match /{path=**}/members/{userId} {
       allow read: if request.auth != null
