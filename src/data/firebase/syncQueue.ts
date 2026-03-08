@@ -168,23 +168,23 @@ export async function setJobAwaitingAuth(jobId: string): Promise<void> {
 export async function resetAwaitingAuthJobs(): Promise<number> {
   const now = Date.now();
 
-  const awaitingJobs = await db.syncQueue
-    .where('[status+nextRetryAt]')
-    .between(['awaitingAuth', Dexie.minKey], ['awaitingAuth', Dexie.maxKey], true, true)
-    .toArray();
+  return db.transaction('rw', db.syncQueue, async () => {
+    const awaitingJobs = await db.syncQueue
+      .where('[status+nextRetryAt]')
+      .between(['awaitingAuth', Dexie.minKey], ['awaitingAuth', Dexie.maxKey], true, true)
+      .toArray();
 
-  if (awaitingJobs.length === 0) return 0;
+    if (awaitingJobs.length === 0) return 0;
 
-  await db.transaction('rw', db.syncQueue, async () => {
     for (const job of awaitingJobs) {
       await db.syncQueue.update(job.id, {
         status: 'pending',
         nextRetryAt: now,
       });
     }
-  });
 
-  return awaitingJobs.length;
+    return awaitingJobs.length;
+  });
 }
 
 // ── retryJob ─────────────────────────────────────────────────────────

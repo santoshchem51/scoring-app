@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../../db';
 import type { SyncJob, SyncJobContext } from '../syncQueue.types';
 import {
@@ -324,6 +324,28 @@ describe('syncQueue', () => {
       // j3 should be unchanged
       const j3 = await db.syncQueue.get('match:j3');
       expect(j3!.status).toBe('pending');
+    });
+
+    it('reads and writes within a single transaction (atomic)', async () => {
+      // Enqueue two awaitingAuth jobs
+      await enqueueJob('match', 'm1', { type: 'match', ownerId: 'u1', sharedWith: [] });
+      await setJobAwaitingAuth('match:m1');
+      await enqueueJob('match', 'm2', { type: 'match', ownerId: 'u1', sharedWith: [] });
+      await setJobAwaitingAuth('match:m2');
+
+      const txSpy = vi.spyOn(db, 'transaction');
+
+      const count = await resetAwaitingAuthJobs();
+
+      expect(count).toBe(2);
+      expect(txSpy).toHaveBeenCalledWith('rw', db.syncQueue, expect.any(Function));
+
+      const j1 = await db.syncQueue.get('match:m1');
+      const j2 = await db.syncQueue.get('match:m2');
+      expect(j1?.status).toBe('pending');
+      expect(j2?.status).toBe('pending');
+
+      txSpy.mockRestore();
     });
   });
 
