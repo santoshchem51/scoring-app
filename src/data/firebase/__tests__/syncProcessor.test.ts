@@ -135,4 +135,17 @@ describe('syncProcessor', () => {
       expect(failedCount()).toBe(0);
     });
   });
+
+  describe('JOB_TIMEOUT_MAP', () => {
+    it('uses longer timeout for playerStats than match/tournament', async () => {
+      const mod = await import('../syncProcessor');
+      expect(mod.JOB_TIMEOUT_MAP.playerStats).toBeGreaterThan(mod.JOB_TIMEOUT_MAP.match);
+      expect(mod.JOB_TIMEOUT_MAP.match).toBe(mod.JOB_TIMEOUT_MAP.tournament);
+    });
+
+    it('playerStats timeout is at least 30 seconds', async () => {
+      const mod = await import('../syncProcessor');
+      expect(mod.JOB_TIMEOUT_MAP.playerStats).toBeGreaterThanOrEqual(30_000);
+    });
+  });
 });

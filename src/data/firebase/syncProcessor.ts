@@ -25,7 +25,11 @@ import { setSyncProcessing, updateSyncStatus, resetSyncStatus } from './useSyncS
 const MAX_CONCURRENT = 2;
 const WATCHDOG_INTERVAL_MS = 30_000;      // 30 seconds
 const ERROR_SLEEP_MS = 5_000;             // 5 seconds
-const JOB_TIMEOUT_MS = 15_000;            // 15 seconds
+export const JOB_TIMEOUT_MAP: Record<SyncJob['type'], number> = {
+  match: 15_000,          // 15 seconds — single setDoc
+  tournament: 15_000,     // 15 seconds — single save
+  playerStats: 45_000,    // 45 seconds — 12-15 Firestore round-trips
+};
 const WEB_LOCK_NAME = 'picklescore-sync-queue';
 export const STALE_CHECK_INTERVAL_MS = 120_000; // 2 minutes
 
@@ -74,13 +78,14 @@ async function executeJob(job: SyncJob): Promise<void> {
 
   // Set up timeout via AbortController
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), JOB_TIMEOUT_MS);
+  const timeoutMs = JOB_TIMEOUT_MAP[job.type];
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     // Create a race between the actual work and the abort signal
     const abortPromise = new Promise<never>((_, reject) => {
       controller.signal.addEventListener('abort', () => {
-        const err = new Error('Job timed out after 15 seconds');
+        const err = new Error(`Job timed out after ${timeoutMs / 1000} seconds`);
         (err as any).code = 'deadline-exceeded';
         reject(err);
       });
