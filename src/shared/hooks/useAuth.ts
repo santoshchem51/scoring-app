@@ -10,6 +10,7 @@ import { auth } from '../../data/firebase/config';
 import { cloudSync } from '../../data/firebase/cloudSync';
 import { resetAwaitingAuthJobs } from '../../data/firebase/syncQueue';
 import { startProcessor, stopProcessor, wakeProcessor } from '../../data/firebase/syncProcessor';
+import { runAchievementMigration } from '../../features/achievements/engine/achievementMigration';
 
 const [user, setUser] = createSignal<User | null>(null);
 const [loading, setLoading] = createSignal(true);
@@ -46,6 +47,11 @@ function initAuthListener() {
           setSyncError(true);
           setSyncing(false);
         });
+
+      // Step 4: non-blocking achievement migration — retroactive unlocks
+      runAchievementMigration().catch((err) => {
+        console.warn('Achievement migration failed:', err);
+      });
 
       // Start the sync processor
       startProcessor();
