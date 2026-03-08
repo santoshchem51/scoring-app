@@ -78,7 +78,7 @@ async function executeJob(job: SyncJob): Promise<void> {
 
   // Set up timeout via AbortController
   const controller = new AbortController();
-  const timeoutMs = JOB_TIMEOUT_MAP[job.type];
+  const timeoutMs = JOB_TIMEOUT_MAP[job.type] ?? 15_000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {

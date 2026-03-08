@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createSignal, batch } from 'solid-js';
 import { getPendingCount, getFailedCount } from './syncQueue';
 
 type SyncStatusValue = 'idle' | 'processing' | 'pending' | 'failed';
@@ -12,12 +12,15 @@ export { syncStatus, pendingCount, failedCount };
 export async function updateSyncStatus(): Promise<void> {
   const pending = await getPendingCount();
   const failed = await getFailedCount();
-  setPendingCount(pending);
-  setFailedCount(failed);
 
-  if (failed > 0) setSyncStatus('failed');
-  else if (pending > 0) setSyncStatus('pending');
-  else setSyncStatus('idle');
+  batch(() => {
+    setPendingCount(pending);
+    setFailedCount(failed);
+
+    if (failed > 0) setSyncStatus('failed');
+    else if (pending > 0) setSyncStatus('pending');
+    else setSyncStatus('idle');
+  });
 }
 
 export function setSyncProcessing(): void {
@@ -25,7 +28,9 @@ export function setSyncProcessing(): void {
 }
 
 export function resetSyncStatus(): void {
-  setSyncStatus('idle');
-  setPendingCount(0);
-  setFailedCount(0);
+  batch(() => {
+    setSyncStatus('idle');
+    setPendingCount(0);
+    setFailedCount(0);
+  });
 }

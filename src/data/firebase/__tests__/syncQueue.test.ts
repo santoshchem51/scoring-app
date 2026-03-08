@@ -364,6 +364,27 @@ describe('syncQueue', () => {
       expect(updated!.retryCount).toBe(3);
       expect(updated!.nextRetryAt).toBe(futureTime);
     });
+
+    it('reads and writes within a single transaction (atomic)', async () => {
+      const job = createTestJob({ entityId: 'j1', status: 'processing', retryCount: 1 });
+      await db.syncQueue.put(job);
+
+      const txSpy = vi.spyOn(db, 'transaction');
+
+      await retryJob('match:j1', Date.now() + 60_000);
+
+      expect(txSpy).toHaveBeenCalledWith('rw', db.syncQueue, expect.any(Function));
+
+      const updated = await db.syncQueue.get('match:j1');
+      expect(updated!.retryCount).toBe(2);
+
+      txSpy.mockRestore();
+    });
+
+    it('no-ops if job does not exist', async () => {
+      // Should not throw
+      await retryJob('match:nonexistent', Date.now() + 60_000);
+    });
   });
 
   // ── reclaimStaleJobs ──────────────────────────────────────────────
@@ -386,6 +407,30 @@ describe('syncQueue', () => {
 
       const updated = await db.syncQueue.get('match:j1');
       expect(updated!.status).toBe('pending');
+    });
+
+    it('reads and writes within a single transaction (atomic)', async () => {
+      const now = Date.now();
+      const elevenMinAgo = now - 11 * 60 * 1000;
+      await db.syncQueue.put(
+        createTestJob({
+          entityId: 'stale1',
+          status: 'processing',
+          processedAt: elevenMinAgo,
+        }),
+      );
+
+      const txSpy = vi.spyOn(db, 'transaction');
+
+      const count = await reclaimStaleJobs();
+
+      expect(count).toBe(1);
+      expect(txSpy).toHaveBeenCalledWith('rw', db.syncQueue, expect.any(Function));
+
+      const updated = await db.syncQueue.get('match:stale1');
+      expect(updated!.status).toBe('pending');
+
+      txSpy.mockRestore();
     });
 
     it('does not reclaim recent processing jobs', async () => {

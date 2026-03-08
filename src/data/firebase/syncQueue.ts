@@ -191,13 +191,15 @@ export async function resetAwaitingAuthJobs(): Promise<number> {
 
 /** Increments retryCount, sets status='pending' and nextRetryAt. */
 export async function retryJob(jobId: string, nextRetryAt: number): Promise<void> {
-  const job = await db.syncQueue.get(jobId);
-  if (!job) return;
+  await db.transaction('rw', db.syncQueue, async () => {
+    const job = await db.syncQueue.get(jobId);
+    if (!job) return;
 
-  await db.syncQueue.update(jobId, {
-    status: 'pending',
-    retryCount: job.retryCount + 1,
-    nextRetryAt,
+    await db.syncQueue.update(jobId, {
+      status: 'pending',
+      retryCount: job.retryCount + 1,
+      nextRetryAt,
+    });
   });
 }
 
@@ -211,25 +213,24 @@ export async function reclaimStaleJobs(): Promise<number> {
   const now = Date.now();
   const staleThreshold = now - STALE_PROCESSING_MS;
 
-  // Use compound index to find processing jobs, then filter by processedAt
-  const staleJobs = await db.syncQueue
-    .where('[status+nextRetryAt]')
-    .between(['processing', Dexie.minKey], ['processing', Dexie.maxKey], true, true)
-    .filter((job) => job.processedAt !== undefined && job.processedAt < staleThreshold)
-    .toArray();
+  return db.transaction('rw', db.syncQueue, async () => {
+    const staleJobs = await db.syncQueue
+      .where('[status+nextRetryAt]')
+      .between(['processing', Dexie.minKey], ['processing', Dexie.maxKey], true, true)
+      .filter((job) => job.processedAt !== undefined && job.processedAt < staleThreshold)
+      .toArray();
 
-  if (staleJobs.length === 0) return 0;
+    if (staleJobs.length === 0) return 0;
 
-  await db.transaction('rw', db.syncQueue, async () => {
     for (const job of staleJobs) {
       await db.syncQueue.update(job.id, {
         status: 'pending',
         nextRetryAt: now,
       });
     }
-  });
 
-  return staleJobs.length;
+    return staleJobs.length;
+  });
 }
 
 // ── pruneCompletedJobs ───────────────────────────────────────────────
