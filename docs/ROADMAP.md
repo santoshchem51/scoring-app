@@ -1,6 +1,6 @@
 # PickleScore Roadmap
 
-**Last updated:** 2026-02-17
+**Last updated:** 2026-03-07
 
 ---
 
@@ -56,35 +56,64 @@
 - [x] Open Graph / social meta tags for sharing
 - [x] Route changes (/ → LandingPage, /new → GameSetupPage)
 
+### Casual Play
+- [x] **Phase 1 — Scorer Role:** I'm Playing vs I'm Scoring toggle, scorer team selection
+- [x] **Phase 2 — Buddy Picker:** Buddy list, assign to teams, search, capacity management
+- [x] **Phase 3 — Global User Search:** Search all users, add as buddy, privacy filtering
+
+### Layer 6: Tournament Discovery
+- [x] Public tournament listing / browse page
+- [x] Search & filter (by location, date, format)
+- [x] Browse / My Tournaments tab switcher
+- [x] Tournament cards with status, player count, format
+- [x] Tournament access control (open, approval, invite-only, group)
+
+### Layer 7: Player Profiles & History
+- [x] **Wave A — Stats & Tier Engine:** Glicko-inspired tier system (beginner → expert), confidence tracking, per-match stat updates
+- [x] **Wave B — Profile Page:** Profile header, stats overview, recent matches, tier badge, public tier docs
+- [x] **Wave C — Leaderboards:** Global + friends scoped leaderboards, timeframe filtering, podium + rank card UI
+- [x] **Wave D — Achievements:** 23-badge achievement system, badge engine, trophy case, toast notifications, startup migration
+
+### Player Buddies
+- [x] Group management (create, list, members)
+- [x] Game sessions with RSVP (In/Out/Maybe)
+- [x] Notification badges with unread count
+- [x] Public share pages (session + group invite)
+- [x] Day-of status buttons for confirmed sessions
+
+### Cloud Sync
+- [x] Firestore cloud sync for matches and stats
+- [x] Cloud Sync section in Settings page
+- [x] Sync error banner
+
 ---
 
 ## Up Next (Priority Order)
 
-### P1 — Layer 6: Tournament Discovery
-> Let players find tournaments without needing a share link.
+### P1 — Fire-and-Forget Sync Redesign
+> Robust sync queue with retry, backoff, and error classification.
+>
+> *Design + implementation plan complete — ready to execute.*
 
-- [ ] Public tournament listing / browse page
-- [ ] Search & filter (by location, date, format, skill level)
-- [ ] Tournament categories / tags
-- [ ] "Nearby tournaments" (geolocation)
+- [ ] SyncJob types + Dexie schema
+- [ ] Retry policy + exponential backoff with jitter
+- [ ] Error classification (retryable, rate-limited, auth-dependent, fatal)
+- [ ] Sync queue enqueue + claim operations
+- [ ] Queue processor (Web Locks, adaptive polling, bounded parallelism)
+- [ ] Refactor cloudSync.ts to use queue
+- [ ] useSyncStatus hook + TopNav indicator
+- [ ] Drop legacy syncScoreEventToCloud
+- [ ] Startup cleanup + auth recovery
+- [ ] Full test suite + E2E tests
 
-### P2 — Layer 7: Player Profiles & History
-> Cross-tournament identity and progression.
-
-- [ ] Player profile page (avatar, bio, skill rating)
-- [ ] Cross-tournament match history
-- [ ] Win/loss stats, point differentials over time
-- [ ] Skill rating tracking (ELO or similar)
-- [ ] Leaderboards (per-venue, overall)
-
-### P3 — Layer 5: Notifications & Engagement
+### P2 — Layer 5: Notifications & Engagement
 > Keep players in the loop without them having to check the app.
 
 - [ ] Push notifications (FCM) — match starting, score updates, invitations received
 - [ ] In-app notification center (bell icon with unread count)
 - [ ] Email notifications (optional, for invitations and tournament updates)
 
-### P4 — Layer 9: PWA & Offline Hardening
+### P3 — Layer 9: PWA & Offline Hardening
 > Make it feel like a native app.
 
 - [ ] Service worker caching strategy (offline-first for scoring)
@@ -93,7 +122,7 @@
 - [ ] Background sync for score uploads when reconnecting
 - [ ] App update notifications
 
-### P5 — Layer 10: Admin & Moderation
+### P4 — Layer 10: Admin & Moderation
 > Tools for organizers running larger events.
 
 - [ ] Bulk player management (import/export CSV)
@@ -102,15 +131,15 @@
 - [ ] Tournament templates (save & reuse settings)
 - [ ] Fee collection integration (Stripe/Venmo links)
 
-### P6 — Layer 8: Spectator Experience
+### P5 — Layer 8: Spectator Experience
 > Make watching tournaments engaging.
 
-- [ ] Live score updates on public page (already partially done via Wave B)
+- [ ] Live score updates on public page (partially done via Layer 3 Wave B)
 - [ ] Tournament bracket/pool live view for spectators
 - [ ] Match timeline / play-by-play
 - [ ] Spectator count indicator
 
-### P7 — Layer 12: Monetization & Revenue
+### P6 — Layer 12: Monetization & Revenue
 > Sustainable business model to fund development and hosting.
 
 - [ ] Define pricing tiers (free vs premium features)
@@ -120,7 +149,7 @@
 - [ ] Cost analysis (Firebase usage, hosting, app store fees)
 - [ ] Usage analytics and conversion tracking
 
-### P8 — Layer 11: App Store Distribution
+### P7 — Layer 11: App Store Distribution
 > Get PickleScore into users' hands via app stores.
 
 - [ ] Wrap PWA for Android (TWA / Capacitor / similar)
@@ -130,7 +159,7 @@
 - [ ] App review / approval process
 - [ ] CI/CD pipeline for app store builds
 
-### P9 — Layer 13: Multi-Sport Expansion
+### P8 — Layer 13: Multi-Sport Expansion
 > Extend the scoring engine beyond pickleball to other sports.
 
 - [ ] Abstract scoring engine (pluggable rules per sport)
@@ -142,12 +171,22 @@
 
 ---
 
+## Deferred / Future
+
+- Casual Phase 4: QR code join for casual matches
+- Gap #6: Offline tournament data caching in Dexie.js
+- Cloud Function for server-side privacy filtering (scale concern)
+- Per-venue leaderboards
+- Tournament categories / tags
+- Nearby tournaments (geolocation)
+
+---
+
 ## Ideas (Unscoped)
 
 - Court assignment / scheduling
 - Referee mode (neutral third-party scoring)
 - Tournament chat / announcements
-- Dark/light theme toggle
 - Multi-language support
 - Analytics dashboard for organizers
 - API for third-party integrations
@@ -157,12 +196,12 @@
 
 ## Prioritization Notes
 
-Priority order: **Discovery → Profiles → Notifications → PWA → Admin → Spectator → Monetization → App Store → Multi-Sport**
+Priority order: **Sync Redesign → Notifications → PWA → Admin → Spectator → Monetization → App Store → Multi-Sport**
 
 Rationale (growth funnel):
-1. **Discovery + Profiles** (P1-P2) — Acquire users and give them identity
-2. **Notifications** (P3) — Retain users with engagement loops
-3. **PWA + Admin** (P4-P5) — Polish the experience and empower organizers
-4. **Spectator** (P6) — Nice-to-have engagement for larger events
-5. **Monetization → App Store** (P7-P8) — Build business model, then distribute
-6. **Multi-Sport** (P9) — Major architectural expansion, do last
+1. **Sync Redesign** (P1) — Foundation reliability before adding more features
+2. **Notifications** (P2) — Retain users with engagement loops
+3. **PWA + Admin** (P3-P4) — Polish the experience and empower organizers
+4. **Spectator** (P5) — Nice-to-have engagement for larger events
+5. **Monetization → App Store** (P6-P7) — Build business model, then distribute
+6. **Multi-Sport** (P8) — Major architectural expansion, do last
