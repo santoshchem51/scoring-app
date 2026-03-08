@@ -7,9 +7,9 @@ import { useAuth } from '../../shared/hooks/useAuth';
 import { useHaptics } from '../../shared/hooks/useHaptics';
 import { useGameSession } from './hooks/useGameSession';
 import { firestoreGameSessionRepository } from '../../data/firebase/firestoreGameSessionRepository';
-import { firestoreBuddyNotificationRepository } from '../../data/firebase/firestoreBuddyNotificationRepository';
+import { writeNotification } from '../notifications/engine/firestoreNotificationWriter';
 import { canRsvp, canUpdateDayOfStatus, getSessionDisplayStatus } from './engine/sessionHelpers';
-import { createPlayerJoinedNotification, createSessionConfirmedNotification, createSpotOpenedNotification } from './engine/notificationHelpers';
+import { createSessionConfirmedNotif, createSpotOpenedNotif } from '../notifications/engine/notificationHelpers';
 import { statusColor, statusLabel, statusTextColor } from './engine/rsvpDisplayHelpers';
 import { increment } from 'firebase/firestore';
 import type { SessionRsvp, RsvpResponse, DayOfStatus, TimeSlot } from '../../data/types';
@@ -369,19 +369,12 @@ const SessionDetailPage: Component = () => {
     }
 
     // Fire-and-forget notifications
-    if (response === 'in' && s.createdBy !== u.uid) {
-      const notif = createPlayerJoinedNotification(
-        s.createdBy, u.displayName ?? 'Someone', s.title, s.id,
-      );
-      firestoreBuddyNotificationRepository.create(notif).catch(() => {});
-    }
-
     if (response === 'in' && s.spotsConfirmed + 1 >= s.spotsTotal) {
       const confirmedRsvps = rsvps().filter((r) => r.response === 'in' || r.response === 'maybe');
       confirmedRsvps.forEach((r) => {
         if (r.userId !== u.uid) {
-          const notif = createSessionConfirmedNotification(r.userId, s.title, s.id, s.groupId);
-          firestoreBuddyNotificationRepository.create(notif).catch(() => {});
+          const notif = createSessionConfirmedNotif(r.userId, s.title, s.id, s.groupId);
+          writeNotification(notif).catch(() => {});
         }
       });
     }
@@ -397,10 +390,10 @@ const SessionDetailPage: Component = () => {
 
     // Fire-and-forget: notify creator when someone drops out
     if (status === 'cant-make-it' && s.createdBy !== u.uid) {
-      const notif = createSpotOpenedNotification(
+      const notif = createSpotOpenedNotif(
         s.createdBy, u.displayName ?? 'Someone', s.title, s.id,
       );
-      firestoreBuddyNotificationRepository.create(notif).catch(() => {});
+      writeNotification(notif).catch(() => {});
     }
   };
 

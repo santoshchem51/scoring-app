@@ -4,10 +4,10 @@ import { useParams, useNavigate } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
-import { firestoreBuddyNotificationRepository } from '../../data/firebase/firestoreBuddyNotificationRepository';
+import { writeNotification } from '../notifications/engine/firestoreNotificationWriter';
 import { firestoreGameSessionRepository } from '../../data/firebase/firestoreGameSessionRepository';
 import { generateShareCode } from '../tournaments/engine/shareCode';
-import { createSessionProposedNotification } from './engine/notificationHelpers';
+import { createSessionProposedNotif } from '../notifications/engine/notificationHelpers';
 import { getNextOccurrence } from './engine/dateHelpers';
 import type { GameSession, TimeSlot, RsvpStyle } from '../../data/types';
 
@@ -167,8 +167,8 @@ const CreateSessionPage: Component = () => {
           members
             .filter((m) => m.userId !== currentUser.uid)
             .map((m) =>
-              firestoreBuddyNotificationRepository.create(
-                createSessionProposedNotification(m.userId, creatorName, session.title, session.id, params.groupId),
+              writeNotification(
+                createSessionProposedNotif(m.userId, creatorName, session.title, session.id, params.groupId),
               ),
             ),
         );
