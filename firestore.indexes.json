@@ -111,6 +111,29 @@
         { "fieldPath": "uid", "order": "ASCENDING" },
         { "fieldPath": "last30d.compositeScore", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "read", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

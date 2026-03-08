@@ -1,11 +1,13 @@
 import { createSignal, Show, onCleanup } from 'solid-js';
 import type { Component } from 'solid-js';
 import { A } from '@solidjs/router';
-import { User, Settings } from 'lucide-solid';
+import { User, Settings, Bell } from 'lucide-solid';
 import { useAuth } from '../hooks/useAuth';
 import Logo, { LogoIcon } from './Logo';
 import { syncStatus, failedCount } from '../../data/firebase/useSyncStatus';
 import { wakeProcessor } from '../../data/firebase/syncProcessor';
+import { unreadCount } from '../../features/notifications/store/notificationStore';
+import NotificationPanel from '../../features/notifications/components/NotificationPanel';
 
 interface TopNavProps {
   pageTitle?: string;
@@ -15,9 +17,11 @@ interface TopNavProps {
 const TopNav: Component<TopNavProps> = (props) => {
   const { user, loading, signIn, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = createSignal(false);
+  const [notifPanelOpen, setNotifPanelOpen] = createSignal(false);
 
   let triggerRef: HTMLButtonElement | undefined;
   let menuRef: HTMLDivElement | undefined;
+  let bellRef: HTMLButtonElement | undefined;
 
   function getMenuItems(): HTMLElement[] {
     if (!menuRef) return [];
@@ -107,164 +111,208 @@ const TopNav: Component<TopNavProps> = (props) => {
           </Show>
         </A>
 
-        {/* Right: Auth */}
+        {/* Right: Notifications + Auth */}
         <Show when={!loading()}>
-          <div class="relative">
-            <button
-              ref={triggerRef}
-              type="button"
-              onClick={() => menuOpen() ? closeMenu() : openMenu()}
-              onKeyDown={handleTriggerKeyDown}
-              class="relative flex items-center active:scale-95 transition-transform"
-              aria-label="Account menu"
-              aria-expanded={menuOpen()}
-              aria-haspopup="menu"
-            >
-              <Show
-                when={user()}
-                fallback={
-                  <div class="w-8 h-8 rounded-full bg-on-surface-muted/30 flex items-center justify-center text-on-surface-muted font-bold text-sm">
-                    ?
-                  </div>
-                }
-              >
-                <Show
-                  when={user()?.photoURL}
-                  fallback={
-                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-surface font-bold text-sm">
-                      {user()?.displayName?.charAt(0) ?? '?'}
-                    </div>
-                  }
+          <div class="flex items-center gap-2">
+            {/* Bell button (only when signed in) */}
+            <Show when={user()}>
+              <div class="relative">
+                <button
+                  ref={bellRef}
+                  type="button"
+                  aria-label="Notifications"
+                  aria-expanded={notifPanelOpen()}
+                  aria-haspopup="dialog"
+                  onClick={() => setNotifPanelOpen(!notifPanelOpen())}
+                  class="relative p-1.5 text-on-surface-muted hover:text-on-surface transition-colors"
                 >
-                  <img
-                    src={user()!.photoURL!}
-                    alt=""
-                    class="w-8 h-8 rounded-full"
-                    referrerpolicy="no-referrer"
-                  />
-                </Show>
-              </Show>
-              <Show when={syncStatus() !== 'idle'}>
-                <span
-                  role="status"
-                  data-testid="sync-indicator"
-                  aria-label={
-                    syncStatus() === 'failed'
-                      ? 'Sync failed'
-                      : syncStatus() === 'processing'
-                      ? 'Syncing'
-                      : 'Sync pending'
-                  }
-                  class={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface-light ${
-                    syncStatus() === 'failed'
-                      ? 'bg-amber-400'
-                      : syncStatus() === 'processing'
-                      ? 'bg-primary animate-pulse'
-                      : 'bg-primary'
-                  }`}
-                />
-              </Show>
-            </button>
+                  <Bell class="w-5 h-5" />
+                  <Show when={unreadCount() > 0}>
+                    <span
+                      class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1"
+                      data-testid="bell-badge"
+                    >
+                      {unreadCount() > 9 ? '9+' : unreadCount()}
+                    </span>
+                  </Show>
+                </button>
 
-            {/* Dropdown menu */}
-            <Show when={menuOpen()}>
-              <div
-                class="fixed inset-0 z-40"
-                onClick={() => closeMenu()}
-              />
-              <div
-                ref={menuRef}
-                role="menu"
-                aria-label="Account options"
-                onKeyDown={handleMenuKeyDown}
-                class="absolute right-0 top-full mt-2 w-56 bg-surface-light rounded-xl shadow-lg border border-surface-lighter z-50 overflow-hidden"
+                {/* Notification panel dropdown */}
+                <Show when={notifPanelOpen()}>
+                  <div
+                    class="fixed inset-0 z-40"
+                    onClick={() => setNotifPanelOpen(false)}
+                  />
+                  <div class="absolute right-0 top-full mt-2 z-50">
+                    <NotificationPanel
+                      open={true}
+                      onClose={() => setNotifPanelOpen(false)}
+                      bellRef={bellRef}
+                      uid={user()!.uid}
+                    />
+                  </div>
+                </Show>
+              </div>
+            </Show>
+
+            {/* Avatar button (existing) */}
+            <div class="relative">
+              <button
+                ref={triggerRef}
+                type="button"
+                onClick={() => menuOpen() ? closeMenu() : openMenu()}
+                onKeyDown={handleTriggerKeyDown}
+                class="relative flex items-center active:scale-95 transition-transform"
+                aria-label="Account menu"
+                aria-expanded={menuOpen()}
+                aria-haspopup="menu"
               >
                 <Show
                   when={user()}
                   fallback={
-                    <>
+                    <div class="w-8 h-8 rounded-full bg-on-surface-muted/30 flex items-center justify-center text-on-surface-muted font-bold text-sm">
+                      ?
+                    </div>
+                  }
+                >
+                  <Show
+                    when={user()?.photoURL}
+                    fallback={
+                      <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-surface font-bold text-sm">
+                        {user()?.displayName?.charAt(0) ?? '?'}
+                      </div>
+                    }
+                  >
+                    <img
+                      src={user()!.photoURL!}
+                      alt=""
+                      class="w-8 h-8 rounded-full"
+                      referrerpolicy="no-referrer"
+                    />
+                  </Show>
+                </Show>
+                <Show when={syncStatus() !== 'idle'}>
+                  <span
+                    role="status"
+                    data-testid="sync-indicator"
+                    aria-label={
+                      syncStatus() === 'failed'
+                        ? 'Sync failed'
+                        : syncStatus() === 'processing'
+                        ? 'Syncing'
+                        : 'Sync pending'
+                    }
+                    class={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface-light ${
+                      syncStatus() === 'failed'
+                        ? 'bg-amber-400'
+                        : syncStatus() === 'processing'
+                        ? 'bg-primary animate-pulse'
+                        : 'bg-primary'
+                    }`}
+                  />
+                </Show>
+              </button>
+
+              {/* Dropdown menu */}
+              <Show when={menuOpen()}>
+                <div
+                  class="fixed inset-0 z-40"
+                  onClick={() => closeMenu()}
+                />
+                <div
+                  ref={menuRef}
+                  role="menu"
+                  aria-label="Account options"
+                  onKeyDown={handleMenuKeyDown}
+                  class="absolute right-0 top-full mt-2 w-56 bg-surface-light rounded-xl shadow-lg border border-surface-lighter z-50 overflow-hidden"
+                >
+                  <Show
+                    when={user()}
+                    fallback={
+                      <>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          tabindex="-1"
+                          onClick={() => {
+                            signIn();
+                            closeMenu();
+                          }}
+                          class="w-full text-left px-4 py-3 text-sm text-primary font-semibold hover:bg-surface-lighter transition-colors focus-visible:bg-surface-lighter focus-visible:outline-none"
+                        >
+                          Sign in with Google
+                        </button>
+                        <A
+                          href="/settings"
+                          role="menuitem"
+                          tabindex="-1"
+                          onClick={() => closeMenu()}
+                          class="flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-lighter transition-colors no-underline focus-visible:bg-surface-lighter focus-visible:outline-none"
+                        >
+                          <Settings class="w-4 h-4 text-on-surface-muted" />
+                          Settings
+                        </A>
+                      </>
+                    }
+                  >
+                    <div class="px-4 py-3 border-b border-surface-lighter">
+                      <div class="font-semibold text-on-surface text-sm truncate">
+                        {user()?.displayName}
+                      </div>
+                      <div class="text-xs text-on-surface-muted truncate">
+                        {user()?.email}
+                      </div>
+                    </div>
+                    <A
+                      href="/profile"
+                      role="menuitem"
+                      tabindex="-1"
+                      onClick={() => closeMenu()}
+                      class="flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-lighter transition-colors no-underline focus-visible:bg-surface-lighter focus-visible:outline-none"
+                    >
+                      <User class="w-4 h-4 text-on-surface-muted" />
+                      My Profile
+                    </A>
+                    <A
+                      href="/settings"
+                      role="menuitem"
+                      tabindex="-1"
+                      onClick={() => closeMenu()}
+                      class="flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-lighter transition-colors no-underline focus-visible:bg-surface-lighter focus-visible:outline-none"
+                    >
+                      <Settings class="w-4 h-4 text-on-surface-muted" />
+                      Settings
+                    </A>
+                    <Show when={syncStatus() === 'failed'}>
                       <button
                         type="button"
                         role="menuitem"
                         tabindex="-1"
                         onClick={() => {
-                          signIn();
+                          wakeProcessor();
                           closeMenu();
                         }}
-                        class="w-full text-left px-4 py-3 text-sm text-primary font-semibold hover:bg-surface-lighter transition-colors focus-visible:bg-surface-lighter focus-visible:outline-none"
+                        class="w-full text-left px-4 py-3 text-sm text-amber-400 hover:bg-surface-lighter transition-colors focus-visible:bg-surface-lighter focus-visible:outline-none"
                       >
-                        Sign in with Google
+                        {failedCount()} sync{failedCount() === 1 ? '' : 's'} failed — Retry
                       </button>
-                      <A
-                        href="/settings"
-                        role="menuitem"
-                        tabindex="-1"
-                        onClick={() => closeMenu()}
-                        class="flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-lighter transition-colors no-underline focus-visible:bg-surface-lighter focus-visible:outline-none"
-                      >
-                        <Settings class="w-4 h-4 text-on-surface-muted" />
-                        Settings
-                      </A>
-                    </>
-                  }
-                >
-                  <div class="px-4 py-3 border-b border-surface-lighter">
-                    <div class="font-semibold text-on-surface text-sm truncate">
-                      {user()?.displayName}
-                    </div>
-                    <div class="text-xs text-on-surface-muted truncate">
-                      {user()?.email}
-                    </div>
-                  </div>
-                  <A
-                    href="/profile"
-                    role="menuitem"
-                    tabindex="-1"
-                    onClick={() => closeMenu()}
-                    class="flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-lighter transition-colors no-underline focus-visible:bg-surface-lighter focus-visible:outline-none"
-                  >
-                    <User class="w-4 h-4 text-on-surface-muted" />
-                    My Profile
-                  </A>
-                  <A
-                    href="/settings"
-                    role="menuitem"
-                    tabindex="-1"
-                    onClick={() => closeMenu()}
-                    class="flex items-center gap-3 px-4 py-3 text-sm text-on-surface hover:bg-surface-lighter transition-colors no-underline focus-visible:bg-surface-lighter focus-visible:outline-none"
-                  >
-                    <Settings class="w-4 h-4 text-on-surface-muted" />
-                    Settings
-                  </A>
-                  <Show when={syncStatus() === 'failed'}>
+                    </Show>
                     <button
                       type="button"
                       role="menuitem"
                       tabindex="-1"
                       onClick={() => {
-                        wakeProcessor();
+                        signOut();
                         closeMenu();
                       }}
-                      class="w-full text-left px-4 py-3 text-sm text-amber-400 hover:bg-surface-lighter transition-colors focus-visible:bg-surface-lighter focus-visible:outline-none"
+                      class="w-full text-left px-4 py-3 text-sm text-on-surface-muted hover:bg-surface-lighter transition-colors border-t border-surface-lighter focus-visible:bg-surface-lighter focus-visible:outline-none"
                     >
-                      {failedCount()} sync{failedCount() === 1 ? '' : 's'} failed — Retry
+                      Sign out
                     </button>
                   </Show>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    tabindex="-1"
-                    onClick={() => {
-                      signOut();
-                      closeMenu();
-                    }}
-                    class="w-full text-left px-4 py-3 text-sm text-on-surface-muted hover:bg-surface-lighter transition-colors border-t border-surface-lighter focus-visible:bg-surface-lighter focus-visible:outline-none"
-                  >
-                    Sign out
-                  </button>
-                </Show>
-              </div>
-            </Show>
+                </div>
+              </Show>
+            </div>
           </div>
         </Show>
       </div>

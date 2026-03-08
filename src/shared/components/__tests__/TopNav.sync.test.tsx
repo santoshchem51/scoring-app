@@ -34,6 +34,21 @@ vi.mock('@solidjs/router', () => ({
 vi.mock('lucide-solid', () => ({
   User: () => <span>UserIcon</span>,
   Settings: () => <span>SettingsIcon</span>,
+  Bell: () => <span>BellIcon</span>,
+}));
+
+// Mock notification store (TopNav now imports it)
+vi.mock('../../../features/notifications/store/notificationStore', () => ({
+  unreadCount: () => 0,
+  filteredNotifications: () => [],
+  notificationsReady: () => true,
+  markNotificationRead: vi.fn(),
+  markAllNotificationsRead: vi.fn(),
+}));
+
+// Mock NotificationPanel component
+vi.mock('../../../features/notifications/components/NotificationPanel', () => ({
+  default: (props: any) => <div data-testid="notification-panel">Panel</div>,
 }));
 
 describe('TopNav sync indicator', () => {
