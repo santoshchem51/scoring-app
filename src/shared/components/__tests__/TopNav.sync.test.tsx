@@ -73,4 +73,34 @@ describe('TopNav sync indicator', () => {
     const dot = container.querySelector('[data-testid="sync-indicator"]');
     expect(dot).not.toBeNull();
   });
+
+  it('sync indicator has accessible label for processing state', async () => {
+    mockSyncStatusValue = 'processing';
+    const { default: TopNav } = await import('../TopNav');
+    const { container } = render(() => <TopNav />);
+    const indicator = container.querySelector('[data-testid="sync-indicator"]');
+    expect(indicator).not.toBeNull();
+    expect(indicator!.getAttribute('role')).toBe('status');
+    expect(indicator!.getAttribute('aria-label')).toBe('Syncing');
+  });
+
+  it('sync indicator has accessible label for failed state', async () => {
+    mockSyncStatusValue = 'failed';
+    const { default: TopNav } = await import('../TopNav');
+    const { container } = render(() => <TopNav />);
+    const indicator = container.querySelector('[data-testid="sync-indicator"]');
+    expect(indicator).not.toBeNull();
+    expect(indicator!.getAttribute('role')).toBe('status');
+    expect(indicator!.getAttribute('aria-label')).toBe('Sync failed');
+  });
+
+  it('sync indicator has accessible label for pending state', async () => {
+    mockSyncStatusValue = 'pending';
+    const { default: TopNav } = await import('../TopNav');
+    const { container } = render(() => <TopNav />);
+    const indicator = container.querySelector('[data-testid="sync-indicator"]');
+    expect(indicator).not.toBeNull();
+    expect(indicator!.getAttribute('role')).toBe('status');
+    expect(indicator!.getAttribute('aria-label')).toBe('Sync pending');
+  });
 });

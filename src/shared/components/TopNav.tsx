@@ -146,7 +146,15 @@ const TopNav: Component<TopNavProps> = (props) => {
               </Show>
               <Show when={syncStatus() !== 'idle'}>
                 <span
+                  role="status"
                   data-testid="sync-indicator"
+                  aria-label={
+                    syncStatus() === 'failed'
+                      ? 'Sync failed'
+                      : syncStatus() === 'processing'
+                      ? 'Syncing'
+                      : 'Sync pending'
+                  }
                   class={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface-light ${
                     syncStatus() === 'failed'
                       ? 'bg-amber-400'
