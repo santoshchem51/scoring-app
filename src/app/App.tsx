@@ -4,6 +4,7 @@ import { useLocation } from '@solidjs/router';
 import BottomNav from '../shared/components/BottomNav';
 import { PageSkeleton } from '../shared/components/Skeleton';
 import { settings } from '../stores/settingsStore';
+import AchievementToast from '../features/achievements/components/AchievementToast';
 
 interface Props {
   children?: JSX.Element;
@@ -30,6 +31,7 @@ const App: Component<Props> = (props) => {
       >
         Skip to main content
       </a>
+      <AchievementToast />
       <Suspense fallback={
         <div class="flex flex-col min-h-screen bg-surface">
           <div class="bg-surface-light border-b border-surface-lighter px-4 py-3">
