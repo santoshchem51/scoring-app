@@ -3,13 +3,12 @@ import type { Component } from 'solid-js';
 import { A, useLocation } from '@solidjs/router';
 import { Plus, Clock, Users, Sparkles, Heart } from 'lucide-solid';
 import { useAuth } from '../hooks/useAuth';
-import { useBuddyNotifications } from '../../features/buddies/hooks/useBuddyNotifications';
+import { buddyUnreadCount } from '../../features/notifications/store/notificationStore';
 import { firestoreInvitationRepository } from '../../data/firebase/firestoreInvitationRepository';
 
 const BottomNav: Component = () => {
   const location = useLocation();
   const { user } = useAuth();
-  const { unreadCount } = useBuddyNotifications(() => user()?.uid);
   const [invitationCount] = createResource(
     () => user()?.uid,
     async (uid) => {
@@ -72,9 +71,9 @@ const BottomNav: Component = () => {
               <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
             </Show>
             <Heart size={24} class="relative" />
-            <Show when={unreadCount() > 0}>
-              <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1" aria-label={`${unreadCount()} unread notifications`}>
-                {unreadCount() > 9 ? '9+' : unreadCount()}
+            <Show when={buddyUnreadCount() > 0}>
+              <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1" aria-label={`${buddyUnreadCount()} unread notifications`}>
+                {buddyUnreadCount() > 9 ? '9+' : buddyUnreadCount()}
               </span>
             </Show>
             <span class="relative">Buddies</span>
