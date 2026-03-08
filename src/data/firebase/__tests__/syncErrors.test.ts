@@ -97,9 +97,11 @@ describe('classifyError', () => {
   });
 
   describe('failed-precondition special cases', () => {
-    it('classifies "failed-precondition" on playerStats as retryable', () => {
+    it('classifies "failed-precondition" on playerStats as fatal', () => {
+      // failed-precondition means conditions not met, NOT transaction contention.
+      // Transaction contention throws 'aborted' (already in RETRYABLE_CODES).
       const result = classifyError(firestoreError('failed-precondition'), 'playerStats');
-      expect(result).toBe('retryable' satisfies ErrorCategory);
+      expect(result).toBe('fatal' satisfies ErrorCategory);
     });
 
     it('classifies "failed-precondition" on match as fatal', () => {

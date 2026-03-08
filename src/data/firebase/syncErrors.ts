@@ -71,10 +71,10 @@ export function classifyError(
       return jobType === 'playerStats' ? 'staleJob' : 'fatal';
     }
 
-    // failed-precondition: on playerStats it's transaction contention (retryable),
-    // on match/tournament it's a real precondition failure (fatal).
+    // failed-precondition: conditions not met (e.g., document must exist).
+    // NOT transaction contention — that throws 'aborted' (already in RETRYABLE_CODES).
     if (code === 'failed-precondition') {
-      return jobType === 'playerStats' ? 'retryable' : 'fatal';
+      return 'fatal';
     }
 
     if (FATAL_CODES.has(code)) {
