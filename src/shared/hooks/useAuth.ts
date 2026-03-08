@@ -11,6 +11,7 @@ import { cloudSync } from '../../data/firebase/cloudSync';
 import { resetAwaitingAuthJobs } from '../../data/firebase/syncQueue';
 import { startProcessor, stopProcessor, wakeProcessor } from '../../data/firebase/syncProcessor';
 import { runAchievementMigration } from '../../features/achievements/engine/achievementMigration';
+import { startNotificationListener, stopNotificationListener, cleanupExpiredNotifications } from '../../features/notifications/store/notificationStore';
 
 const [user, setUser] = createSignal<User | null>(null);
 const [loading, setLoading] = createSignal(true);
@@ -56,6 +57,14 @@ function initAuthListener() {
       // Start the sync processor
       startProcessor();
 
+      // Start notification listener
+      startNotificationListener(firebaseUser.uid);
+
+      // Clean up expired notifications (non-blocking)
+      cleanupExpiredNotifications(firebaseUser.uid).catch((err) => {
+        console.warn('Notification cleanup failed:', err);
+      });
+
       // Resume awaitingAuth jobs with fresh token
       try {
         await firebaseUser.getIdToken(true);
@@ -69,6 +78,7 @@ function initAuthListener() {
     // Clean up on sign-out
     if (!firebaseUser) {
       stopProcessor();
+      stopNotificationListener();
     }
   });
 }
