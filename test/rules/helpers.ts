@@ -307,3 +307,19 @@ export function makeBuddyNotification(userId: string, overrides: Record<string, 
     ...overrides,
   };
 }
+
+export function makeNotification(userId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'test-notif-1',
+    userId,
+    category: 'buddy',
+    type: 'session_proposed',
+    message: 'Test notification',
+    actionUrl: '/session/s1',
+    payload: { sessionId: 's1', groupId: 'g1' },
+    read: false,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    ...overrides,
+  };
+}

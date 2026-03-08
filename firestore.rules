@@ -465,6 +465,82 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // ── Unified Notifications (/users/{userId}/notifications/{nid}) ──
+    match /users/{userId}/notifications/{notifId} {
+      // Owner reads own notifications
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Owner marks as read (only 'read' field, only false→true)
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read == true;
+
+      // Owner deletes own notifications
+      allow delete: if request.auth != null && request.auth.uid == userId;
+
+      // Buddy notifications (except group_invite): bidirectional group membership
+      allow create: if request.auth != null
+        && request.auth.uid != userId
+        && request.resource.data.keys().hasOnly(['id','userId','category','type','message','actionUrl','payload','read','createdAt','expiresAt'])
+        && request.resource.data.userId == userId
+        && request.resource.data.category == 'buddy'
+        && request.resource.data.type in ['session_proposed','session_confirmed','session_cancelled','session_reminder','spot_opened']
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 500
+        && request.resource.data.read == false
+        && request.resource.data.payload is map
+        && request.resource.data.createdAt is number
+        && request.resource.data.expiresAt is number
+        && request.resource.data.payload.groupId is string
+        && exists(/databases/$(database)/documents/buddyGroups/$(request.resource.data.payload.groupId)/members/$(request.auth.uid))
+        && exists(/databases/$(database)/documents/buddyGroups/$(request.resource.data.payload.groupId)/members/$(userId));
+
+      // group_invite: any authenticated user can send
+      allow create: if request.auth != null
+        && request.auth.uid != userId
+        && request.resource.data.keys().hasOnly(['id','userId','category','type','message','actionUrl','payload','read','createdAt','expiresAt'])
+        && request.resource.data.userId == userId
+        && request.resource.data.category == 'buddy'
+        && request.resource.data.type == 'group_invite'
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 500
+        && request.resource.data.read == false
+        && request.resource.data.payload is map
+        && request.resource.data.createdAt is number
+        && request.resource.data.expiresAt is number;
+
+      // Tournament notifications: writer must be organizer
+      allow create: if request.auth != null
+        && request.auth.uid != userId
+        && request.resource.data.keys().hasOnly(['id','userId','category','type','message','actionUrl','payload','read','createdAt','expiresAt'])
+        && request.resource.data.userId == userId
+        && request.resource.data.category == 'tournament'
+        && request.resource.data.type in ['tournament_invitation', 'match_upcoming', 'match_result_recorded']
+        && request.resource.data.message is string
+        && request.resource.data.read == false
+        && request.resource.data.payload is map
+        && request.resource.data.createdAt is number
+        && request.resource.data.expiresAt is number
+        && request.resource.data.payload.tournamentId is string
+        && get(/databases/$(database)/documents/tournaments/$(request.resource.data.payload.tournamentId)).data.organizerId == request.auth.uid;
+
+      // Achievement/stats: self-write only (temporary — migrate to Cloud Functions later)
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['id','userId','category','type','message','actionUrl','payload','read','createdAt','expiresAt'])
+        && request.resource.data.userId == userId
+        && request.resource.data.category in ['achievement', 'stats']
+        && request.resource.data.type in ['achievement_unlocked', 'tier_up', 'tier_down']
+        && request.resource.data.message is string
+        && request.resource.data.read == false
+        && request.resource.data.payload is map
+        && request.resource.data.createdAt is number
+        && request.resource.data.expiresAt is number;
+    }
+
     // ── Match References (/users/{userId}/matchRefs/{refId}) ──────────
     match /users/{userId}/matchRefs/{refId} {
       allow read: if request.auth != null && request.auth.uid == userId;
