@@ -109,6 +109,13 @@ describe('syncProcessor', () => {
       const mod = await import('../syncProcessor');
       expect(typeof mod.wakeProcessor).toBe('function');
     });
+
+    it('STALE_CHECK_INTERVAL_MS is exported and within reasonable range (60s-300s)', async () => {
+      const mod = await import('../syncProcessor');
+      expect(typeof mod.STALE_CHECK_INTERVAL_MS).toBe('number');
+      expect(mod.STALE_CHECK_INTERVAL_MS).toBeGreaterThanOrEqual(60_000);
+      expect(mod.STALE_CHECK_INTERVAL_MS).toBeLessThanOrEqual(300_000);
+    });
   });
 
   describe('stopProcessor', () => {

@@ -27,6 +27,7 @@ const WATCHDOG_INTERVAL_MS = 30_000;      // 30 seconds
 const ERROR_SLEEP_MS = 5_000;             // 5 seconds
 const JOB_TIMEOUT_MS = 15_000;            // 15 seconds
 const WEB_LOCK_NAME = 'picklescore-sync-queue';
+export const STALE_CHECK_INTERVAL_MS = 120_000; // 2 minutes
 
 // ── Lock provider type ───────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ let offlineListener: (() => void) | null = null;
 /** Set of `type:entityId` keys currently being processed — prevents per-entity overlap. */
 const inFlightEntities = new Set<string>();
 
+/** Timestamp of the last periodic stale-job reclaim (0 = never run). */
+let lastStaleCheck = 0;
+
 // ── runStartupCleanup ────────────────────────────────────────────────
 
 /** Runs once at processor start: reclaims stale jobs and prunes old ones. */
@@ -54,6 +58,7 @@ export async function runStartupCleanup(): Promise<void> {
   await reclaimStaleJobs();
   await pruneCompletedJobs();
   await pruneFailedJobs();
+  lastStaleCheck = Date.now();
 }
 
 // ── executeJob ───────────────────────────────────────────────────────
@@ -293,6 +298,16 @@ async function pollLoop(): Promise<void> {
     try {
       await processOnce();
 
+      // Periodic stale job reclaim (every STALE_CHECK_INTERVAL_MS)
+      const now = Date.now();
+      if (now - lastStaleCheck >= STALE_CHECK_INTERVAL_MS) {
+        lastStaleCheck = now;
+        const reclaimed = await reclaimStaleJobs();
+        if (reclaimed > 0) {
+          console.info(`[syncProcessor] Reclaimed ${reclaimed} stale job(s)`);
+        }
+      }
+
       // Adaptive polling: schedule next run based on earliest pending retry
       const nextRetry = await getNextRetryTime();
 
@@ -371,6 +386,7 @@ function getDefaultLockProvider(): LockProvider | null {
 /** Stops the background sync processor and cleans up all resources. */
 export function stopProcessor(): void {
   running = false;
+  lastStaleCheck = 0;
 
   cancelSleep();
   resetSyncStatus();
