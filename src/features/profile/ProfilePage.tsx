@@ -10,6 +10,8 @@ import EmptyState from '../../shared/components/EmptyState';
 import Skeleton from '../../shared/components/Skeleton';
 import PageLayout from '../../shared/components/PageLayout';
 import { SyncErrorBanner } from '../../shared/components/SyncErrorBanner';
+import TrophyCase from '../achievements/components/TrophyCase';
+import { useAchievements } from '../achievements/hooks/useAchievements';
 
 const ProfileSkeleton: Component = () => (
   <div class="space-y-4" role="status" aria-label="Loading profile">
@@ -36,6 +38,7 @@ const ProfileSkeleton: Component = () => (
 const ProfilePage: Component = () => {
   const { user } = useAuth();
   const { data, allMatches, hasMore, loadMore, loadingMore } = useProfileData(() => user()?.uid);
+  const { unlocked } = useAchievements(() => user()?.uid);
 
   const hasStats = createMemo(() => {
     const stats = data()?.stats;
@@ -77,6 +80,7 @@ const ProfilePage: Component = () => {
         >
           <div class="space-y-6 mt-4">
             <StatsOverview stats={data()!.stats!} />{/* safe: hasStats() guards non-null */}
+            <TrophyCase unlocked={unlocked()} stats={data()?.stats ?? null} />
 
             <Show when={allMatches().length > 0}>
               <RecentMatches
