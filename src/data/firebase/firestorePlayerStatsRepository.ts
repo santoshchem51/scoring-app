@@ -1,8 +1,12 @@
 import { doc, getDoc, getDocs, setDoc, collection, query, orderBy, limit as fbLimit, startAfter, runTransaction } from 'firebase/firestore';
-import { firestore } from './config';
+import { firestore, auth } from './config';
 import type { Match, MatchRef, StatsSummary, RecentResult, Tier } from '../types';
 import { computeTierScore, computeTier, computeTierConfidence, nearestTier, TIER_MULTIPLIER } from '../../shared/utils/tierEngine';
 import { buildLeaderboardEntry } from '../../shared/utils/leaderboardScoring';
+import { evaluate } from '../../features/achievements/engine/badgeEngine';
+import { firestoreAchievementRepository } from '../../features/achievements/repository/firestoreAchievementRepository';
+import { enqueueToast } from '../../features/achievements/store/achievementStore';
+import { getDefinition } from '../../features/achievements/engine/badgeDefinitions';
 
 const RING_BUFFER_SIZE = 50;
 
@@ -226,6 +230,8 @@ export const firestorePlayerStatsRepository = {
 
     let newTier: Tier = 'beginner';
     let tierUpdated = false;
+    let previousTier: Tier = 'beginner';
+    let committedStats: StatsSummary | null = null;
 
     await runTransaction(firestore, async (transaction) => {
       // 1. Idempotency check: skip if matchRef already exists
@@ -242,6 +248,8 @@ export const firestorePlayerStatsRepository = {
       const stats: StatsSummary = existingStatsSnap.exists()
         ? (existingStatsSnap.data() as StatsSummary)
         : createEmptyStats();
+
+      previousTier = stats.tier;
 
       // 3. Pre-read leaderboard doc (needed for createdAt preservation)
       // Firestore requires ALL reads before ANY writes in a transaction
@@ -317,6 +325,8 @@ export const firestorePlayerStatsRepository = {
       stats.lastPlayedAt = match.completedAt ?? Date.now();
       stats.updatedAt = Date.now();
 
+      committedStats = { ...stats };
+
       // 6. Write both docs atomically
       transaction.set(matchRefDoc, matchRef);
       transaction.set(statsDoc, stats, { merge: true });
@@ -340,6 +350,44 @@ export const firestorePlayerStatsRepository = {
       await writePublicTier(uid, newTier).catch((err) => {
         console.warn('Failed to write public tier for', uid, err);
       });
+    }
+
+    // Achievement evaluation — outside the transaction, gated on tierUpdated
+    if (tierUpdated && committedStats) {
+      try {
+        const existingIds = await firestoreAchievementRepository.getUnlockedIds(uid);
+        const unlocked = evaluate({
+          stats: committedStats,
+          match,
+          playerTeam,
+          result,
+          existingIds,
+          previousTier,
+        });
+
+        if (unlocked.length > 0) {
+          await Promise.all(unlocked.map(a => firestoreAchievementRepository.create(uid, a)));
+          await Promise.all(unlocked.map(a => firestoreAchievementRepository.cacheInDexie(a)));
+
+          const currentUserUid = auth.currentUser?.uid ?? null;
+          if (uid === currentUserUid) {
+            for (const a of unlocked) {
+              const def = getDefinition(a.achievementId);
+              if (def) {
+                enqueueToast({
+                  achievementId: a.achievementId,
+                  name: def.name,
+                  description: def.description,
+                  icon: def.icon,
+                  tier: def.tier,
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Achievement evaluation failed for user:', uid, err);
+      }
     }
   },
 
