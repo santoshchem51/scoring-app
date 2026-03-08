@@ -110,4 +110,22 @@ describe('syncProcessor', () => {
       expect(typeof mod.wakeProcessor).toBe('function');
     });
   });
+
+  describe('stopProcessor', () => {
+    it('resets sync status signals to defaults', async () => {
+      const { setSyncProcessing, syncStatus, pendingCount, failedCount } =
+        await import('../useSyncStatus');
+      const { stopProcessor } = await import('../syncProcessor');
+
+      // Dirty the signals so we can verify they get reset
+      setSyncProcessing();
+      expect(syncStatus()).toBe('processing');
+
+      stopProcessor();
+
+      expect(syncStatus()).toBe('idle');
+      expect(pendingCount()).toBe(0);
+      expect(failedCount()).toBe(0);
+    });
+  });
 });

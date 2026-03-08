@@ -23,3 +23,9 @@ export async function updateSyncStatus(): Promise<void> {
 export function setSyncProcessing(): void {
   setSyncStatus('processing');
 }
+
+export function resetSyncStatus(): void {
+  setSyncStatus('idle');
+  setPendingCount(0);
+  setFailedCount(0);
+}

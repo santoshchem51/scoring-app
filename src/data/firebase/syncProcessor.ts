@@ -18,7 +18,7 @@ import {
 } from './syncQueue';
 import { classifyError } from './syncErrors';
 import { computeNextRetryAt, computeRateLimitRetryAt, isMaxRetriesExceeded } from './syncRetry';
-import { setSyncProcessing, updateSyncStatus } from './useSyncStatus';
+import { setSyncProcessing, updateSyncStatus, resetSyncStatus } from './useSyncStatus';
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -373,6 +373,7 @@ export function stopProcessor(): void {
   running = false;
 
   cancelSleep();
+  resetSyncStatus();
 
   if (onlineListener) {
     window.removeEventListener('online', onlineListener);
