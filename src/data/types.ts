@@ -431,3 +431,47 @@ export interface BuddyNotification {
   read: boolean;
   createdAt: number;
 }
+
+// --- Unified Notification types (Layer 5) ---
+
+export type NotificationCategory = 'buddy' | 'tournament' | 'achievement' | 'stats';
+
+export type NotificationType =
+  | 'session_proposed'
+  | 'session_confirmed'
+  | 'session_cancelled'
+  | 'session_reminder'
+  | 'spot_opened'
+  | 'group_invite'
+  | 'tournament_invitation'
+  | 'match_upcoming'
+  | 'match_result_recorded'
+  | 'achievement_unlocked'
+  | 'tier_up'
+  | 'tier_down';
+
+export interface NotificationPayload {
+  sessionId?: string;
+  groupId?: string;
+  tournamentId?: string;
+  matchId?: string;
+  achievementId?: string;
+  actorId?: string;
+  actorName?: string;
+  actorPhotoURL?: string | null;
+  tierFrom?: string;
+  tierTo?: string;
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  category: NotificationCategory;
+  type: NotificationType;
+  message: string;
+  actionUrl?: string;
+  payload: NotificationPayload;
+  read: boolean;
+  createdAt: number;
+  expiresAt: number;
+}

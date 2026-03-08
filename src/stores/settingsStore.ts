@@ -15,6 +15,10 @@ interface Settings {
   voicePitch: number;
   voiceRate: number;
   displayMode: 'dark' | 'outdoor';
+  notifyBuddy: boolean;
+  notifyTournament: boolean;
+  notifyAchievement: boolean;
+  notifyStats: boolean;
 }
 
 const SETTINGS_KEY = 'pickle-score-settings';
@@ -32,6 +36,10 @@ const DEFAULTS: Settings = {
   voicePitch: 1.0,
   voiceRate: 1.0,
   displayMode: 'dark',
+  notifyBuddy: true,
+  notifyTournament: true,
+  notifyAchievement: true,
+  notifyStats: true,
 };
 
 function loadSettings(): Settings {
