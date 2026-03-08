@@ -18,11 +18,9 @@
 - Create: `public/fonts/Oswald-Bold.woff2`
 - Modify: `index.html:20-22` (remove Google Fonts links, add preload)
 - Modify: `src/styles.css:1` (add @font-face before @import)
-- Delete: `public/vite.svg`
+- Create: `src/shared/pwa/__tests__/fontConfig.test.ts`
 
 **Step 1: Download the font file**
-
-Download Oswald Bold (weight 700) woff2 from Google Fonts API. The direct URL for the Latin subset:
 
 ```bash
 mkdir -p public/fonts
@@ -62,26 +60,58 @@ Add this block at the top of `src/styles.css`, before `@import "tailwindcss"` (l
 @import "tailwindcss";
 ```
 
-**Step 4: Delete public/vite.svg**
+**Step 4: Write config verification test**
 
-```bash
-rm public/vite.svg
+Create `src/shared/pwa/__tests__/fontConfig.test.ts`:
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
+
+describe('Self-hosted font configuration', () => {
+  it('Oswald-Bold.woff2 exists in public/fonts/', () => {
+    const fontPath = resolve(__dirname, '../../../../public/fonts/Oswald-Bold.woff2');
+    expect(existsSync(fontPath)).toBe(true);
+  });
+
+  it('index.html has no Google Fonts references', () => {
+    const html = readFileSync(resolve(__dirname, '../../../../index.html'), 'utf8');
+    expect(html).not.toContain('fonts.googleapis.com');
+    expect(html).not.toContain('fonts.gstatic.com');
+  });
+
+  it('index.html has local font preload', () => {
+    const html = readFileSync(resolve(__dirname, '../../../../index.html'), 'utf8');
+    expect(html).toContain('rel="preload"');
+    expect(html).toContain('/fonts/Oswald-Bold.woff2');
+  });
+
+  it('styles.css has @font-face declaration for Oswald', () => {
+    const css = readFileSync(resolve(__dirname, '../../../styles.css'), 'utf8');
+    expect(css).toContain("font-family: 'Oswald'");
+    expect(css).toContain('font-display: swap');
+  });
+});
 ```
 
-**Step 5: Verify the font loads**
+**Step 5: Run tests**
+
+Run: `npx vitest run src/shared/pwa/__tests__/fontConfig.test.ts`
+Expected: All 4 tests PASS
+
+**Step 6: Verify the font loads**
 
 Run: `npx vite --port 5199`
 - Open http://localhost:5199
-- Verify score text on landing page uses Oswald (bold, condensed)
-- Check Network tab: should fetch `/fonts/Oswald-Bold.woff2` from same origin (no Google Fonts requests)
-- Check no console errors
+- Verify score text uses Oswald (bold, condensed)
+- Check Network tab: should fetch `/fonts/Oswald-Bold.woff2` from same origin (no Google Fonts)
 
-**Step 6: Commit**
+**Step 7: Commit**
 
 ```bash
-git add public/fonts/Oswald-Bold.woff2 index.html src/styles.css
-git rm public/vite.svg
-git commit -m "feat: self-host Oswald font, remove Google Fonts dependency, delete vite.svg"
+git add public/fonts/Oswald-Bold.woff2 index.html src/styles.css src/shared/pwa/__tests__/fontConfig.test.ts
+git commit -m "feat: self-host Oswald font, remove Google Fonts dependency"
 ```
 
 ---
@@ -91,6 +121,7 @@ git commit -m "feat: self-host Oswald font, remove Google Fonts dependency, dele
 **Files:**
 - Modify: `vite.config.ts:39-41` (expand workbox config)
 - Modify: `tsconfig.app.json:8` (add vite-plugin-pwa/client type)
+- Create: `src/shared/pwa/__tests__/workboxConfig.test.ts`
 
 **Step 1: Add vite-plugin-pwa/client to tsconfig types**
 
@@ -117,36 +148,108 @@ workbox: {
   cacheId: 'picklescore',
   runtimeCaching: [
     {
+      urlPattern: /\/assets\/.+\.(js|css)$/,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'vite-assets',
+        expiration: { maxAgeSeconds: 365 * 24 * 60 * 60 },
+      },
+    },
+    {
+      urlPattern: /\/fonts\/.+\.woff2$/,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'local-fonts',
+        expiration: { maxEntries: 10, maxAgeSeconds: 365 * 24 * 60 * 60 },
+      },
+    },
+    {
       urlPattern: /^https:\/\/lh3\.googleusercontent\.com\/.*/i,
       handler: 'StaleWhileRevalidate',
       options: {
         cacheName: 'google-profile-photos',
         expiration: { maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60 },
         cacheableResponse: { statuses: [0, 200] },
+        purgeOnQuotaError: true,
       },
     },
   ],
 },
 ```
 
-Note: Removed `svg` from globPatterns (vite.svg deleted, favicon.svg is in `includeAssets`). JS/CSS chunks are precached and immutable via content-hashing (`dontCacheBustURLsMatching`). Font woff2 is precached. Google profile photos use StaleWhileRevalidate. Firebase endpoints left unmatched (default NetworkOnly).
+Notes:
+- Removed `svg` from globPatterns (favicon.svg is in `includeAssets`).
+- Added CacheFirst for `/assets/**` (Vite content-hashed, immutable) and `/fonts/**`.
+- `purgeOnQuotaError: true` on profile photos — scoped to images only, never JS chunks.
+- Firebase endpoints left unmatched (default NetworkOnly).
 
-**Step 3: Verify build succeeds**
+**Step 3: Write config verification test**
+
+Create `src/shared/pwa/__tests__/workboxConfig.test.ts`:
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+describe('Workbox configuration', () => {
+  const config = readFileSync(resolve(__dirname, '../../../../vite.config.ts'), 'utf8');
+
+  it('has navigateFallback for offline deep links', () => {
+    expect(config).toContain("navigateFallback: '/index.html'");
+  });
+
+  it('has navigateFallbackDenylist', () => {
+    expect(config).toContain('navigateFallbackDenylist');
+  });
+
+  it('has cleanupOutdatedCaches enabled', () => {
+    expect(config).toContain('cleanupOutdatedCaches: true');
+  });
+
+  it('has CacheFirst rule for /assets/', () => {
+    expect(config).toContain("cacheName: 'vite-assets'");
+  });
+
+  it('has CacheFirst rule for /fonts/', () => {
+    expect(config).toContain("cacheName: 'local-fonts'");
+  });
+
+  it('has StaleWhileRevalidate for Google profile photos', () => {
+    expect(config).toContain("cacheName: 'google-profile-photos'");
+  });
+
+  it('has cacheId for namespace isolation', () => {
+    expect(config).toContain("cacheId: 'picklescore'");
+  });
+
+  it('has dontCacheBustURLsMatching for Vite hashes', () => {
+    expect(config).toContain('dontCacheBustURLsMatching');
+  });
+});
+```
+
+**Step 4: Run tests**
+
+Run: `npx vitest run src/shared/pwa/__tests__/workboxConfig.test.ts`
+Expected: All 8 tests PASS
+
+**Step 5: Verify build succeeds**
 
 Run: `npx vite build`
 - Should succeed with no errors
-- Check `dist/sw.js` exists and contains `NavigationRoute` with `index.html`
+- Check `dist/sw.js` exists
 
-**Step 4: Run existing tests**
+**Step 6: Run full test suite**
 
 Run: `npx vitest run`
-- All tests should pass (no test changes in this task)
+Expected: All tests pass
 
-**Step 5: Commit**
+**Step 7: Commit**
 
 ```bash
-git add vite.config.ts tsconfig.app.json
-git commit -m "feat: add Workbox runtime caching, navigateFallback, and cache config"
+git add vite.config.ts tsconfig.app.json src/shared/pwa/__tests__/workboxConfig.test.ts
+git commit -m "feat: add Workbox runtime caching, navigateFallback, CacheFirst rules"
 ```
 
 ---
@@ -155,6 +258,7 @@ git commit -m "feat: add Workbox runtime caching, navigateFallback, and cache co
 
 **Files:**
 - Modify: `firebase.json` (add hosting section)
+- Create: `src/shared/pwa/__tests__/firebaseHostingConfig.test.ts`
 
 **Step 1: Add hosting section to firebase.json**
 
@@ -231,16 +335,77 @@ Replace the entire `firebase.json` with:
 }
 ```
 
-**Step 2: Verify firebase.json is valid JSON**
+**Step 2: Write config verification test**
 
-```bash
-node -e "JSON.parse(require('fs').readFileSync('firebase.json','utf8')); console.log('Valid JSON')"
+Create `src/shared/pwa/__tests__/firebaseHostingConfig.test.ts`:
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+describe('Firebase Hosting configuration', () => {
+  const config = JSON.parse(
+    readFileSync(resolve(__dirname, '../../../../firebase.json'), 'utf8')
+  );
+
+  it('has hosting section', () => {
+    expect(config.hosting).toBeDefined();
+  });
+
+  it('has SPA rewrite rule', () => {
+    const rewrite = config.hosting.rewrites.find(
+      (r: { destination: string }) => r.destination === '/index.html'
+    );
+    expect(rewrite).toBeTruthy();
+  });
+
+  it('has CSP header with required directives', () => {
+    const globalHeaders = config.hosting.headers.find(
+      (h: { source: string }) => h.source === '**'
+    );
+    const csp = globalHeaders.headers.find(
+      (h: { key: string }) => h.key === 'Content-Security-Policy'
+    );
+    expect(csp).toBeTruthy();
+    expect(csp.value).toContain("default-src 'self'");
+    expect(csp.value).toContain("object-src 'none'");
+    expect(csp.value).toContain("worker-src 'self'");
+    expect(csp.value).toContain('accounts.google.com');
+  });
+
+  it('has no-cache on sw.js', () => {
+    const swHeaders = config.hosting.headers.find(
+      (h: { source: string }) => h.source === '/sw.js'
+    );
+    expect(swHeaders.headers[0].value).toContain('no-cache');
+  });
+
+  it('has immutable cache on /assets/**', () => {
+    const assetHeaders = config.hosting.headers.find(
+      (h: { source: string }) => h.source === '/assets/**'
+    );
+    expect(assetHeaders.headers[0].value).toContain('immutable');
+  });
+
+  it('has no-cache on manifest.webmanifest', () => {
+    const manifestHeaders = config.hosting.headers.find(
+      (h: { source: string }) => h.source === '/manifest.webmanifest'
+    );
+    expect(manifestHeaders.headers[0].value).toContain('no-cache');
+  });
+});
 ```
 
-**Step 3: Commit**
+**Step 3: Run tests**
+
+Run: `npx vitest run src/shared/pwa/__tests__/firebaseHostingConfig.test.ts`
+Expected: All 6 tests PASS
+
+**Step 4: Commit**
 
 ```bash
-git add firebase.json
+git add firebase.json src/shared/pwa/__tests__/firebaseHostingConfig.test.ts
 git commit -m "feat: add Firebase Hosting config with CSP, cache headers, and SPA rewrites"
 ```
 
@@ -269,7 +434,8 @@ describe('swUpdateStore', () => {
   beforeEach(() => {
     vi.resetModules();
     mockRegisterSW.mockReset();
-    localStorage.clear();
+    localStorage.removeItem('sw-update-dismissed-at');
+    localStorage.removeItem('sw-updated-pending-ack');
   });
 
   afterEach(() => {
@@ -283,8 +449,7 @@ describe('swUpdateStore', () => {
   });
 
   it('initSWUpdate calls registerSW once', async () => {
-    const mockUpdateFn = vi.fn();
-    mockRegisterSW.mockReturnValue(mockUpdateFn);
+    mockRegisterSW.mockReturnValue(vi.fn());
     const { initSWUpdate } = await import('../swUpdateStore');
     initSWUpdate();
     expect(mockRegisterSW).toHaveBeenCalledTimes(1);
@@ -330,13 +495,25 @@ describe('swUpdateStore', () => {
     expect(localStorage.getItem('sw-update-dismissed-at')).toBeTruthy();
   });
 
+  it('swUpdateVisible returns false within 24h of dismiss', async () => {
+    let capturedOnNeedRefresh: (() => void) | undefined;
+    mockRegisterSW.mockImplementation((opts: { onNeedRefresh: () => void }) => {
+      capturedOnNeedRefresh = opts.onNeedRefresh;
+      return vi.fn();
+    });
+    localStorage.setItem('sw-update-dismissed-at', String(Date.now() - 23 * 60 * 60 * 1000));
+    const { initSWUpdate, swUpdateVisible } = await import('../swUpdateStore');
+    initSWUpdate();
+    capturedOnNeedRefresh!();
+    expect(swUpdateVisible()).toBe(false);
+  });
+
   it('swUpdateVisible returns true after 24h dismiss expires', async () => {
     let capturedOnNeedRefresh: (() => void) | undefined;
     mockRegisterSW.mockImplementation((opts: { onNeedRefresh: () => void }) => {
       capturedOnNeedRefresh = opts.onNeedRefresh;
       return vi.fn();
     });
-    // Set dismissal to 25 hours ago
     localStorage.setItem('sw-update-dismissed-at', String(Date.now() - 25 * 60 * 60 * 1000));
     const { initSWUpdate, swUpdateVisible } = await import('../swUpdateStore');
     initSWUpdate();
@@ -357,8 +534,23 @@ describe('swUpdateStore', () => {
   it('applyUpdate is no-op if initSWUpdate was never called', async () => {
     mockRegisterSW.mockReturnValue(vi.fn());
     const { applyUpdate } = await import('../swUpdateStore');
-    // Should not throw
     applyUpdate();
+  });
+
+  it('updateAcknowledged returns true when pending ack exists on init', async () => {
+    localStorage.setItem('sw-updated-pending-ack', '1');
+    mockRegisterSW.mockReturnValue(vi.fn());
+    const { initSWUpdate, updateAcknowledged } = await import('../swUpdateStore');
+    initSWUpdate();
+    expect(updateAcknowledged()).toBe(true);
+    expect(localStorage.getItem('sw-updated-pending-ack')).toBeNull();
+  });
+
+  it('updateAcknowledged returns false when no pending ack', async () => {
+    mockRegisterSW.mockReturnValue(vi.fn());
+    const { initSWUpdate, updateAcknowledged } = await import('../swUpdateStore');
+    initSWUpdate();
+    expect(updateAcknowledged()).toBe(false);
   });
 });
 ```
@@ -381,6 +573,7 @@ const SNOOZE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const PENDING_ACK_KEY = 'sw-updated-pending-ack';
 
 const [swWaiting, setSwWaiting] = createSignal(false);
+const [_updateAcknowledged, setUpdateAcknowledged] = createSignal(false);
 let _updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
 let _initialized = false;
 
@@ -401,7 +594,7 @@ export function initSWUpdate(): void {
   const pendingAck = localStorage.getItem(PENDING_ACK_KEY);
   if (pendingAck) {
     localStorage.removeItem(PENDING_ACK_KEY);
-    // TODO: trigger "App updated!" snackbar (wire up in App.tsx)
+    setUpdateAcknowledged(true);
   }
 }
 
@@ -414,6 +607,12 @@ export function dismissUpdate(): void {
   localStorage.setItem(DISMISS_KEY, Date.now().toString());
   setSwWaiting(false);
 }
+
+export function clearUpdateAck(): void {
+  setUpdateAcknowledged(false);
+}
+
+export const updateAcknowledged = (): boolean => _updateAcknowledged();
 
 export const swUpdateVisible = (): boolean => {
   if (!swWaiting()) return false;
@@ -428,7 +627,7 @@ export { swWaiting };
 **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/shared/pwa/__tests__/swUpdateStore.test.ts`
-Expected: All 7 tests PASS
+Expected: All 11 tests PASS
 
 **Step 5: Run full test suite**
 
@@ -444,12 +643,12 @@ git commit -m "feat: add SW update store with 24h dismiss, pending ack, and idem
 
 ---
 
-## Task 5: SWUpdateToast Component + Tests
+## Task 5: SWUpdateToast Component + App.tsx Wiring
 
 **Files:**
 - Create: `src/shared/pwa/SWUpdateToast.tsx`
 - Create: `src/shared/pwa/__tests__/SWUpdateToast.test.tsx`
-- Modify: `src/app/App.tsx:1-8,34` (import + mount + onMount init)
+- Modify: `src/app/App.tsx:2,34` (add onMount, import + mount toast + init)
 
 **Step 1: Write failing tests**
 
@@ -463,11 +662,15 @@ import { render, screen } from '@solidjs/testing-library';
 const mockSwUpdateVisible = vi.fn(() => false);
 const mockApplyUpdate = vi.fn();
 const mockDismissUpdate = vi.fn();
+const mockUpdateAcknowledged = vi.fn(() => false);
+const mockClearUpdateAck = vi.fn();
 
 vi.mock('../swUpdateStore', () => ({
   swUpdateVisible: mockSwUpdateVisible,
   applyUpdate: mockApplyUpdate,
   dismissUpdate: mockDismissUpdate,
+  updateAcknowledged: mockUpdateAcknowledged,
+  clearUpdateAck: mockClearUpdateAck,
 }));
 
 // Must import AFTER mocks
@@ -477,13 +680,19 @@ describe('SWUpdateToast', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSwUpdateVisible.mockReturnValue(false);
+    mockUpdateAcknowledged.mockReturnValue(false);
   });
 
-  it('renders nothing when swUpdateVisible is false', () => {
+  it('renders aria-live region even when hidden', () => {
     const { container } = render(() => <SWUpdateToast />);
+    const statusEl = container.querySelector('[role="status"]');
+    expect(statusEl).toBeTruthy();
+    expect(statusEl?.getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('hides toast content when swUpdateVisible is false', () => {
+    render(() => <SWUpdateToast />);
     expect(screen.queryByText('A new version is available')).toBeNull();
-    // aria-live region should still exist
-    expect(container.querySelector('[role="status"]')).toBeTruthy();
   });
 
   it('shows toast when swUpdateVisible is true', () => {
@@ -494,18 +703,25 @@ describe('SWUpdateToast', () => {
     expect(screen.getByRole('button', { name: /remind me tomorrow/i })).toBeTruthy();
   });
 
-  it('calls applyUpdate when Update button is clicked', async () => {
+  it('calls applyUpdate when Update button is clicked', () => {
     mockSwUpdateVisible.mockReturnValue(true);
     render(() => <SWUpdateToast />);
     screen.getByRole('button', { name: /update/i }).click();
     expect(mockApplyUpdate).toHaveBeenCalledTimes(1);
   });
 
-  it('calls dismissUpdate when Remind me tomorrow is clicked', async () => {
+  it('calls dismissUpdate when Remind me tomorrow is clicked', () => {
     mockSwUpdateVisible.mockReturnValue(true);
     render(() => <SWUpdateToast />);
     screen.getByRole('button', { name: /remind me tomorrow/i }).click();
     expect(mockDismissUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('has z-40 and fixed positioning when visible', () => {
+    mockSwUpdateVisible.mockReturnValue(true);
+    const { container } = render(() => <SWUpdateToast />);
+    const toast = container.querySelector('.fixed.z-40');
+    expect(toast).toBeTruthy();
   });
 });
 ```
@@ -567,25 +783,24 @@ export default SWUpdateToast;
 **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/shared/pwa/__tests__/SWUpdateToast.test.tsx`
-Expected: All 4 tests PASS
+Expected: All 6 tests PASS
 
 **Step 5: Mount in App.tsx**
 
 In `src/app/App.tsx`:
 
-Add imports at top (after existing imports):
-```ts
-import { onMount } from 'solid-js';
-import SWUpdateToast from '../shared/pwa/SWUpdateToast';
-import { initSWUpdate } from '../shared/pwa/swUpdateStore';
-```
-
-Update the `Show, Suspense, createEffect` import on line 2 to include `onMount`:
+Update line 2 to add `onMount`:
 ```ts
 import { Show, Suspense, createEffect, onMount } from 'solid-js';
 ```
 
-Inside the `App` component function (after the `createEffect` block, before the `return`), add:
+Add imports after line 7:
+```ts
+import SWUpdateToast from '../shared/pwa/SWUpdateToast';
+import { initSWUpdate } from '../shared/pwa/swUpdateStore';
+```
+
+Inside the `App` component function (after the `createEffect` block at line 24, before the `return`), add:
 ```ts
 onMount(() => {
   initSWUpdate();
@@ -633,7 +848,6 @@ describe('installPromptStore', () => {
   beforeEach(() => {
     vi.resetModules();
     localStorage.clear();
-    // Reset matchMedia
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -669,14 +883,42 @@ describe('installPromptStore', () => {
     expect(showInstallBanner()).toBe(false);
   });
 
-  it('captureInstallEvent + showInstallBanner returns true when conditions met', async () => {
+  it('showInstallBanner returns true when event captured and 3+ visits', async () => {
     const { captureInstallEvent, showInstallBanner } = await import('../installPromptStore');
     const fakeEvent = new Event('beforeinstallprompt') as Event & { prompt: () => Promise<{ outcome: string }> };
     fakeEvent.prompt = vi.fn();
     captureInstallEvent(fakeEvent);
-    // Need trigger condition met (matchCount >= 1 or 3rd visit)
     localStorage.setItem('pwa-visit-count', '3');
     expect(showInstallBanner()).toBe(true);
+  });
+
+  it('showInstallBanner returns false with only 2 visits and no matches', async () => {
+    const { captureInstallEvent, showInstallBanner } = await import('../installPromptStore');
+    const fakeEvent = new Event('beforeinstallprompt') as Event & { prompt: () => Promise<{ outcome: string }> };
+    fakeEvent.prompt = vi.fn();
+    captureInstallEvent(fakeEvent);
+    localStorage.setItem('pwa-visit-count', '2');
+    expect(showInstallBanner()).toBe(false);
+  });
+
+  it('showInstallBanner returns true when matchCount >= 1', async () => {
+    const { captureInstallEvent, showInstallBanner, setCompletedMatchCount } = await import('../installPromptStore');
+    const fakeEvent = new Event('beforeinstallprompt') as Event & { prompt: () => Promise<{ outcome: string }> };
+    fakeEvent.prompt = vi.fn();
+    captureInstallEvent(fakeEvent);
+    setCompletedMatchCount(1);
+    expect(showInstallBanner()).toBe(true);
+  });
+
+  it('showInstallBanner returns false when swUpdateVisible is true (co-presence rule)', async () => {
+    const { swUpdateVisible } = await import('../swUpdateStore');
+    vi.mocked(swUpdateVisible).mockReturnValue(true);
+    const { captureInstallEvent, showInstallBanner } = await import('../installPromptStore');
+    const fakeEvent = new Event('beforeinstallprompt') as Event & { prompt: () => Promise<{ outcome: string }> };
+    fakeEvent.prompt = vi.fn();
+    captureInstallEvent(fakeEvent);
+    localStorage.setItem('pwa-visit-count', '3');
+    expect(showInstallBanner()).toBe(false);
   });
 
   it('getDismissState returns none initially', async () => {
@@ -712,9 +954,69 @@ describe('installPromptStore', () => {
     expect(showInstallBanner()).toBe(false);
   });
 
+  it('showInstallBanner returns true after soft dismiss expires (7+ days)', async () => {
+    const { captureInstallEvent, showInstallBanner } = await import('../installPromptStore');
+    const fakeEvent = new Event('beforeinstallprompt') as Event & { prompt: () => Promise<{ outcome: string }> };
+    fakeEvent.prompt = vi.fn();
+    captureInstallEvent(fakeEvent);
+    localStorage.setItem('pwa-visit-count', '3');
+    localStorage.setItem('pwa-install-dismiss', JSON.stringify({
+      tier: 'soft', until: Date.now() - 8 * 24 * 60 * 60 * 1000,
+    }));
+    expect(showInstallBanner()).toBe(true);
+  });
+
+  it('showInstallBanner returns false when neverDismiss was called', async () => {
+    const { captureInstallEvent, neverDismiss, showInstallBanner } = await import('../installPromptStore');
+    const fakeEvent = new Event('beforeinstallprompt') as Event & { prompt: () => Promise<{ outcome: string }> };
+    fakeEvent.prompt = vi.fn();
+    captureInstallEvent(fakeEvent);
+    localStorage.setItem('pwa-visit-count', '3');
+    neverDismiss();
+    expect(showInstallBanner()).toBe(false);
+  });
+
+  it('dismiss escalates: first soft, second hard', async () => {
+    const { dismissAndEscalate, getDismissState } = await import('../installPromptStore');
+    dismissAndEscalate();
+    expect(getDismissState()).toBe('soft');
+    // Expire the soft dismiss
+    localStorage.setItem('pwa-install-dismiss', JSON.stringify({
+      tier: 'soft', until: Date.now() - 1,
+    }));
+    dismissAndEscalate();
+    expect(getDismissState()).toBe('hard');
+  });
+
+  it('triggerInstallPrompt calls prompt and returns accepted', async () => {
+    const { captureInstallEvent, triggerInstallPrompt, isInstalled } = await import('../installPromptStore');
+    const fakeEvent = new Event('beforeinstallprompt') as Event & { prompt: () => Promise<{ outcome: string }> };
+    fakeEvent.prompt = vi.fn().mockResolvedValue({ outcome: 'accepted' });
+    captureInstallEvent(fakeEvent);
+    const result = await triggerInstallPrompt();
+    expect(fakeEvent.prompt).toHaveBeenCalled();
+    expect(result).toBe('accepted');
+    expect(isInstalled()).toBe(true);
+  });
+
+  it('triggerInstallPrompt returns dismissed when user declines', async () => {
+    const { captureInstallEvent, triggerInstallPrompt, isInstalled } = await import('../installPromptStore');
+    const fakeEvent = new Event('beforeinstallprompt') as Event & { prompt: () => Promise<{ outcome: string }> };
+    fakeEvent.prompt = vi.fn().mockResolvedValue({ outcome: 'dismissed' });
+    captureInstallEvent(fakeEvent);
+    const result = await triggerInstallPrompt();
+    expect(result).toBe('dismissed');
+    expect(isInstalled()).toBe(false);
+  });
+
+  it('triggerInstallPrompt returns null when no event captured', async () => {
+    const { triggerInstallPrompt } = await import('../installPromptStore');
+    const result = await triggerInstallPrompt();
+    expect(result).toBeNull();
+  });
+
   it('detectIOSSafari identifies Safari on iOS', async () => {
     const { detectIOSSafari } = await import('../installPromptStore');
-    // Default jsdom UA is not iOS Safari
     expect(detectIOSSafari()).toBe(false);
   });
 
@@ -786,6 +1088,7 @@ const [installed, setInstalled] = createSignal(
     (navigator as { standalone?: boolean }).standalone === true
   ),
 );
+const [matchCount, setMatchCount] = createSignal(0);
 
 // ── Dismiss Logic ──
 
@@ -826,17 +1129,36 @@ export function neverDismiss(): void {
   localStorage.setItem(DISMISS_KEY, JSON.stringify(data));
 }
 
+/**
+ * Auto-escalating dismiss: soft → hard → never.
+ * If current dismiss has expired, escalate to next tier.
+ */
+export function dismissAndEscalate(): void {
+  const current = readDismiss();
+  if (current.tier === 'none' || (current.tier === 'soft' && current.until && Date.now() < current.until)) {
+    softDismiss();
+  } else if (current.tier === 'soft') {
+    hardDismiss();
+  } else {
+    neverDismiss();
+  }
+}
+
 // ── Trigger Logic ──
 
 function hasTriggerCondition(): boolean {
+  if (matchCount() >= 1) return true; // Primary: completed a match
   const visitCount = Number(localStorage.getItem(VISIT_KEY) || '0');
-  // Primary: 3+ visits (fallback). Match-count trigger is checked by caller.
-  return visitCount >= 3;
+  return visitCount >= 3; // Fallback: 3rd visit
 }
 
 export function incrementVisitCount(): void {
   const count = Number(localStorage.getItem(VISIT_KEY) || '0') + 1;
   localStorage.setItem(VISIT_KEY, String(count));
+}
+
+export function setCompletedMatchCount(count: number): void {
+  setMatchCount(count);
 }
 
 // ── Public API ──
@@ -865,7 +1187,7 @@ export async function triggerInstallPrompt(): Promise<'accepted' | 'dismissed' |
   const event = promptEvent();
   if (!event) return null;
   const result = await event.prompt();
-  setPromptEvent(null); // null after use, re-listen for fresh event
+  setPromptEvent(null);
   if (result.outcome === 'accepted') {
     setInstalled(true);
   }
@@ -889,13 +1211,13 @@ export const iosInstallSupported = (): boolean => {
 **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/shared/pwa/__tests__/installPromptStore.test.ts`
-Expected: All 12 tests PASS
+Expected: All 21 tests PASS
 
 **Step 5: Commit**
 
 ```bash
 git add src/shared/pwa/installPromptStore.ts src/shared/pwa/__tests__/installPromptStore.test.ts
-git commit -m "feat: add install prompt store with tiered dismiss, iOS detection, trigger logic"
+git commit -m "feat: add install prompt store with tiered dismiss, match trigger, iOS detection"
 ```
 
 ---
@@ -905,6 +1227,7 @@ git commit -m "feat: add install prompt store with tiered dismiss, iOS detection
 **Files:**
 - Create: `src/shared/pwa/pwaLifecycle.ts`
 - Create: `src/shared/pwa/__tests__/pwaLifecycle.test.ts`
+- Modify: `src/index.tsx` (add init call)
 
 **Step 1: Write failing tests**
 
@@ -917,21 +1240,31 @@ vi.mock('../installPromptStore', () => ({
   captureInstallEvent: vi.fn(),
   markInstalled: vi.fn(),
   incrementVisitCount: vi.fn(),
+  setCompletedMatchCount: vi.fn(),
+}));
+
+vi.mock('../../../data/db', () => ({
+  db: {
+    matches: {
+      where: vi.fn().mockReturnValue({
+        equals: vi.fn().mockReturnValue({
+          count: vi.fn().mockResolvedValue(0),
+        }),
+      }),
+    },
+  },
 }));
 
 describe('pwaLifecycle', () => {
   let addEventListenerSpy: ReturnType<typeof vi.spyOn>;
-  let removeEventListenerSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.resetModules();
     addEventListenerSpy = vi.spyOn(window, 'addEventListener');
-    removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
   });
 
   afterEach(() => {
     addEventListenerSpy.mockRestore();
-    removeEventListenerSpy.mockRestore();
   });
 
   it('initPWAListeners registers beforeinstallprompt and appinstalled listeners', async () => {
@@ -949,13 +1282,22 @@ describe('pwaLifecycle', () => {
     expect(incrementVisitCount).toHaveBeenCalledTimes(1);
   });
 
+  it('initPWAListeners queries Dexie for completed match count', async () => {
+    const { setCompletedMatchCount } = await import('../installPromptStore');
+    const { initPWAListeners } = await import('../pwaLifecycle');
+    initPWAListeners();
+    // Allow the async query to resolve
+    await new Promise(r => setTimeout(r, 10));
+    expect(setCompletedMatchCount).toHaveBeenCalledWith(0);
+  });
+
   it('initPWAListeners is idempotent', async () => {
     const { initPWAListeners } = await import('../pwaLifecycle');
     initPWAListeners();
     const count1 = addEventListenerSpy.mock.calls.length;
     initPWAListeners();
     const count2 = addEventListenerSpy.mock.calls.length;
-    expect(count2).toBe(count1); // no additional listeners
+    expect(count2).toBe(count1);
   });
 
   it('beforeinstallprompt handler calls captureInstallEvent', async () => {
@@ -989,7 +1331,8 @@ Expected: FAIL — module does not exist
 Create `src/shared/pwa/pwaLifecycle.ts`:
 
 ```ts
-import { captureInstallEvent, markInstalled, incrementVisitCount } from './installPromptStore';
+import { captureInstallEvent, markInstalled, incrementVisitCount, setCompletedMatchCount } from './installPromptStore';
+import { db } from '../../data/db';
 
 let _initialized = false;
 
@@ -998,6 +1341,11 @@ export function initPWAListeners(): void {
   _initialized = true;
 
   incrementVisitCount();
+
+  // Query completed match count for install trigger
+  db.matches.where('status').equals('completed').count()
+    .then(count => setCompletedMatchCount(count))
+    .catch(() => {}); // Ignore if Dexie fails
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
@@ -1013,11 +1361,11 @@ export function initPWAListeners(): void {
 **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/shared/pwa/__tests__/pwaLifecycle.test.ts`
-Expected: All 5 tests PASS
+Expected: All 6 tests PASS
 
 **Step 5: Wire into index.tsx**
 
-In `src/index.tsx`, add before `render()`:
+In `src/index.tsx`, add after the imports (before `const root`):
 ```ts
 import { initPWAListeners } from './shared/pwa/pwaLifecycle';
 
@@ -1048,7 +1396,7 @@ Expected: All tests pass
 
 ```bash
 git add src/shared/pwa/pwaLifecycle.ts src/shared/pwa/__tests__/pwaLifecycle.test.ts src/index.tsx
-git commit -m "feat: add PWA lifecycle listeners (beforeinstallprompt, appinstalled, visit counting)"
+git commit -m "feat: add PWA lifecycle listeners (beforeinstallprompt, appinstalled, match count)"
 ```
 
 ---
@@ -1069,13 +1417,15 @@ import { render, screen } from '@solidjs/testing-library';
 
 const mockShowInstallBanner = vi.fn(() => false);
 const mockTriggerInstallPrompt = vi.fn();
-const mockSoftDismiss = vi.fn();
+const mockDismissAndEscalate = vi.fn();
+const mockNeverDismiss = vi.fn();
 const mockIosInstallSupported = vi.fn(() => false);
 
 vi.mock('../installPromptStore', () => ({
   showInstallBanner: mockShowInstallBanner,
   triggerInstallPrompt: mockTriggerInstallPrompt,
-  softDismiss: mockSoftDismiss,
+  dismissAndEscalate: mockDismissAndEscalate,
+  neverDismiss: mockNeverDismiss,
   iosInstallSupported: mockIosInstallSupported,
   isInstalled: vi.fn(() => false),
 }));
@@ -1099,6 +1449,7 @@ describe('InstallPromptBanner', () => {
     render(() => <InstallPromptBanner />);
     expect(screen.getByRole('button', { name: /install/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /not now/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /don.t ask again/i })).toBeTruthy();
   });
 
   it('calls triggerInstallPrompt when Install is clicked', () => {
@@ -1109,17 +1460,33 @@ describe('InstallPromptBanner', () => {
     expect(mockTriggerInstallPrompt).toHaveBeenCalledTimes(1);
   });
 
-  it('calls softDismiss when Not now is clicked', () => {
+  it('calls dismissAndEscalate when Not now is clicked', () => {
     mockShowInstallBanner.mockReturnValue(true);
     render(() => <InstallPromptBanner />);
     screen.getByRole('button', { name: /not now/i }).click();
-    expect(mockSoftDismiss).toHaveBeenCalledTimes(1);
+    expect(mockDismissAndEscalate).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls neverDismiss when Don\'t ask again is clicked', () => {
+    mockShowInstallBanner.mockReturnValue(true);
+    render(() => <InstallPromptBanner />);
+    screen.getByRole('button', { name: /don.t ask again/i }).click();
+    expect(mockNeverDismiss).toHaveBeenCalledTimes(1);
   });
 
   it('shows iOS instructions when iosInstallSupported is true', () => {
     mockIosInstallSupported.mockReturnValue(true);
     render(() => <InstallPromptBanner />);
     expect(screen.getByText(/add to home screen/i)).toBeTruthy();
+  });
+
+  it('has 44px minimum tap targets on all buttons', () => {
+    mockShowInstallBanner.mockReturnValue(true);
+    const { container } = render(() => <InstallPromptBanner />);
+    const buttons = container.querySelectorAll('button');
+    buttons.forEach(btn => {
+      expect(btn.className).toContain('min-h-[44px]');
+    });
   });
 });
 ```
@@ -1139,7 +1506,8 @@ import { Show } from 'solid-js';
 import {
   showInstallBanner,
   triggerInstallPrompt,
-  softDismiss,
+  dismissAndEscalate,
+  neverDismiss,
   iosInstallSupported,
   isInstalled,
 } from './installPromptStore';
@@ -1156,39 +1524,49 @@ const InstallPromptBanner: Component = () => {
         <div
           role="banner"
           aria-label="Install app"
-          class="bg-surface-light border border-border rounded-xl p-4 flex items-center justify-between gap-3"
+          class="bg-surface-light border border-border rounded-xl p-4"
         >
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-on-surface">Install PickleScore</p>
-            <p class="text-xs text-on-surface-muted mt-0.5">Add to your home screen for the best experience</p>
-          </div>
-          <div class="flex items-center gap-2 flex-shrink-0">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-on-surface">Install PickleScore</p>
+              <p class="text-xs text-on-surface-muted mt-0.5">Add to your home screen for the best experience</p>
+            </div>
             <button
               type="button"
-              class="text-xs text-on-surface-muted hover:text-on-surface min-w-[44px] min-h-[44px] flex items-center justify-center"
-              aria-label="Not now"
-              onClick={() => softDismiss()}
-            >
-              Not now
-            </button>
-            <button
-              type="button"
-              class="bg-primary text-surface text-sm font-semibold px-4 min-h-[44px] rounded-lg hover:bg-primary-dark transition-colors"
+              class="bg-primary text-surface text-sm font-semibold px-4 min-h-[44px] rounded-lg hover:bg-primary-dark transition-colors flex-shrink-0"
               aria-label="Install PickleScore"
               onClick={handleInstall}
             >
               Install
             </button>
           </div>
+          <div class="flex items-center gap-3 mt-2 pt-2 border-t border-border">
+            <button
+              type="button"
+              class="text-xs text-on-surface-muted hover:text-on-surface min-h-[44px] flex items-center"
+              aria-label="Not now"
+              onClick={() => dismissAndEscalate()}
+            >
+              Not now
+            </button>
+            <button
+              type="button"
+              class="text-xs text-on-surface-muted hover:text-on-surface min-h-[44px] flex items-center"
+              aria-label="Don't ask again"
+              onClick={() => neverDismiss()}
+            >
+              Don't ask again
+            </button>
+          </div>
         </div>
       </Show>
 
-      {/* iOS Safari instructions */}
+      {/* iOS Safari instructions — opens IOSInstallSheet (Task 9) */}
       <Show when={!isInstalled() && iosInstallSupported()}>
         <div class="bg-surface-light border border-border rounded-xl p-4">
           <p class="text-sm font-semibold text-on-surface">Install PickleScore</p>
           <p class="text-xs text-on-surface-muted mt-1">
-            Tap the share button <span aria-hidden="true">⎙</span> then "Add to Home Screen" <span aria-hidden="true">＋</span>
+            Tap the share button then "Add to Home Screen" to install
           </p>
         </div>
       </Show>
@@ -1202,22 +1580,208 @@ export default InstallPromptBanner;
 **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/shared/pwa/__tests__/InstallPromptBanner.test.tsx`
-Expected: All 5 tests PASS
+Expected: All 7 tests PASS
 
 **Step 5: Commit**
 
 ```bash
 git add src/shared/pwa/InstallPromptBanner.tsx src/shared/pwa/__tests__/InstallPromptBanner.test.tsx
-git commit -m "feat: add InstallPromptBanner with Chrome/iOS paths, tiered dismiss"
+git commit -m "feat: add InstallPromptBanner with escalating dismiss, iOS path"
 ```
 
 ---
 
-## Task 9: Wire Install CTA into LandingPage + SettingsPage
+## Task 9: IOSInstallSheet Component + Tests
 
 **Files:**
-- Modify: `src/features/landing/LandingPage.tsx:268-277` (replace footer install text with component)
-- Modify: `src/features/settings/SettingsPage.tsx` (add install section at bottom)
+- Create: `src/shared/pwa/IOSInstallSheet.tsx`
+- Create: `src/shared/pwa/__tests__/IOSInstallSheet.test.tsx`
+
+**Step 1: Write failing tests**
+
+Create `src/shared/pwa/__tests__/IOSInstallSheet.test.tsx`:
+
+```tsx
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@solidjs/testing-library';
+
+const mockIosInstallSupported = vi.fn(() => false);
+const mockIsInstalled = vi.fn(() => false);
+
+vi.mock('../installPromptStore', () => ({
+  iosInstallSupported: mockIosInstallSupported,
+  isInstalled: mockIsInstalled,
+}));
+
+import IOSInstallSheet from '../IOSInstallSheet';
+
+describe('IOSInstallSheet', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIosInstallSupported.mockReturnValue(false);
+    mockIsInstalled.mockReturnValue(false);
+  });
+
+  it('renders nothing when not iOS Safari', () => {
+    const { container } = render(() => <IOSInstallSheet />);
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('renders dialog when open prop is true and iOS Safari', () => {
+    mockIosInstallSupported.mockReturnValue(true);
+    render(() => <IOSInstallSheet open={true} onClose={() => {}} />);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeTruthy();
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+  });
+
+  it('shows step-by-step instructions', () => {
+    mockIosInstallSupported.mockReturnValue(true);
+    render(() => <IOSInstallSheet open={true} onClose={() => {}} />);
+    expect(screen.getByText(/share/i)).toBeTruthy();
+    expect(screen.getByText(/add to home screen/i)).toBeTruthy();
+  });
+
+  it('has Got it button that calls onClose', () => {
+    mockIosInstallSupported.mockReturnValue(true);
+    const onClose = vi.fn();
+    render(() => <IOSInstallSheet open={true} onClose={onClose} />);
+    const gotItBtn = screen.getByRole('button', { name: /got it/i });
+    expect(gotItBtn).toBeTruthy();
+    gotItBtn.click();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('Got it button has min 44px tap target', () => {
+    mockIosInstallSupported.mockReturnValue(true);
+    render(() => <IOSInstallSheet open={true} onClose={() => {}} />);
+    const btn = screen.getByRole('button', { name: /got it/i });
+    expect(btn.className).toContain('min-h-[44px]');
+  });
+});
+```
+
+**Step 2: Run tests to verify they fail**
+
+Run: `npx vitest run src/shared/pwa/__tests__/IOSInstallSheet.test.tsx`
+Expected: FAIL — module does not exist
+
+**Step 3: Write the component**
+
+Create `src/shared/pwa/IOSInstallSheet.tsx`:
+
+```tsx
+import type { Component } from 'solid-js';
+import { Show, onMount, onCleanup } from 'solid-js';
+
+interface Props {
+  open?: boolean;
+  onClose?: () => void;
+}
+
+const IOSInstallSheet: Component<Props> = (props) => {
+  let dialogRef: HTMLDivElement | undefined;
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      props.onClose?.();
+    }
+    // Simple focus trap: keep focus within dialog
+    if (e.key === 'Tab' && dialogRef) {
+      const focusable = dialogRef.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    }
+  };
+
+  onMount(() => {
+    if (props.open) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+  });
+
+  onCleanup(() => {
+    document.removeEventListener('keydown', handleKeyDown);
+  });
+
+  return (
+    <Show when={props.open}>
+      {/* Backdrop */}
+      <div
+        class="fixed inset-0 z-50 bg-black/50 flex items-end justify-center"
+        onClick={() => props.onClose?.()}
+      >
+        {/* Sheet */}
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Install PickleScore on iOS"
+          class="bg-surface rounded-t-2xl w-full max-w-lg p-6 pb-8 motion-safe:animate-slide-up"
+          style={{ 'padding-bottom': 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 class="text-lg font-bold text-on-surface mb-4">Install PickleScore</h2>
+          <ol class="space-y-4 text-sm text-on-surface-muted">
+            <li class="flex items-start gap-3">
+              <span class="bg-primary text-surface rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+              <span>Tap the <strong class="text-on-surface">Share</strong> button <span aria-hidden="true">⎙</span> in Safari's toolbar</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="bg-primary text-surface rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+              <span>Scroll down and tap <strong class="text-on-surface">Add to Home Screen</strong> <span aria-hidden="true">＋</span></span>
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="bg-primary text-surface rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+              <span>Tap <strong class="text-on-surface">Add</strong> in the top-right corner</span>
+            </li>
+          </ol>
+          <button
+            type="button"
+            class="mt-6 w-full bg-primary text-surface font-semibold py-3 min-h-[44px] rounded-xl hover:bg-primary-dark transition-colors"
+            aria-label="Got it"
+            onClick={() => props.onClose?.()}
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </Show>
+  );
+};
+
+export default IOSInstallSheet;
+```
+
+**Step 4: Run tests to verify they pass**
+
+Run: `npx vitest run src/shared/pwa/__tests__/IOSInstallSheet.test.tsx`
+Expected: All 5 tests PASS
+
+**Step 5: Commit**
+
+```bash
+git add src/shared/pwa/IOSInstallSheet.tsx src/shared/pwa/__tests__/IOSInstallSheet.test.tsx
+git commit -m "feat: add IOSInstallSheet modal with focus trap, numbered steps"
+```
+
+---
+
+## Task 10: Wire Install CTAs into LandingPage, SettingsPage, and App.tsx
+
+**Files:**
+- Modify: `src/features/landing/LandingPage.tsx:274-276` (replace footer text with CTA)
+- Modify: `src/features/settings/SettingsPage.tsx` (add install section before line 424)
+- Modify: `src/app/App.tsx` (add auto-prompt fixed banner)
 
 **Step 1: Update LandingPage footer**
 
@@ -1247,35 +1811,67 @@ In `src/features/settings/SettingsPage.tsx`, add import at top:
 import InstallPromptBanner from '../../shared/pwa/InstallPromptBanner';
 ```
 
-At the end of the right column (after the last `fieldset`), add:
+Before line 424 (the closing `</div>` of the right column), add:
 ```tsx
 <fieldset class="bg-surface-light rounded-xl p-4">
-  <legend class="text-sm font-semibold text-on-surface mb-2">App Installation</legend>
+  <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+    App Installation
+  </legend>
   <InstallPromptBanner />
 </fieldset>
 ```
 
-**Step 3: Verify visually**
+**Step 3: Add auto-prompt fixed banner in App.tsx**
+
+In `src/app/App.tsx`, add imports:
+```ts
+import InstallPromptBanner from '../shared/pwa/InstallPromptBanner';
+import { showInstallBanner } from '../shared/pwa/installPromptStore';
+```
+
+After `<SWUpdateToast />` (added in Task 5), add the auto-prompt banner:
+```tsx
+<Show when={showInstallBanner() && !location.pathname.startsWith('/score/')}>
+  <div
+    class="fixed z-30 left-4 right-4 max-w-sm mx-auto pointer-events-auto"
+    style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
+  >
+    <InstallPromptBanner />
+  </div>
+</Show>
+```
+
+Note: The `location` variable already exists in App.tsx (line 14: `const location = useLocation()`). The `Show` component is already imported. The route guard (`!location.pathname.startsWith('/score/')`) provides mid-match protection at the component level. The SWUpdateToast also uses `!location.pathname.startsWith('/score/')` — add this guard to its `Show when=` condition in `App.tsx`:
+
+In App.tsx, update the SWUpdateToast rendering from Task 5 to also be route-gated. Wrap it:
+```tsx
+<Show when={!location.pathname.startsWith('/score/')}>
+  <SWUpdateToast />
+</Show>
+```
+
+**Step 4: Verify visually**
 
 Run: `npx vite --port 5199`
-- Visit http://localhost:5199 — landing page footer should show the install CTA (if `beforeinstallprompt` fires)
-- Visit Settings page — install section should appear at bottom
+- Visit http://localhost:5199 — landing page footer should show install CTA
+- Visit Settings page — install section at bottom
+- Navigate to /score/* — no banner or toast should show
 
-**Step 4: Run full test suite**
+**Step 5: Run full test suite**
 
 Run: `npx vitest run`
 Expected: All tests pass
 
-**Step 5: Commit**
+**Step 6: Commit**
 
 ```bash
-git add src/features/landing/LandingPage.tsx src/features/settings/SettingsPage.tsx
-git commit -m "feat: wire InstallPromptBanner into LandingPage footer and SettingsPage"
+git add src/features/landing/LandingPage.tsx src/features/settings/SettingsPage.tsx src/app/App.tsx
+git commit -m "feat: wire install CTAs into LandingPage, SettingsPage, and App auto-prompt"
 ```
 
 ---
 
-## Task 10: Dexie Schema v5 — Tournament Cache Tables
+## Task 11: Dexie Schema v5 — Tournament Cache Tables
 
 **Files:**
 - Modify: `src/data/db.ts` (add version 5 + types)
@@ -1315,7 +1911,7 @@ describe('Dexie v5 schema', () => {
     expect(db.cachedRegistrations.schema.primKey.name).toBe('id');
   });
 
-  it('cachedTournaments has status and organizerId indexes', () => {
+  it('cachedTournaments has status, organizerId, and cachedAt indexes', () => {
     const indexNames = db.cachedTournaments.schema.indexes.map(i => i.name);
     expect(indexNames).toContain('status');
     expect(indexNames).toContain('organizerId');
@@ -1325,6 +1921,15 @@ describe('Dexie v5 schema', () => {
   it('cachedPools has tournamentId index', () => {
     const indexNames = db.cachedPools.schema.indexes.map(i => i.name);
     expect(indexNames).toContain('tournamentId');
+  });
+
+  it('can do a round-trip insert and retrieve', async () => {
+    await db.cachedTournaments.put({
+      id: 'roundtrip-test', status: 'pool-play', organizerId: 'u1', cachedAt: Date.now(),
+    } as any);
+    const result = await db.cachedTournaments.get('roundtrip-test');
+    expect(result?.id).toBe('roundtrip-test');
+    await db.cachedTournaments.delete('roundtrip-test');
   });
 });
 ```
@@ -1336,23 +1941,25 @@ Expected: FAIL — `db.cachedTournaments` is undefined
 
 **Step 3: Update db.ts**
 
-In `src/data/db.ts`, update the type declaration and add version 5.
+In `src/data/db.ts`:
 
-Add cache types to the import:
+Update the type import on line 3 to include all needed types:
 ```ts
 import type { CachedAchievement, Match, Player, ScoreEvent, Tournament, TournamentTeam, TournamentPool, BracketSlot, TournamentRegistration } from './types';
 ```
 
-Add a `CachedRecord` interface (add before `const db`):
+Add cache interfaces before `const db` (before line 6):
 ```ts
 interface CachedTournament extends Tournament { cachedAt: number }
-interface CachedTeam extends TournamentTeam { cachedAt: number; tournamentId: string }
-interface CachedPool extends TournamentPool { cachedAt: number; tournamentId: string }
-interface CachedBracketSlot extends BracketSlot { cachedAt: number; tournamentId: string }
-interface CachedRegistration extends TournamentRegistration { cachedAt: number; tournamentId: string }
+interface CachedTeam extends TournamentTeam { cachedAt: number }
+interface CachedPool extends TournamentPool { cachedAt: number }
+interface CachedBracketSlot extends BracketSlot { cachedAt: number }
+interface CachedRegistration extends TournamentRegistration { cachedAt: number }
 ```
 
-Extend the Dexie type:
+Note: `tournamentId` is NOT re-declared — it's already inherited from the parent types (`TournamentTeam`, `TournamentPool`, `BracketSlot`, `TournamentRegistration` all have `tournamentId: string`).
+
+Extend the Dexie type cast to include new tables:
 ```ts
 const db = new Dexie('PickleScoreDB') as Dexie & {
   matches: EntityTable<Match, 'id'>;
@@ -1394,7 +2001,7 @@ export type { CachedTournament, CachedTeam, CachedPool, CachedBracketSlot, Cache
 **Step 4: Run tests to verify they pass**
 
 Run: `npx vitest run src/data/__tests__/db-v5.test.ts`
-Expected: All 7 tests PASS
+Expected: All 8 tests PASS
 
 **Step 5: Run full test suite**
 
@@ -1410,24 +2017,265 @@ git commit -m "feat: add Dexie v5 schema with 5 tournament cache tables"
 
 ---
 
-## Task 11: Tournament Cache Write-Through + Hydration
+## Task 12: Tournament Cache Utilities + Tests
 
 **Files:**
-- Modify: `src/features/tournaments/hooks/useTournamentLive.ts` (add Dexie hydration + write-through)
-- Create: `src/features/tournaments/hooks/__tests__/useTournamentLive-cache.test.ts`
+- Create: `src/shared/pwa/tournamentCacheUtils.ts`
+- Create: `src/shared/pwa/__tests__/tournamentCacheUtils.test.ts`
+
+This task creates all three utility functions: `clearTournamentCache`, `pruneStaleTournamentCache`, and `scrubRegistrationForCache`.
 
 **Step 1: Write failing tests**
+
+Create `src/shared/pwa/__tests__/tournamentCacheUtils.test.ts`:
+
+```ts
+import { describe, it, expect, beforeEach } from 'vitest';
+import { db } from '../../../data/db';
+import type { TournamentRegistration } from '../../../data/types';
+
+describe('tournamentCacheUtils', () => {
+  beforeEach(async () => {
+    await db.cachedTournaments.clear();
+    await db.cachedTeams.clear();
+    await db.cachedPools.clear();
+    await db.cachedBrackets.clear();
+    await db.cachedRegistrations.clear();
+  });
+
+  describe('clearTournamentCache', () => {
+    it('clears all 5 cache tables', async () => {
+      const now = Date.now();
+      await db.cachedTournaments.put({ id: 't1', status: 'pool-play', organizerId: 'u1', cachedAt: now } as any);
+      await db.cachedTeams.put({ id: 'tm1', tournamentId: 't1', cachedAt: now } as any);
+      await db.cachedPools.put({ id: 'p1', tournamentId: 't1', cachedAt: now } as any);
+      await db.cachedBrackets.put({ id: 'b1', tournamentId: 't1', cachedAt: now } as any);
+      await db.cachedRegistrations.put({ id: 'r1', tournamentId: 't1', cachedAt: now } as any);
+
+      const { clearTournamentCache } = await import('../tournamentCacheUtils');
+      await clearTournamentCache();
+
+      expect(await db.cachedTournaments.count()).toBe(0);
+      expect(await db.cachedTeams.count()).toBe(0);
+      expect(await db.cachedPools.count()).toBe(0);
+      expect(await db.cachedBrackets.count()).toBe(0);
+      expect(await db.cachedRegistrations.count()).toBe(0);
+    });
+  });
+
+  describe('pruneStaleTournamentCache', () => {
+    it('removes tournaments with cachedAt older than 90 days', async () => {
+      const old = Date.now() - 91 * 24 * 60 * 60 * 1000;
+      const recent = Date.now() - 1 * 24 * 60 * 60 * 1000;
+
+      await db.cachedTournaments.bulkPut([
+        { id: 'old1', status: 'completed', organizerId: 'u1', cachedAt: old } as any,
+        { id: 'recent1', status: 'pool-play', organizerId: 'u1', cachedAt: recent } as any,
+      ]);
+      await db.cachedTeams.bulkPut([
+        { id: 'tm-old', tournamentId: 'old1', cachedAt: old } as any,
+        { id: 'tm-recent', tournamentId: 'recent1', cachedAt: recent } as any,
+      ]);
+      await db.cachedPools.put({ id: 'p-old', tournamentId: 'old1', cachedAt: old } as any);
+      await db.cachedBrackets.put({ id: 'b-old', tournamentId: 'old1', cachedAt: old } as any);
+      await db.cachedRegistrations.put({ id: 'r-old', tournamentId: 'old1', cachedAt: old } as any);
+
+      const { pruneStaleTournamentCache } = await import('../tournamentCacheUtils');
+      await pruneStaleTournamentCache();
+
+      expect(await db.cachedTournaments.count()).toBe(1);
+      expect(await db.cachedTeams.count()).toBe(1);
+      expect(await db.cachedPools.count()).toBe(0);
+      expect(await db.cachedBrackets.count()).toBe(0);
+      expect(await db.cachedRegistrations.count()).toBe(0);
+    });
+
+    it('does nothing when all cache is recent', async () => {
+      const recent = Date.now() - 1000;
+      await db.cachedTournaments.put({ id: 't1', status: 'pool-play', organizerId: 'u1', cachedAt: recent } as any);
+
+      const { pruneStaleTournamentCache } = await import('../tournamentCacheUtils');
+      await pruneStaleTournamentCache();
+
+      expect(await db.cachedTournaments.count()).toBe(1);
+    });
+  });
+
+  describe('scrubRegistrationForCache', () => {
+    const fullReg: TournamentRegistration = {
+      id: 'r1',
+      tournamentId: 't1',
+      userId: 'u1',
+      playerName: 'Alice',
+      teamId: 'tm1',
+      status: 'confirmed',
+      paymentStatus: 'paid',
+      paymentNote: 'cash at registration',
+      declineReason: null,
+      lateEntry: false,
+      skillRating: 4.0,
+      partnerId: null,
+      partnerName: null,
+      profileComplete: true,
+      registeredAt: 100,
+      statusUpdatedAt: 200,
+    } as TournamentRegistration;
+
+    it('preserves all fields for organizer role', async () => {
+      const { scrubRegistrationForCache } = await import('../tournamentCacheUtils');
+      const result = scrubRegistrationForCache(fullReg, 'organizer');
+      expect(result.paymentStatus).toBe('paid');
+      expect(result.paymentNote).toBe('cash at registration');
+      expect(result.skillRating).toBe(4.0);
+    });
+
+    it('preserves all fields for scorekeeper role', async () => {
+      const { scrubRegistrationForCache } = await import('../tournamentCacheUtils');
+      const result = scrubRegistrationForCache(fullReg, 'scorekeeper');
+      expect(result.paymentStatus).toBe('paid');
+    });
+
+    it('scrubs PII fields for participant role', async () => {
+      const { scrubRegistrationForCache } = await import('../tournamentCacheUtils');
+      const result = scrubRegistrationForCache(fullReg, 'participant');
+      expect(result.id).toBe('r1');
+      expect(result.tournamentId).toBe('t1');
+      expect(result.userId).toBe('u1');
+      expect(result.playerName).toBe('Alice');
+      expect(result.teamId).toBe('tm1');
+      expect(result.status).toBe('confirmed');
+      // Scrubbed fields should be undefined or null
+      expect(result.paymentNote).toBeUndefined();
+      expect(result.declineReason).toBeUndefined();
+    });
+
+    it('scrubs PII fields for viewer role', async () => {
+      const { scrubRegistrationForCache } = await import('../tournamentCacheUtils');
+      const result = scrubRegistrationForCache(fullReg, 'viewer');
+      expect(result.playerName).toBe('Alice');
+      expect(result.paymentNote).toBeUndefined();
+      expect(result.declineReason).toBeUndefined();
+    });
+  });
+});
+```
+
+**Step 2: Run tests to verify they fail**
+
+Run: `npx vitest run src/shared/pwa/__tests__/tournamentCacheUtils.test.ts`
+Expected: FAIL — module does not exist
+
+**Step 3: Write implementation**
+
+Create `src/shared/pwa/tournamentCacheUtils.ts`:
+
+```ts
+import { db } from '../../data/db';
+import type { TournamentRegistration } from '../../data/types';
+
+// ── Cache clearing (sign-out) ──
+
+export async function clearTournamentCache(): Promise<void> {
+  await db.transaction('rw',
+    db.cachedTournaments, db.cachedTeams, db.cachedPools,
+    db.cachedBrackets, db.cachedRegistrations,
+    async () => {
+      await Promise.all([
+        db.cachedTournaments.clear(),
+        db.cachedTeams.clear(),
+        db.cachedPools.clear(),
+        db.cachedBrackets.clear(),
+        db.cachedRegistrations.clear(),
+      ]);
+    },
+  );
+}
+
+// ── TTL-based pruning (startup) ──
+
+const PRUNE_AGE_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+
+export async function pruneStaleTournamentCache(): Promise<void> {
+  const cutoff = Date.now() - PRUNE_AGE_MS;
+
+  const staleTournaments = await db.cachedTournaments
+    .where('cachedAt')
+    .below(cutoff)
+    .toArray();
+
+  if (staleTournaments.length === 0) return;
+
+  const staleIds = staleTournaments.map(t => t.id);
+
+  await db.transaction('rw',
+    db.cachedTournaments, db.cachedTeams, db.cachedPools,
+    db.cachedBrackets, db.cachedRegistrations,
+    async () => {
+      await db.cachedTournaments.where('cachedAt').below(cutoff).delete();
+      for (const tid of staleIds) {
+        await db.cachedTeams.where('tournamentId').equals(tid).delete();
+        await db.cachedPools.where('tournamentId').equals(tid).delete();
+        await db.cachedBrackets.where('tournamentId').equals(tid).delete();
+        await db.cachedRegistrations.where('tournamentId').equals(tid).delete();
+      }
+    },
+  );
+}
+
+// ── Registration PII scrubbing (role-gated caching) ──
+
+type CacheRole = 'organizer' | 'scorekeeper' | 'participant' | 'viewer';
+
+const SAFE_FIELDS: (keyof TournamentRegistration)[] = [
+  'id', 'tournamentId', 'userId', 'playerName', 'teamId', 'status',
+];
+
+export function scrubRegistrationForCache(
+  reg: TournamentRegistration,
+  role: CacheRole,
+): Partial<TournamentRegistration> {
+  // Organizers and scorekeepers get full data
+  if (role === 'organizer' || role === 'scorekeeper') {
+    return { ...reg };
+  }
+  // Participants and viewers get scrubbed data
+  const scrubbed: Partial<TournamentRegistration> = {};
+  for (const field of SAFE_FIELDS) {
+    (scrubbed as Record<string, unknown>)[field] = reg[field];
+  }
+  return scrubbed;
+}
+```
+
+**Step 4: Run tests to verify they pass**
+
+Run: `npx vitest run src/shared/pwa/__tests__/tournamentCacheUtils.test.ts`
+Expected: All 7 tests PASS
+
+**Step 5: Commit**
+
+```bash
+git add src/shared/pwa/tournamentCacheUtils.ts src/shared/pwa/__tests__/tournamentCacheUtils.test.ts
+git commit -m "feat: add tournament cache utilities (clear, prune, PII scrubbing)"
+```
+
+---
+
+## Task 13: Tournament Cache Write-Through + Hydration
+
+**Files:**
+- Modify: `src/features/tournaments/hooks/useTournamentLive.ts:1-113` (add Dexie hydration + write-through)
+- Create: `src/features/tournaments/hooks/__tests__/useTournamentLive-cache.test.ts`
+
+**Step 1: Write tests**
 
 Create `src/features/tournaments/hooks/__tests__/useTournamentLive-cache.test.ts`:
 
 ```ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { db } from '../../../../data/db';
 
-// Test the Dexie write-through and hydration helpers directly
-// (integration with onSnapshot is tested via E2E)
-
-describe('tournament cache helpers', () => {
+describe('tournament cache Dexie operations', () => {
   beforeEach(async () => {
     await db.cachedTournaments.clear();
     await db.cachedTeams.clear();
@@ -1498,26 +2346,26 @@ describe('tournament cache helpers', () => {
 });
 ```
 
-**Step 2: Run tests to verify they pass (these test db.ts, should pass now)**
+**Step 2: Run tests**
 
 Run: `npx vitest run src/features/tournaments/hooks/__tests__/useTournamentLive-cache.test.ts`
-Expected: All 4 tests PASS (they test the schema from Task 10)
+Expected: All 4 tests PASS (they test Dexie CRUD from Task 11)
 
 **Step 3: Modify useTournamentLive.ts**
 
 In `src/features/tournaments/hooks/useTournamentLive.ts`:
 
-Add import at top:
+Add imports at top (after existing imports):
 ```ts
 import { db } from '../../../data/db';
 ```
 
-Add helper constants for active statuses (after imports):
+Add helper constants after imports:
 ```ts
 const ACTIVE_STATUSES = new Set(['registration', 'pool-play', 'bracket', 'paused']);
 ```
 
-Modify the `subscribe` function to be `async` and add Dexie hydration before the onSnapshot calls. Replace the existing `subscribe` (lines 40-113):
+Replace the `subscribe` function (lines 40-113) with the async version that adds Dexie hydration and write-through. The new `subscribe` function:
 
 ```ts
 const subscribe = async (id: string) => {
@@ -1557,7 +2405,7 @@ const subscribe = async (id: string) => {
         if (snap.exists()) {
           const data = { id: snap.id, ...snap.data() } as Tournament;
           setTournament(data);
-          // Write-through to Dexie
+          // Write-through to Dexie (only active statuses)
           if (ACTIVE_STATUSES.has(data.status)) {
             db.cachedTournaments.put({ ...data, cachedAt: Date.now() }).catch(() => {});
           } else {
@@ -1632,6 +2480,10 @@ const subscribe = async (id: string) => {
   );
 
   // Listen to registrations sub-collection
+  // Note: Registration PII scrubbing (scrubRegistrationForCache) should be applied here
+  // when the user's role is known. For now, cache all fields — the scrubbing function
+  // is available in tournamentCacheUtils.ts for when role-gated caching is wired up
+  // with the tournament's role context.
   const regsRef = collection(firestore, 'tournaments', id, 'registrations');
   unsubscribers.push(
     onSnapshot(
@@ -1661,78 +2513,13 @@ git commit -m "feat: add Dexie write-through and cache hydration to useTournamen
 
 ---
 
-## Task 12: Sign-Out Cache Wipe
+## Task 14: Sign-Out Cache Wipe + Startup Cache Pruning
 
 **Files:**
 - Modify: `src/shared/hooks/useAuth.ts:110-112` (add cache wipe before signOut)
-- Create: `src/shared/pwa/__tests__/signOutWipe.test.ts`
+- Modify: `src/data/firebase/syncProcessor.ts:61-66` (add cache prune to startup)
 
-**Step 1: Write failing test**
-
-Create `src/shared/pwa/__tests__/signOutWipe.test.ts`:
-
-```ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from '../../../data/db';
-import { clearTournamentCache } from '../tournamentCacheUtils';
-
-describe('clearTournamentCache', () => {
-  beforeEach(async () => {
-    // Seed some data
-    const now = Date.now();
-    await db.cachedTournaments.put({ id: 't1', status: 'pool-play', organizerId: 'u1', cachedAt: now } as any);
-    await db.cachedTeams.put({ id: 'tm1', tournamentId: 't1', cachedAt: now } as any);
-    await db.cachedPools.put({ id: 'p1', tournamentId: 't1', cachedAt: now } as any);
-    await db.cachedBrackets.put({ id: 'b1', tournamentId: 't1', cachedAt: now } as any);
-    await db.cachedRegistrations.put({ id: 'r1', tournamentId: 't1', cachedAt: now } as any);
-  });
-
-  it('clears all 5 cache tables', async () => {
-    await clearTournamentCache();
-    expect(await db.cachedTournaments.count()).toBe(0);
-    expect(await db.cachedTeams.count()).toBe(0);
-    expect(await db.cachedPools.count()).toBe(0);
-    expect(await db.cachedBrackets.count()).toBe(0);
-    expect(await db.cachedRegistrations.count()).toBe(0);
-  });
-});
-```
-
-**Step 2: Run tests to verify they fail**
-
-Run: `npx vitest run src/shared/pwa/__tests__/signOutWipe.test.ts`
-Expected: FAIL — `tournamentCacheUtils` does not exist
-
-**Step 3: Create utility**
-
-Create `src/shared/pwa/tournamentCacheUtils.ts`:
-
-```ts
-import { db } from '../../data/db';
-
-export async function clearTournamentCache(): Promise<void> {
-  await db.transaction('rw',
-    db.cachedTournaments, db.cachedTeams, db.cachedPools,
-    db.cachedBrackets, db.cachedRegistrations,
-    async () => {
-      await Promise.all([
-        db.cachedTournaments.clear(),
-        db.cachedTeams.clear(),
-        db.cachedPools.clear(),
-        db.cachedBrackets.clear(),
-        db.cachedRegistrations.clear(),
-      ]);
-    },
-  );
-}
-```
-
-**Step 4: Run test to verify it passes**
-
-Run: `npx vitest run src/shared/pwa/__tests__/signOutWipe.test.ts`
-Expected: PASS
-
-**Step 5: Wire into useAuth.ts signOut**
+**Step 1: Wire cache wipe into useAuth.ts signOut**
 
 In `src/shared/hooks/useAuth.ts`:
 
@@ -1756,129 +2543,16 @@ const signOut = async () => {
 };
 ```
 
-**Step 6: Run full test suite**
+**Step 2: Wire cache pruning into syncProcessor startup**
 
-Run: `npx vitest run`
-Expected: All tests pass
+In `src/data/firebase/syncProcessor.ts`:
 
-**Step 7: Commit**
-
-```bash
-git add src/shared/pwa/tournamentCacheUtils.ts src/shared/pwa/__tests__/signOutWipe.test.ts src/shared/hooks/useAuth.ts
-git commit -m "feat: wipe tournament cache on sign-out before Firebase signOut"
-```
-
----
-
-## Task 13: Startup Cache Pruning
-
-**Files:**
-- Modify: `src/data/firebase/syncProcessor.ts` (add cache prune to startup)
-- Create: `src/shared/pwa/__tests__/cachePruning.test.ts`
-
-**Step 1: Write failing test**
-
-Create `src/shared/pwa/__tests__/cachePruning.test.ts`:
-
-```ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from '../../../data/db';
-import { pruneStaleTournamentCache } from '../tournamentCacheUtils';
-
-describe('pruneStaleTournamentCache', () => {
-  beforeEach(async () => {
-    await db.cachedTournaments.clear();
-    await db.cachedTeams.clear();
-    await db.cachedPools.clear();
-  });
-
-  it('removes tournaments with cachedAt older than 90 days', async () => {
-    const old = Date.now() - 91 * 24 * 60 * 60 * 1000;
-    const recent = Date.now() - 1 * 24 * 60 * 60 * 1000;
-
-    await db.cachedTournaments.bulkPut([
-      { id: 'old1', status: 'completed', organizerId: 'u1', cachedAt: old } as any,
-      { id: 'recent1', status: 'pool-play', organizerId: 'u1', cachedAt: recent } as any,
-    ]);
-    await db.cachedTeams.bulkPut([
-      { id: 'tm-old', tournamentId: 'old1', cachedAt: old } as any,
-      { id: 'tm-recent', tournamentId: 'recent1', cachedAt: recent } as any,
-    ]);
-
-    await pruneStaleTournamentCache();
-
-    expect(await db.cachedTournaments.count()).toBe(1);
-    const remaining = await db.cachedTournaments.get('recent1');
-    expect(remaining).toBeDefined();
-
-    expect(await db.cachedTeams.count()).toBe(1);
-    const remainingTeam = await db.cachedTeams.get('tm-recent');
-    expect(remainingTeam).toBeDefined();
-  });
-
-  it('does nothing when all cache is recent', async () => {
-    const recent = Date.now() - 1000;
-    await db.cachedTournaments.put({ id: 't1', status: 'pool-play', organizerId: 'u1', cachedAt: recent } as any);
-    await pruneStaleTournamentCache();
-    expect(await db.cachedTournaments.count()).toBe(1);
-  });
-});
-```
-
-**Step 2: Run tests to verify they fail**
-
-Run: `npx vitest run src/shared/pwa/__tests__/cachePruning.test.ts`
-Expected: FAIL — `pruneStaleTournamentCache` does not exist
-
-**Step 3: Add the function to tournamentCacheUtils.ts**
-
-Add to `src/shared/pwa/tournamentCacheUtils.ts`:
-
-```ts
-const PRUNE_AGE_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
-
-export async function pruneStaleTournamentCache(): Promise<void> {
-  const cutoff = Date.now() - PRUNE_AGE_MS;
-
-  const staleTournaments = await db.cachedTournaments
-    .where('cachedAt')
-    .below(cutoff)
-    .toArray();
-
-  if (staleTournaments.length === 0) return;
-
-  const staleIds = staleTournaments.map(t => t.id);
-
-  await db.transaction('rw',
-    db.cachedTournaments, db.cachedTeams, db.cachedPools,
-    db.cachedBrackets, db.cachedRegistrations,
-    async () => {
-      await db.cachedTournaments.where('cachedAt').below(cutoff).delete();
-      for (const tid of staleIds) {
-        await db.cachedTeams.where('tournamentId').equals(tid).delete();
-        await db.cachedPools.where('tournamentId').equals(tid).delete();
-        await db.cachedBrackets.where('tournamentId').equals(tid).delete();
-        await db.cachedRegistrations.where('tournamentId').equals(tid).delete();
-      }
-    },
-  );
-}
-```
-
-**Step 4: Run test to verify it passes**
-
-Run: `npx vitest run src/shared/pwa/__tests__/cachePruning.test.ts`
-Expected: All 2 tests PASS
-
-**Step 5: Wire into syncProcessor startup**
-
-In `src/data/firebase/syncProcessor.ts`, find the `runStartupCleanup` function and add at the end:
-
+Add import at top:
 ```ts
 import { pruneStaleTournamentCache } from '../../shared/pwa/tournamentCacheUtils';
 ```
 
-Inside `runStartupCleanup`, add at the end:
+Inside `runStartupCleanup` (after `lastStaleCheck = Date.now();` at line 65), add:
 ```ts
 // Prune stale tournament cache (>90 days old)
 await pruneStaleTournamentCache().catch((err) => {
@@ -1886,21 +2560,21 @@ await pruneStaleTournamentCache().catch((err) => {
 });
 ```
 
-**Step 6: Run full test suite**
+**Step 3: Run full test suite**
 
 Run: `npx vitest run`
 Expected: All tests pass
 
-**Step 7: Commit**
+**Step 4: Commit**
 
 ```bash
-git add src/shared/pwa/tournamentCacheUtils.ts src/shared/pwa/__tests__/cachePruning.test.ts src/data/firebase/syncProcessor.ts
-git commit -m "feat: add 90-day tournament cache pruning on app startup"
+git add src/shared/hooks/useAuth.ts src/data/firebase/syncProcessor.ts
+git commit -m "feat: wipe tournament cache on sign-out, prune stale cache on startup"
 ```
 
 ---
 
-## Task 14: E2E Tests
+## Task 15: E2E Tests
 
 **Files:**
 - Create: `e2e/pwa/sw-update.spec.ts`
@@ -1914,12 +2588,19 @@ Create `e2e/pwa/sw-update.spec.ts`:
 import { test, expect } from '@playwright/test';
 
 test.describe('SW Update Toast', () => {
-  test('SWUpdateToast renders with correct structure', async ({ page }) => {
+  test('has aria-live status region for accessibility', async ({ page }) => {
     await page.goto('http://localhost:5199/');
-    // The toast is hidden by default (no SW update pending)
     const statusRegion = page.locator('[role="status"][aria-live="polite"]');
     await expect(statusRegion).toBeAttached();
-    // No visible toast content
+  });
+
+  test('toast is hidden by default (no SW update pending)', async ({ page }) => {
+    await page.goto('http://localhost:5199/');
+    await expect(page.getByText('A new version is available')).not.toBeVisible();
+  });
+
+  test('toast is not shown on scoring page', async ({ page }) => {
+    await page.goto('http://localhost:5199/score/test');
     await expect(page.getByText('A new version is available')).not.toBeVisible();
   });
 });
@@ -1933,19 +2614,23 @@ Create `e2e/pwa/install-prompt.spec.ts`:
 import { test, expect } from '@playwright/test';
 
 test.describe('Install Prompt', () => {
-  test('LandingPage footer has install CTA area', async ({ page }) => {
+  test('install banner is hidden on first visit (no trigger condition met)', async ({ page }) => {
+    await page.evaluate(() => localStorage.clear());
     await page.goto('http://localhost:5199/');
-    // Footer should exist
+    await expect(page.getByRole('button', { name: /install/i })).not.toBeVisible();
+  });
+
+  test('LandingPage footer exists', async ({ page }) => {
+    await page.goto('http://localhost:5199/');
     const footer = page.locator('footer');
     await expect(footer).toBeVisible();
   });
 
-  test('SettingsPage has App Installation section', async ({ page }) => {
-    // Need to be authenticated for settings page
+  test('SettingsPage has App Installation section when navigated', async ({ page }) => {
     await page.goto('http://localhost:5199/settings');
-    // The install section fieldset should be present
     const installSection = page.getByText('App Installation');
-    // May or may not be visible depending on auth state
+    // Section exists in DOM (may need auth for full visibility)
+    await expect(installSection).toBeAttached();
   });
 });
 ```
@@ -1953,18 +2638,18 @@ test.describe('Install Prompt', () => {
 **Step 3: Run E2E tests**
 
 Run: `npx playwright test e2e/pwa/`
-Expected: Tests pass (basic structure tests)
+Expected: Tests pass
 
 **Step 4: Commit**
 
 ```bash
 git add e2e/pwa/
-git commit -m "test: add E2E tests for SW update toast and install prompt structure"
+git commit -m "test: add E2E tests for SW update toast and install prompt"
 ```
 
 ---
 
-## Task 15: Update Roadmap + Final Verification
+## Task 16: Update Roadmap + Final Verification
 
 **Files:**
 - Modify: `docs/ROADMAP.md` (mark Layer 9 complete)
@@ -1982,7 +2667,7 @@ Expected: No errors
 **Step 3: Build**
 
 Run: `npx vite build`
-Expected: Build succeeds. Check `dist/sw.js` contains runtime caching rules and NavigationRoute.
+Expected: Build succeeds. Check `dist/sw.js` exists.
 
 **Step 4: Update ROADMAP.md**
 
@@ -2001,20 +2686,41 @@ git commit -m "docs: mark Layer 9 (PWA & Offline Hardening) complete in roadmap"
 
 | Task | Description | Tests |
 |------|-------------|-------|
-| 1 | Self-host Oswald font, delete vite.svg | Visual verification |
-| 2 | SW caching config (runtime caching, navigateFallback) | Build verification |
-| 3 | Firebase Hosting config (CSP, cache headers, rewrites) | JSON validation |
-| 4 | SW Update Store | 7 unit tests |
-| 5 | SWUpdateToast component + App.tsx wiring | 4 component tests |
-| 6 | Install Prompt Store | 12 unit tests |
-| 7 | PWA Lifecycle Init | 5 unit tests |
-| 8 | InstallPromptBanner component | 5 component tests |
-| 9 | Wire install CTA into LandingPage + SettingsPage | Visual verification |
-| 10 | Dexie v5 schema (5 cache tables) | 7 schema tests |
-| 11 | Tournament cache write-through + hydration | 4 integration tests |
-| 12 | Sign-out cache wipe | 1 unit test |
-| 13 | Startup cache pruning (90 days) | 2 unit tests |
-| 14 | E2E tests | 2 E2E tests |
-| 15 | Roadmap update + final verification | Full suite run |
+| 1 | Self-host Oswald font | 4 config tests |
+| 2 | SW caching config (runtime caching, navigateFallback, CacheFirst) | 8 config tests |
+| 3 | Firebase Hosting config (CSP, cache headers, rewrites) | 6 config tests |
+| 4 | SW Update Store | 11 unit tests |
+| 5 | SWUpdateToast component + App.tsx wiring | 6 component tests |
+| 6 | Install Prompt Store (tiered dismiss, match trigger, co-presence) | 21 unit tests |
+| 7 | PWA Lifecycle Init (match count query) | 6 unit tests |
+| 8 | InstallPromptBanner (escalating dismiss, Don't ask again) | 7 component tests |
+| 9 | IOSInstallSheet modal (focus trap, dialog) | 5 component tests |
+| 10 | Wire install CTAs into LandingPage, SettingsPage, App.tsx auto-prompt | Visual + route guard |
+| 11 | Dexie v5 schema (5 cache tables) | 8 schema tests |
+| 12 | Tournament cache utilities (clear, prune, PII scrub) | 7 unit tests |
+| 13 | Tournament cache write-through + hydration | 4 integration tests |
+| 14 | Sign-out cache wipe + startup pruning wiring | Full suite run |
+| 15 | E2E tests | 6 E2E tests |
+| 16 | Roadmap update + final verification | Full suite + type check + build |
 
-**Total: 15 tasks, ~49 new tests**
+**Total: 16 tasks, ~99 tests**
+
+### Key changes from v1 plan:
+- Added config verification tests for Tasks 1-3 (was: zero tests)
+- Added CacheFirst runtime rules for /assets/ and /fonts/ (was: missing)
+- Added `purgeOnQuotaError` on profile photos (was: missing)
+- Added 24h boundary test + `updateAcknowledged` signal (was: TODO stub)
+- Fixed contradictory onMount import in Task 5 (was: duplicate instructions)
+- Added matchCount trigger from Dexie (was: visit-count only)
+- Added co-presence test + boundary tests (was: untested)
+- Added `dismissAndEscalate` for progressive dismiss tiers (was: only softDismiss)
+- Added `triggerInstallPrompt` tests (was: untested)
+- Added "Don't ask again" button (was: missing from UI)
+- Added IOSInstallSheet.tsx as proper modal with focus trap (was: missing entirely)
+- Added auto-prompt fixed banner in App.tsx (was: missing)
+- Added mid-match route protection at component level (was: missing)
+- Fixed redundant `tournamentId` in cache interfaces (was: re-declared)
+- Added registration PII scrubbing utility (was: missing)
+- Added related subcollection cleanup in pruning test (was: incomplete)
+- Combined sign-out wipe + startup pruning into one task (was: separate)
+- Rewrote E2E tests with real assertions (was: non-functional stubs)
