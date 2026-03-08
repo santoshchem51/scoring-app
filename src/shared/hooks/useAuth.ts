@@ -11,7 +11,8 @@ import { cloudSync } from '../../data/firebase/cloudSync';
 import { resetAwaitingAuthJobs } from '../../data/firebase/syncQueue';
 import { startProcessor, stopProcessor, wakeProcessor } from '../../data/firebase/syncProcessor';
 import { runAchievementMigration } from '../../features/achievements/engine/achievementMigration';
-import { startNotificationListener, stopNotificationListener, cleanupExpiredNotifications } from '../../features/notifications/store/notificationStore';
+import { startNotificationListener, stopNotificationListener, cleanupExpiredNotifications, notifications, markNotificationRead } from '../../features/notifications/store/notificationStore';
+import { onToastDismissed } from '../../features/achievements/store/achievementStore';
 
 const [user, setUser] = createSignal<User | null>(null);
 const [loading, setLoading] = createSignal(true);
@@ -19,6 +20,7 @@ const [syncing, setSyncing] = createSignal(false);
 const [syncError, setSyncError] = createSignal(false);
 
 let listenerInitialized = false;
+let _toastCallbackRegistered = false;
 
 function initAuthListener() {
   if (listenerInitialized) return;
@@ -59,6 +61,20 @@ function initAuthListener() {
 
       // Start notification listener
       startNotificationListener(firebaseUser.uid);
+
+      // Register achievement toast → notification read coordination (once)
+      if (!_toastCallbackRegistered) {
+        _toastCallbackRegistered = true;
+        onToastDismissed((achievementId) => {
+          const uid = user()?.uid;
+          if (!uid) return;
+          const notifs = notifications();
+          const match = notifs.find(n => n.type === 'achievement_unlocked' && n.payload?.achievementId === achievementId);
+          if (match) {
+            markNotificationRead(uid, match.id).catch(() => {});
+          }
+        });
+      }
 
       // Clean up expired notifications (non-blocking)
       cleanupExpiredNotifications(firebaseUser.uid).catch((err) => {
