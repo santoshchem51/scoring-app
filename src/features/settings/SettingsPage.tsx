@@ -271,6 +271,112 @@ const SettingsPage: Component = () => {
               </fieldset>
             </Show>
 
+            {/* Notification Preferences (signed-in users only) */}
+            <Show when={user()}>
+              <fieldset>
+                <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+                  Notifications
+                </legend>
+                <div class="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setSettings({ notifyBuddy: !settings().notifyBuddy })}
+                    class="w-full flex items-center justify-between bg-surface-light rounded-xl p-4"
+                    role="switch"
+                    aria-checked={settings().notifyBuddy}
+                  >
+                    <div>
+                      <div class="font-semibold text-on-surface text-left">Buddy activity</div>
+                      <div class="text-sm text-on-surface-muted text-left">Sessions, invites, reminders</div>
+                    </div>
+                    <div
+                      class={`w-12 h-7 rounded-full transition-colors relative ${
+                        settings().notifyBuddy ? 'bg-primary' : 'bg-surface-lighter'
+                      }`}
+                    >
+                      <div
+                        class={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                          settings().notifyBuddy ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSettings({ notifyTournament: !settings().notifyTournament })}
+                    class="w-full flex items-center justify-between bg-surface-light rounded-xl p-4"
+                    role="switch"
+                    aria-checked={settings().notifyTournament}
+                  >
+                    <div>
+                      <div class="font-semibold text-on-surface text-left">Tournament updates</div>
+                      <div class="text-sm text-on-surface-muted text-left">Invitations, match schedules</div>
+                    </div>
+                    <div
+                      class={`w-12 h-7 rounded-full transition-colors relative ${
+                        settings().notifyTournament ? 'bg-primary' : 'bg-surface-lighter'
+                      }`}
+                    >
+                      <div
+                        class={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                          settings().notifyTournament ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSettings({ notifyAchievement: !settings().notifyAchievement })}
+                    class="w-full flex items-center justify-between bg-surface-light rounded-xl p-4"
+                    role="switch"
+                    aria-checked={settings().notifyAchievement}
+                  >
+                    <div>
+                      <div class="font-semibold text-on-surface text-left">Achievements</div>
+                      <div class="text-sm text-on-surface-muted text-left">Badge unlocks, milestones</div>
+                    </div>
+                    <div
+                      class={`w-12 h-7 rounded-full transition-colors relative ${
+                        settings().notifyAchievement ? 'bg-primary' : 'bg-surface-lighter'
+                      }`}
+                    >
+                      <div
+                        class={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                          settings().notifyAchievement ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSettings({ notifyStats: !settings().notifyStats })}
+                    class="w-full flex items-center justify-between bg-surface-light rounded-xl p-4"
+                    role="switch"
+                    aria-checked={settings().notifyStats}
+                  >
+                    <div>
+                      <div class="font-semibold text-on-surface text-left">Stats changes</div>
+                      <div class="text-sm text-on-surface-muted text-left">Tier promotions, demotions</div>
+                    </div>
+                    <div
+                      class={`w-12 h-7 rounded-full transition-colors relative ${
+                        settings().notifyStats ? 'bg-primary' : 'bg-surface-lighter'
+                      }`}
+                    >
+                      <div
+                        class={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                          settings().notifyStats ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </div>
+                  </button>
+                </div>
+              </fieldset>
+            </Show>
+
             {/* Default Scoring Mode */}
             <fieldset>
               <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
