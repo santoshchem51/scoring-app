@@ -224,6 +224,7 @@ export const firestorePlayerStatsRepository = {
     displayName: string,
     photoURL: string | null,
     enrichment?: StatsEnrichment,
+    currentUserUid?: string | null,
   ): Promise<void> {
     const matchRefDoc = doc(firestore, 'users', uid, 'matchRefs', match.id);
     const statsDoc = doc(firestore, 'users', uid, 'stats', 'summary');
@@ -366,10 +367,15 @@ export const firestorePlayerStatsRepository = {
         });
 
         if (unlocked.length > 0) {
-          await Promise.all(unlocked.map(a => firestoreAchievementRepository.create(uid, a)));
-          await Promise.all(unlocked.map(a => firestoreAchievementRepository.cacheInDexie(a)));
+          for (const a of unlocked) {
+            try {
+              await firestoreAchievementRepository.create(uid, a);
+              await firestoreAchievementRepository.cacheInDexie(a);
+            } catch (writeErr) {
+              console.warn('Failed to write achievement:', a.achievementId, writeErr);
+            }
+          }
 
-          const currentUserUid = auth.currentUser?.uid ?? null;
           if (uid === currentUserUid) {
             for (const a of unlocked) {
               const def = getDefinition(a.achievementId);
@@ -395,6 +401,7 @@ export const firestorePlayerStatsRepository = {
     match: Match,
     scorerUid: string,
   ): Promise<void> {
+    const currentUserUid = auth.currentUser?.uid ?? null;
     const participants = await resolveParticipantUids(match, scorerUid);
     if (participants.length === 0) return;
 
@@ -443,6 +450,7 @@ export const firestorePlayerStatsRepository = {
             tierMap,
             fallbackTier,
           },
+          currentUserUid,
         ).catch((err) => {
           console.warn('Stats update failed for user:', uid, err);
         });

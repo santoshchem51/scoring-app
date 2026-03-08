@@ -40,7 +40,7 @@ const AchievementBadge: Component<AchievementBadgeProps> = (props) => {
       class={`border-l-4 rounded-xl p-3 ${
         props.item.unlocked
           ? `bg-surface-light ${TIER_BORDER[props.item.tier] ?? 'border-l-primary'}`
-          : 'bg-surface-light/50 border-l-gray-600'
+          : 'bg-gray-900 border-l-gray-600'
       }`}
     >
       <div class="flex items-start gap-2">

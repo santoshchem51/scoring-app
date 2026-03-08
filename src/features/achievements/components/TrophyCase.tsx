@@ -22,6 +22,58 @@ const CATEGORY_LABELS: Record<AchievementCategory, string> = {
   consistency: 'Consistency',
 };
 
+interface CategorySectionProps {
+  category: AchievementCategory;
+  items: () => (AchievementDisplayItem & { category: AchievementCategory })[];
+}
+
+const CategorySection: Component<CategorySectionProps> = (props) => {
+  const unlockedItems = () => props.items().filter(i => i.unlocked);
+  const lockedItems = () => props.items().filter(i => !i.unlocked);
+  const nextAchievable = () => lockedItems()[0];
+  const [showLocked, setShowLocked] = createSignal(false);
+
+  const visibleItems = () => {
+    const unlocked = unlockedItems();
+    const next = nextAchievable();
+    if (showLocked()) return props.items();
+    return next ? [...unlocked, next] : unlocked;
+  };
+
+  return (
+    <Show when={props.items().length > 0}>
+      <div class="space-y-2">
+        <h3 class="text-xs font-semibold text-on-surface-muted uppercase tracking-wider">
+          {CATEGORY_LABELS[props.category]}
+        </h3>
+        <div role="list" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          <For each={visibleItems()}>
+            {(item) => <AchievementBadge item={item} />}
+          </For>
+        </div>
+        <Show when={!showLocked() && lockedItems().length > 1}>
+          <button
+            type="button"
+            class="text-xs text-on-surface-muted hover:text-on-surface transition-colors"
+            onClick={() => setShowLocked(true)}
+          >
+            Show {lockedItems().length - 1} more locked
+          </button>
+        </Show>
+        <Show when={showLocked() && lockedItems().length > 1}>
+          <button
+            type="button"
+            class="text-xs text-on-surface-muted hover:text-on-surface transition-colors"
+            onClick={() => setShowLocked(false)}
+          >
+            Hide locked
+          </button>
+        </Show>
+      </div>
+    </Show>
+  );
+};
+
 const TrophyCase: Component<TrophyCaseProps> = (props) => {
   const displayItems = createMemo(() => {
     const unlockedList = props.unlocked ?? [];
@@ -61,53 +113,9 @@ const TrophyCase: Component<TrophyCaseProps> = (props) => {
       </h2>
 
       <For each={CATEGORY_ORDER}>
-        {(category) => {
-          const items = () => itemsByCategory().get(category) ?? [];
-          const unlockedItems = () => items().filter(i => i.unlocked);
-          const lockedItems = () => items().filter(i => !i.unlocked);
-          const nextAchievable = () => lockedItems()[0];
-          const [showLocked, setShowLocked] = createSignal(false);
-
-          const visibleItems = () => {
-            const unlocked = unlockedItems();
-            const next = nextAchievable();
-            if (showLocked()) return items();
-            return next ? [...unlocked, next] : unlocked;
-          };
-
-          return (
-            <Show when={items().length > 0}>
-              <div class="space-y-2">
-                <h3 class="text-xs font-semibold text-on-surface-muted uppercase tracking-wider">
-                  {CATEGORY_LABELS[category]}
-                </h3>
-                <div role="list" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                  <For each={visibleItems()}>
-                    {(item) => <AchievementBadge item={item} />}
-                  </For>
-                </div>
-                <Show when={!showLocked() && lockedItems().length > 1}>
-                  <button
-                    type="button"
-                    class="text-xs text-on-surface-muted hover:text-on-surface transition-colors"
-                    onClick={() => setShowLocked(true)}
-                  >
-                    Show {lockedItems().length - 1} more locked
-                  </button>
-                </Show>
-                <Show when={showLocked() && lockedItems().length > 1}>
-                  <button
-                    type="button"
-                    class="text-xs text-on-surface-muted hover:text-on-surface transition-colors"
-                    onClick={() => setShowLocked(false)}
-                  >
-                    Hide locked
-                  </button>
-                </Show>
-              </div>
-            </Show>
-          );
-        }}
+        {(category) => (
+          <CategorySection category={category} items={() => itemsByCategory().get(category) ?? []} />
+        )}
       </For>
     </section>
   );

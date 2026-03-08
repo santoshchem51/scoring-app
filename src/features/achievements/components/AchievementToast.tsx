@@ -17,6 +17,7 @@ const TIER_BORDER: Record<string, string> = {
 const AchievementToast: Component = () => {
   const [current, setCurrent] = createSignal<PendingToast | null>(null);
   const [visible, setVisible] = createSignal(false);
+  const [srText, setSrText] = createSignal('');
   let timers: ReturnType<typeof setTimeout>[] = [];
 
   function clearTimers() {
@@ -30,6 +31,8 @@ const AchievementToast: Component = () => {
 
     const next = toasts[0];
     setCurrent(next);
+    setSrText('');
+    setTimeout(() => setSrText(`Achievement unlocked: ${next.name}. ${next.description}`), 100);
 
     const appearTimer = setTimeout(() => setVisible(true), APPEAR_DELAY);
     const dismissTimer = setTimeout(() => {
@@ -46,7 +49,7 @@ const AchievementToast: Component = () => {
       dismissToast(id);
       setCurrent(null);
       const gapTimer = setTimeout(processNext, GAP_BETWEEN);
-      timers = [gapTimer];
+      timers.push(gapTimer);
     }, EXIT_ANIMATION);
     timers = [exitTimer];
   }
@@ -63,9 +66,7 @@ const AchievementToast: Component = () => {
     <>
       {/* Screen reader live region — always in DOM */}
       <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">
-        <Show when={current() && visible()}>
-          Achievement unlocked: {current()!.name}. {current()!.description}
-        </Show>
+        {srText()}
       </div>
 
       {/* Visual toast */}
@@ -76,7 +77,7 @@ const AchievementToast: Component = () => {
             style={{ top: 'calc(env(safe-area-inset-top, 0px) + 56px + 8px)' }}
           >
             <div
-              class={`pointer-events-auto bg-surface-light border-l-4 ${TIER_BORDER[toast().tier] ?? 'border-l-primary'} rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 transition-all duration-300 ${visible() ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}
+              class={`pointer-events-auto bg-surface-light border-l-4 ${TIER_BORDER[toast().tier] ?? 'border-l-primary'} rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 motion-safe:transition-all motion-safe:duration-300 ${visible() ? 'opacity-100 motion-safe:translate-y-0' : 'opacity-0 motion-safe:-translate-y-4'}`}
               aria-hidden="true"
             >
               <span class="text-2xl flex-shrink-0" aria-hidden="true">{toast().icon}</span>

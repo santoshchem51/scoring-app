@@ -12,7 +12,7 @@ export interface BadgeDefinition {
 export const ACHIEVEMENT_DEFINITIONS: BadgeDefinition[] = [
   // Milestones
   { id: 'first_rally', name: 'First Rally', description: 'Play your first match', category: 'milestones', tier: 'bronze', icon: '🏓' },
-  { id: 'warming_up', name: 'Warming Up', description: 'Play 10 matches', category: 'milestones', tier: 'bronze', icon: '🔥' },
+  { id: 'warming_up', name: 'Warming Up', description: 'Play 10 matches', category: 'milestones', tier: 'bronze', icon: '🌡️' },
   { id: 'battle_tested', name: 'Battle Tested', description: 'Play 25 matches', category: 'milestones', tier: 'silver', icon: '⚔️' },
   { id: 'half_century', name: 'Half Century', description: 'Play 50 matches', category: 'milestones', tier: 'silver', icon: '🎯' },
   { id: 'century_club', name: 'Century Club', description: 'Play 100 matches', category: 'milestones', tier: 'gold', icon: '💯' },
