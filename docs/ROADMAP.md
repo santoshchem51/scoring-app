@@ -1,6 +1,6 @@
 # PickleScore Roadmap
 
-**Last updated:** 2026-03-07
+**Last updated:** 2026-03-08
 
 ---
 
@@ -86,15 +86,7 @@
 - [x] Cloud Sync section in Settings page
 - [x] Sync error banner
 
----
-
-## Up Next (Priority Order)
-
-### P1 — Sync Queue Hardening
-> Core sync queue is implemented. Hardening pass to fix specialist-review findings.
->
-> *Fixes applied via `docs/plans/2026-03-07-sync-hardening.md`.*
-
+### Sync Queue Hardening
 - [x] SyncJob types + Dexie schema
 - [x] Retry policy + exponential backoff with jitter
 - [x] Error classification (retryable, rate-limited, auth-dependent, fatal)
@@ -112,14 +104,25 @@
 - [x] Error classification hardening
 - [ ] Full test suite + E2E tests
 
-### P2 — Layer 5: Notifications & Engagement
-> Keep players in the loop without them having to check the app.
+### Layer 5: Notifications & Engagement (In-App)
+- [x] Unified notification collection (`users/{uid}/notifications/{id}`)
+- [x] 12 notification types across 4 categories (buddy, tournament, achievement, stats)
+- [x] Bell icon dropdown in TopNav with unread badge
+- [x] NotificationPanel with mark-all-read, focus management, a11y
+- [x] Module-level notification store (replaces useBuddyNotifications hook)
+- [x] Firestore security rules with group membership + organizer checks
+- [x] Achievement toast → notification read coordination
+- [x] Client-side notification preferences (Settings page toggles)
+- [x] Expired notification cleanup on sign-in
+- [x] Buddy notification write-site migration (CreateSessionPage, SessionDetailPage)
+- [x] Bug fixes: markAllRead limit, phantom achievement toast
+- [x] ~120 tests (60 security rules, 20 store, 15 helpers, 12 components, 5 integration, 10 E2E)
 
-- [ ] Push notifications (FCM) — match starting, score updates, invitations received
-- [ ] In-app notification center (bell icon with unread count)
-- [ ] Email notifications (optional, for invitations and tournament updates)
+---
 
-### P3 — Layer 9: PWA & Offline Hardening
+## Up Next (Priority Order)
+
+### P1 — Layer 9: PWA & Offline Hardening
 > Make it feel like a native app.
 
 - [ ] Service worker caching strategy (offline-first for scoring)
@@ -128,7 +131,7 @@
 - [ ] Background sync for score uploads when reconnecting
 - [ ] App update notifications
 
-### P4 — Layer 10: Admin & Moderation
+### P2 — Layer 10: Admin & Moderation
 > Tools for organizers running larger events.
 
 - [ ] Bulk player management (import/export CSV)
@@ -137,7 +140,7 @@
 - [ ] Tournament templates (save & reuse settings)
 - [ ] Fee collection integration (Stripe/Venmo links)
 
-### P5 — Layer 8: Spectator Experience
+### P3 — Layer 8: Spectator Experience
 > Make watching tournaments engaging.
 
 - [ ] Live score updates on public page (partially done via Layer 3 Wave B)
@@ -145,7 +148,7 @@
 - [ ] Match timeline / play-by-play
 - [ ] Spectator count indicator
 
-### P6 — Layer 12: Monetization & Revenue
+### P4 — Layer 12: Monetization & Revenue
 > Sustainable business model to fund development and hosting.
 
 - [ ] Define pricing tiers (free vs premium features)
@@ -155,7 +158,7 @@
 - [ ] Cost analysis (Firebase usage, hosting, app store fees)
 - [ ] Usage analytics and conversion tracking
 
-### P7 — Layer 11: App Store Distribution
+### P5 — Layer 11: App Store Distribution
 > Get PickleScore into users' hands via app stores.
 
 - [ ] Wrap PWA for Android (TWA / Capacitor / similar)
@@ -165,7 +168,7 @@
 - [ ] App review / approval process
 - [ ] CI/CD pipeline for app store builds
 
-### P8 — Layer 13: Multi-Sport Expansion
+### P6 — Layer 13: Multi-Sport Expansion
 > Extend the scoring engine beyond pickleball to other sports.
 
 - [ ] Abstract scoring engine (pluggable rules per sport)
@@ -202,12 +205,10 @@
 
 ## Prioritization Notes
 
-Priority order: **Sync Redesign → Notifications → PWA → Admin → Spectator → Monetization → App Store → Multi-Sport**
+Priority order: **PWA → Admin → Spectator → Monetization → App Store → Multi-Sport**
 
 Rationale (growth funnel):
-1. **Sync Redesign** (P1) — Foundation reliability before adding more features
-2. **Notifications** (P2) — Retain users with engagement loops
-3. **PWA + Admin** (P3-P4) — Polish the experience and empower organizers
-4. **Spectator** (P5) — Nice-to-have engagement for larger events
-5. **Monetization → App Store** (P6-P7) — Build business model, then distribute
-6. **Multi-Sport** (P8) — Major architectural expansion, do last
+1. **PWA + Admin** (P1-P2) — Polish the experience and empower organizers
+2. **Spectator** (P3) — Nice-to-have engagement for larger events
+3. **Monetization → App Store** (P4-P5) — Build business model, then distribute
+4. **Multi-Sport** (P6) — Major architectural expansion, do last
