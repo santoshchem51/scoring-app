@@ -145,6 +145,39 @@ describe('badgeEngine.evaluate', () => {
     it('does not unlock proven at medium confidence', () => {
       expect(unlockedIds(makeCtx({ stats: makeStats({ tierConfidence: 'medium' }) }))).not.toContain('proven');
     });
+
+    // Gap #10: Tier-skipping tests
+    it('unlocks both moving_up and level_up when skipping from beginner to advanced', () => {
+      const ctx = makeCtx({
+        stats: makeStats({ tier: 'advanced' }),
+        previousTier: 'beginner' as Tier,
+      });
+      const ids = unlockedIds(ctx);
+      expect(ids).toContain('moving_up');
+      expect(ids).toContain('level_up');
+    });
+
+    it('unlocks all three improvement badges when skipping from beginner to expert', () => {
+      const ctx = makeCtx({
+        stats: makeStats({ tier: 'expert' }),
+        previousTier: 'beginner' as Tier,
+      });
+      const ids = unlockedIds(ctx);
+      expect(ids).toContain('moving_up');
+      expect(ids).toContain('level_up');
+      expect(ids).toContain('elite');
+    });
+
+    it('does not unlock improvement badges without previousTier', () => {
+      const ctx = makeCtx({
+        stats: makeStats({ tier: 'expert' }),
+        // no previousTier
+      });
+      const ids = unlockedIds(ctx);
+      expect(ids).not.toContain('moving_up');
+      expect(ids).not.toContain('level_up');
+      expect(ids).not.toContain('elite');
+    });
   });
 
   // --- Social ---
@@ -232,6 +265,40 @@ describe('badgeEngine.evaluate', () => {
         stats: makeStats({ singles: { matches: 30, wins: 25, losses: 5 } }),
       }))).toContain('singles_ace');
     });
+
+    // Gap #3: Team 2 perspective tests
+    it('unlocks shutout for team 2 player when team 1 scores 0', () => {
+      const match = makeMatch({
+        games: [{ gameNumber: 1, team1Score: 0, team2Score: 11, winningSide: 2 }],
+        winningSide: 2,
+      });
+      expect(unlockedIds(makeCtx({ match, result: 'win', playerTeam: 2 }))).toContain('shutout');
+    });
+
+    it('unlocks comeback_kid for team 2 player', () => {
+      const match = makeMatch({
+        config: { gameType: 'singles', scoringMode: 'rally', matchFormat: 'best-of-3', pointsToWin: 11 },
+        games: [
+          { gameNumber: 1, team1Score: 11, team2Score: 5, winningSide: 1 },
+          { gameNumber: 2, team1Score: 4, team2Score: 11, winningSide: 2 },
+          { gameNumber: 3, team1Score: 6, team2Score: 11, winningSide: 2 },
+        ],
+        winningSide: 2,
+      });
+      expect(unlockedIds(makeCtx({ match, result: 'win', playerTeam: 2 }))).toContain('comeback_kid');
+    });
+
+    it('unlocks perfect_match for team 2 player', () => {
+      const match = makeMatch({
+        config: { gameType: 'singles', scoringMode: 'rally', matchFormat: 'best-of-3', pointsToWin: 11 },
+        games: [
+          { gameNumber: 1, team1Score: 4, team2Score: 11, winningSide: 2 },
+          { gameNumber: 2, team1Score: 6, team2Score: 11, winningSide: 2 },
+        ],
+        winningSide: 2,
+      });
+      expect(unlockedIds(makeCtx({ match, result: 'win', playerTeam: 2 }))).toContain('perfect_match');
+    });
   });
 
   // --- Consistency ---
@@ -289,6 +356,83 @@ describe('badgeEngine.evaluate', () => {
       const ids = unlockedIds(ctx);
       expect(ids).toContain('first_rally');
       expect(ids).toContain('first_win');
+    });
+  });
+
+  // --- Gap #2: Trigger context ---
+  describe('trigger context', () => {
+    it('returns match-type context for moment badges', () => {
+      const match = makeMatch({
+        games: [{ gameNumber: 1, team1Score: 11, team2Score: 0, winningSide: 1 }],
+        winningSide: 1,
+      });
+      const ctx = makeCtx({ match, result: 'win', playerTeam: 1 });
+      const results = evaluate(ctx);
+      const shutout = results.find(a => a.achievementId === 'shutout');
+      expect(shutout).toBeDefined();
+      expect(shutout!.triggerContext.type).toBe('match');
+    });
+
+    it('returns tier-type context for improvement badges', () => {
+      const ctx = makeCtx({
+        stats: makeStats({ tier: 'intermediate' }),
+        previousTier: 'beginner' as Tier,
+      });
+      const results = evaluate(ctx);
+      const movingUp = results.find(a => a.achievementId === 'moving_up');
+      expect(movingUp).toBeDefined();
+      expect(movingUp!.triggerContext).toEqual({ type: 'tier', from: 'beginner', to: 'intermediate' });
+    });
+
+    it('returns stats-type context for stat-based badges', () => {
+      const ctx = makeCtx({
+        stats: makeStats({ totalMatches: 1, wins: 1 }),
+      });
+      const results = evaluate(ctx);
+      const firstRally = results.find(a => a.achievementId === 'first_rally');
+      expect(firstRally).toBeDefined();
+      expect(firstRally!.triggerContext).toEqual({ type: 'stats', field: 'first_rally', value: 1 });
+    });
+  });
+
+  // --- Gap #16: Boundary conditions ---
+  describe('boundary conditions', () => {
+    it('does not unlock winning_ways at exactly 59% win rate with 20 matches', () => {
+      expect(unlockedIds(makeCtx({
+        stats: makeStats({ winRate: 0.59, totalMatches: 20 }),
+      }))).not.toContain('winning_ways');
+    });
+
+    it('does not unlock hat_trick at bestWinStreak 2', () => {
+      expect(unlockedIds(makeCtx({
+        stats: makeStats({ bestWinStreak: 2 }),
+      }))).not.toContain('hat_trick');
+    });
+
+    it('does not unlock new_rival at 4 opponents', () => {
+      const uids = Array.from({ length: 4 }, (_, i) => `uid-${i}`);
+      expect(unlockedIds(makeCtx({
+        stats: makeStats({ uniqueOpponentUids: uids }),
+      }))).not.toContain('new_rival');
+    });
+
+    it('does not unlock social_butterfly at 14 opponents', () => {
+      const uids = Array.from({ length: 14 }, (_, i) => `uid-${i}`);
+      expect(unlockedIds(makeCtx({
+        stats: makeStats({ uniqueOpponentUids: uids }),
+      }))).not.toContain('social_butterfly');
+    });
+
+    it('handles undefined uniqueOpponentUids gracefully', () => {
+      const stats = makeStats();
+      (stats as any).uniqueOpponentUids = undefined;
+      expect(() => unlockedIds(makeCtx({ stats }))).not.toThrow();
+    });
+
+    it('does not unlock dominant_force at exactly 74% win rate', () => {
+      expect(unlockedIds(makeCtx({
+        stats: makeStats({ winRate: 0.74, totalMatches: 30 }),
+      }))).not.toContain('dominant_force');
     });
   });
 });

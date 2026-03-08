@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen } from '@solidjs/testing-library';
+import AchievementToast from '../AchievementToast';
 import { enqueueToast, dismissToast, clearToasts, pendingToasts } from '../../store/achievementStore';
 
 describe('Achievement toast store', () => {
@@ -105,5 +107,42 @@ describe('Achievement toast store', () => {
     for (const id of ids) {
       expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
     }
+  });
+});
+
+// Gap #9: AchievementToast component render tests
+describe('AchievementToast component', () => {
+  afterEach(() => {
+    clearToasts();
+    vi.restoreAllMocks();
+  });
+
+  it('renders an sr-only live region in the DOM', () => {
+    const { container } = render(() => <AchievementToast />);
+    const liveRegion = container.querySelector('[role="status"][aria-live="polite"]');
+    expect(liveRegion).not.toBeNull();
+  });
+
+  it('renders dismiss button with accessible label when toast is showing', async () => {
+    vi.useFakeTimers();
+
+    render(() => <AchievementToast />);
+
+    enqueueToast({
+      achievementId: 'first_rally',
+      name: 'First Rally',
+      description: 'Play your first match',
+      icon: '\uD83C\uDFD3',
+      tier: 'bronze',
+    });
+
+    // Need to advance timers to let toast appear
+    // processNext starts, then APPEAR_DELAY (1500ms) for visible
+    await vi.advanceTimersByTimeAsync(1600);
+
+    const dismissBtn = screen.queryByLabelText('Dismiss achievement notification');
+    expect(dismissBtn).not.toBeNull();
+
+    vi.useRealTimers();
   });
 });

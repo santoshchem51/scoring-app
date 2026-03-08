@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@solidjs/testing-library';
+import { render, screen, fireEvent } from '@solidjs/testing-library';
 import TrophyCase from '../TrophyCase';
 import { ACHIEVEMENT_DEFINITIONS } from '../../engine/badgeDefinitions';
 import type { StatsSummary, CachedAchievement } from '../../../../data/types';
@@ -70,5 +70,32 @@ describe('TrophyCase', () => {
     render(() => <TrophyCase unlocked={unlocked} stats={makeStats({ totalMatches: 1 })} />);
 
     expect(screen.getByText('First Rally')).toBeInTheDocument();
+  });
+
+  // Gap #8: Expand/collapse interaction tests
+  it('clicking "Show N more locked" reveals all locked badges in category', async () => {
+    render(() => <TrophyCase unlocked={[]} stats={makeStats()} />);
+
+    // Find "Show X more locked" button for milestones (5 total, 1 shown = 4 more)
+    const expandButton = screen.getAllByText(/Show \d+ more locked/)[0];
+    fireEvent.click(expandButton);
+
+    // After expanding, the "Hide locked" button should appear
+    expect(screen.getAllByText('Hide locked').length).toBeGreaterThan(0);
+  });
+
+  it('clicking "Hide locked" collapses back to default view', async () => {
+    render(() => <TrophyCase unlocked={[]} stats={makeStats()} />);
+
+    // Expand first
+    const expandButton = screen.getAllByText(/Show \d+ more locked/)[0];
+    fireEvent.click(expandButton);
+
+    // Then collapse
+    const collapseButton = screen.getAllByText('Hide locked')[0];
+    fireEvent.click(collapseButton);
+
+    // "Show X more locked" should reappear
+    expect(screen.getAllByText(/Show \d+ more locked/).length).toBeGreaterThan(0);
   });
 });
