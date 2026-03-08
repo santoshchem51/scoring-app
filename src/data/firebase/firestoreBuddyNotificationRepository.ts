@@ -35,7 +35,14 @@ export const firestoreBuddyNotificationRepository = {
   },
 
   async markAllRead(userId: string): Promise<void> {
-    const unread = await this.getUnread(userId);
+    const q = query(
+      collection(firestore, 'users', userId, 'buddyNotifications'),
+      where('read', '==', false),
+      orderBy('createdAt', 'desc'),
+      limit(500),
+    );
+    const snap = await getDocs(q);
+    const unread = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as BuddyNotification);
     if (unread.length === 0) return;
     const batch = writeBatch(firestore);
     for (const n of unread) {

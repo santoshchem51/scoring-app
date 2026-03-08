@@ -199,5 +199,15 @@ describe('firestoreBuddyNotificationRepository', () => {
       expect(mockWriteBatch).not.toHaveBeenCalled();
       expect(mockBatchCommit).not.toHaveBeenCalled();
     });
+
+    it('queries with limit(500) for full Firestore batch coverage', async () => {
+      mockGetDocs.mockResolvedValue({ docs: [] });
+
+      await firestoreBuddyNotificationRepository.markAllRead('user1');
+
+      // markAllRead should use limit(500) to match Firestore batch limits,
+      // not limit(50) which is the getUnread pagination limit
+      expect(mockLimit).toHaveBeenCalledWith(500);
+    });
   });
 });

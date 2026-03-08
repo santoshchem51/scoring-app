@@ -367,17 +367,20 @@ export const firestorePlayerStatsRepository = {
         });
 
         if (unlocked.length > 0) {
+          const written: typeof unlocked = [];
           for (const a of unlocked) {
             try {
               await firestoreAchievementRepository.create(uid, a);
               await firestoreAchievementRepository.cacheInDexie(a);
+              written.push(a);
             } catch (writeErr) {
               console.warn('Failed to write achievement:', a.achievementId, writeErr);
             }
           }
 
+          // Only toast successfully written achievements
           if (uid === currentUserUid) {
-            for (const a of unlocked) {
+            for (const a of written) {
               const def = getDefinition(a.achievementId);
               if (def) {
                 enqueueToast({

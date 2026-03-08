@@ -14,6 +14,12 @@ const {
   mockRunTransaction,
   mockTransactionGet,
   mockTransactionSet,
+  mockAchievementCreate,
+  mockAchievementCacheInDexie,
+  mockAchievementGetUnlockedIds,
+  mockEvaluate,
+  mockEnqueueToast,
+  mockGetDefinition,
 } = vi.hoisted(() => {
   const mockTransactionGet = vi.fn();
   const mockTransactionSet = vi.fn();
@@ -36,6 +42,12 @@ const {
     mockRunTransaction,
     mockTransactionGet,
     mockTransactionSet,
+    mockAchievementCreate: vi.fn(() => Promise.resolve()),
+    mockAchievementCacheInDexie: vi.fn(() => Promise.resolve()),
+    mockAchievementGetUnlockedIds: vi.fn(() => Promise.resolve(new Set<string>())),
+    mockEvaluate: vi.fn(() => []),
+    mockEnqueueToast: vi.fn(),
+    mockGetDefinition: vi.fn(),
   };
 });
 
@@ -63,6 +75,26 @@ vi.mock('../firestoreUserRepository', () => ({
   firestoreUserRepository: {
     getProfile: mockGetProfile,
   },
+}));
+
+vi.mock('../../../features/achievements/repository/firestoreAchievementRepository', () => ({
+  firestoreAchievementRepository: {
+    create: mockAchievementCreate,
+    cacheInDexie: mockAchievementCacheInDexie,
+    getUnlockedIds: mockAchievementGetUnlockedIds,
+  },
+}));
+
+vi.mock('../../../features/achievements/engine/badgeEngine', () => ({
+  evaluate: mockEvaluate,
+}));
+
+vi.mock('../../../features/achievements/store/achievementStore', () => ({
+  enqueueToast: mockEnqueueToast,
+}));
+
+vi.mock('../../../features/achievements/engine/badgeDefinitions', () => ({
+  getDefinition: mockGetDefinition,
 }));
 
 import { firestorePlayerStatsRepository } from '../firestorePlayerStatsRepository';
@@ -1301,6 +1333,87 @@ describe('firestorePlayerStatsRepository', () => {
       );
       expect(leaderboardCall).toBeDefined();
       expect((leaderboardCall![1] as Record<string, unknown>).createdAt).toBe(existingCreatedAt);
+    });
+  });
+
+  describe('achievement toast on write failure (phantom toast bug)', () => {
+    it('does NOT toast achievements that failed to write', async () => {
+      // Transaction setup: new match, new stats, no leaderboard
+      mockTransactionGet
+        .mockResolvedValueOnce({ exists: () => false })  // matchRef
+        .mockResolvedValueOnce({ exists: () => false })  // stats
+        .mockResolvedValueOnce({ exists: () => false }); // leaderboard
+
+      // Achievement evaluation returns 2 unlocked achievements
+      mockAchievementGetUnlockedIds.mockResolvedValueOnce(new Set<string>());
+      mockEvaluate.mockReturnValueOnce([
+        { achievementId: 'first_rally', unlockedAt: 1000, triggerMatchId: 'match-1', triggerContext: { type: 'stats', field: 'first_rally', value: 1 } },
+        { achievementId: 'first_win', unlockedAt: 1000, triggerMatchId: 'match-1', triggerContext: { type: 'stats', field: 'first_win', value: 1 } },
+      ]);
+
+      // first_rally write succeeds, first_win write fails
+      mockAchievementCreate
+        .mockResolvedValueOnce(undefined)  // first_rally succeeds
+        .mockRejectedValueOnce(new Error('Firestore write failed'));  // first_win fails
+      mockAchievementCacheInDexie.mockResolvedValue(undefined);
+
+      // Badge definitions for both
+      mockGetDefinition
+        .mockReturnValueOnce({ id: 'first_rally', name: 'First Rally', description: 'Play your first match', icon: '🏓', tier: 'bronze' })
+        .mockReturnValueOnce({ id: 'first_win', name: 'First Win', description: 'Win your first match', icon: '🏆', tier: 'bronze' });
+
+      const match = makeMatch();
+      // Pass currentUserUid matching the uid so toasts are enqueued
+      await firestorePlayerStatsRepository.updatePlayerStats(
+        'user-1', match, 1, 'win', 'scorer-uid', 'Test User', null,
+        undefined, // enrichment
+        'user-1',  // currentUserUid — matches uid, so toasts should trigger
+      );
+
+      // Only first_rally should get a toast (succeeded), NOT first_win (failed)
+      expect(mockEnqueueToast).toHaveBeenCalledTimes(1);
+      expect(mockEnqueueToast).toHaveBeenCalledWith(
+        expect.objectContaining({ achievementId: 'first_rally' }),
+      );
+      // Verify first_win toast was NOT enqueued
+      expect(mockEnqueueToast).not.toHaveBeenCalledWith(
+        expect.objectContaining({ achievementId: 'first_win' }),
+      );
+    });
+
+    it('toasts all achievements when all writes succeed', async () => {
+      mockTransactionGet
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({ exists: () => false });
+
+      mockAchievementGetUnlockedIds.mockResolvedValueOnce(new Set<string>());
+      mockEvaluate.mockReturnValueOnce([
+        { achievementId: 'first_rally', unlockedAt: 1000, triggerMatchId: 'match-1', triggerContext: { type: 'stats', field: 'first_rally', value: 1 } },
+        { achievementId: 'first_win', unlockedAt: 1000, triggerMatchId: 'match-1', triggerContext: { type: 'stats', field: 'first_win', value: 1 } },
+      ]);
+
+      mockAchievementCreate.mockResolvedValue(undefined);
+      mockAchievementCacheInDexie.mockResolvedValue(undefined);
+
+      mockGetDefinition
+        .mockReturnValueOnce({ id: 'first_rally', name: 'First Rally', description: 'Play your first match', icon: '🏓', tier: 'bronze' })
+        .mockReturnValueOnce({ id: 'first_win', name: 'First Win', description: 'Win your first match', icon: '🏆', tier: 'bronze' });
+
+      const match = makeMatch();
+      await firestorePlayerStatsRepository.updatePlayerStats(
+        'user-1', match, 1, 'win', 'scorer-uid', 'Test User', null,
+        undefined,
+        'user-1',
+      );
+
+      expect(mockEnqueueToast).toHaveBeenCalledTimes(2);
+      expect(mockEnqueueToast).toHaveBeenCalledWith(
+        expect.objectContaining({ achievementId: 'first_rally' }),
+      );
+      expect(mockEnqueueToast).toHaveBeenCalledWith(
+        expect.objectContaining({ achievementId: 'first_win' }),
+      );
     });
   });
 });
