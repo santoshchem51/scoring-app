@@ -53,6 +53,9 @@ test.describe('Notification Center', () => {
 
     await page.goto('/new');
 
+    // Wait for the bell button to confirm auth state propagated
+    await page.waitForSelector('button[aria-label="Notifications"]', { timeout: 15000 });
+
     const badge = page.getByTestId('bell-badge');
     await expect(badge).toBeVisible({ timeout: 15000 });
     await expect(badge).toHaveText('1');
@@ -85,7 +88,7 @@ test.describe('Notification Center', () => {
     await page.goto('/new');
 
     // Click the bell button to open the panel
-    const bellButton = page.getByLabel('Notifications');
+    const bellButton = page.getByRole('button', { name: 'Notifications', exact: true });
     await expect(bellButton).toBeVisible({ timeout: 15000 });
     await bellButton.click();
 
@@ -126,7 +129,7 @@ test.describe('Notification Center', () => {
     await expect(badge).toBeVisible({ timeout: 15000 });
 
     // Open the notification panel
-    const bellButton = page.getByLabel('Notifications');
+    const bellButton = page.getByRole('button', { name: 'Notifications', exact: true });
     await bellButton.click();
 
     const dialog = page.getByRole('dialog');
@@ -173,7 +176,7 @@ test.describe('Notification Center', () => {
     await expect(badge).toHaveText('2');
 
     // Open the notification panel
-    const bellButton = page.getByLabel('Notifications');
+    const bellButton = page.getByRole('button', { name: 'Notifications', exact: true });
     await bellButton.click();
 
     const dialog = page.getByRole('dialog');
@@ -200,7 +203,7 @@ test.describe('Notification Center', () => {
     await page.goto('/new');
 
     // Open the empty notification panel
-    const bellButton = page.getByLabel('Notifications');
+    const bellButton = page.getByRole('button', { name: 'Notifications', exact: true });
     await expect(bellButton).toBeVisible({ timeout: 15000 });
     await bellButton.click();
 
@@ -250,7 +253,7 @@ test.describe('Notification Center', () => {
     await page.goto('/new');
 
     // Open the notification panel
-    const bellButton = page.getByLabel('Notifications');
+    const bellButton = page.getByRole('button', { name: 'Notifications', exact: true });
     await expect(bellButton).toBeVisible({ timeout: 15000 });
     await bellButton.click();
 
@@ -286,7 +289,7 @@ test.describe('Notification Center', () => {
     await page.goto('/new');
 
     // Open the notification panel
-    const bellButton = page.getByLabel('Notifications');
+    const bellButton = page.getByRole('button', { name: 'Notifications', exact: true });
     await expect(bellButton).toBeVisible({ timeout: 15000 });
     await bellButton.click();
 
@@ -336,7 +339,7 @@ test.describe('Notification Center', () => {
     // Now navigate to a page with TopNav and open the panel
     await page.goto('/new');
 
-    const bellButton = page.getByLabel('Notifications');
+    const bellButton = page.getByRole('button', { name: 'Notifications', exact: true });
     await expect(bellButton).toBeVisible({ timeout: 15000 });
     await bellButton.click();
 
@@ -396,7 +399,7 @@ test.describe('Notification Center', () => {
     await expect(badge).not.toBeVisible({ timeout: 15000 });
 
     // Open the panel to double-check it's empty
-    const bellButton = page.getByLabel('Notifications');
+    const bellButton = page.getByRole('button', { name: 'Notifications', exact: true });
     await expect(bellButton).toBeVisible({ timeout: 15000 });
     await bellButton.click();
 

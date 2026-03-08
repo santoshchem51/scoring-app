@@ -2,24 +2,23 @@ import { test, expect } from '../fixtures';
 import { seedFirestoreDocAdmin, getCurrentUserUid } from '../helpers/emulator-auth';
 import { randomUUID } from 'crypto';
 
-// TODO: "Mark as read clears badge" test cannot be implemented through the UI.
-// There is no notifications page/inbox UI — only a badge count on the Buddies nav item.
-// When a notification inbox is added, write a test that marks notifications as read
-// and verifies the badge count decrements or disappears.
-
 function makeNotification(userId: string, overrides: Record<string, unknown> = {}) {
   const id = `notif-${randomUUID().slice(0, 8)}`;
   return {
     id,
-    userId,
-    type: 'session_proposed',
-    sessionId: `session-${randomUUID().slice(0, 8)}`,
-    groupId: null,
-    actorName: 'Buddy Player',
-    message: 'proposed a new session',
-    read: false,
-    createdAt: Date.now(),
-    ...overrides,
+    data: {
+      id,
+      userId,
+      type: 'session_proposed',
+      category: 'buddy',
+      message: 'Buddy Player proposed a new session',
+      actionUrl: `/session/session-${randomUUID().slice(0, 8)}`,
+      payload: { actorId: 'actor-1', actorName: 'Buddy Player' },
+      read: false,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+      ...overrides,
+    },
   };
 }
 
@@ -27,12 +26,11 @@ test.describe('Notification Badge', () => {
   test('shows unread count for a single notification', async ({ authenticatedPage: page }) => {
     const uid = await getCurrentUserUid(page);
 
-    // Seed one unread notification
+    // Seed one unread buddy notification into unified collection
     const notif = makeNotification(uid);
-    await seedFirestoreDocAdmin(`users/${uid}/buddyNotifications`, notif.id, notif);
+    await seedFirestoreDocAdmin(`users/${uid}/notifications`, notif.id, notif.data);
 
     // Navigate to a non-root page where the bottom nav is visible
-    // (BottomNav is hidden on "/" — the landing page route)
     await page.goto('/new');
 
     // Verify badge shows count of 1 on the Buddies nav link
@@ -44,15 +42,14 @@ test.describe('Notification Badge', () => {
   test('multiple notifications increment badge count', async ({ authenticatedPage: page }) => {
     const uid = await getCurrentUserUid(page);
 
-    // Seed 3 unread notifications
+    // Seed 3 unread buddy notifications into unified collection
     await Promise.all(
       Array.from({ length: 3 }, (_, i) => {
         const notif = makeNotification(uid, { message: `Notification ${i + 1}` });
-        return seedFirestoreDocAdmin(`users/${uid}/buddyNotifications`, notif.id, notif);
+        return seedFirestoreDocAdmin(`users/${uid}/notifications`, notif.id, notif.data);
       })
     );
 
-    // Navigate to a non-root page where the bottom nav is visible
     await page.goto('/new');
 
     // Verify badge shows count of 3
@@ -64,15 +61,14 @@ test.describe('Notification Badge', () => {
   test('badge shows 9+ for more than 9 notifications', async ({ authenticatedPage: page }) => {
     const uid = await getCurrentUserUid(page);
 
-    // Seed 12 unread notifications
+    // Seed 12 unread buddy notifications into unified collection
     await Promise.all(
       Array.from({ length: 12 }, (_, i) => {
         const notif = makeNotification(uid, { message: `Notification ${i + 1}` });
-        return seedFirestoreDocAdmin(`users/${uid}/buddyNotifications`, notif.id, notif);
+        return seedFirestoreDocAdmin(`users/${uid}/notifications`, notif.id, notif.data);
       })
     );
 
-    // Navigate to a non-root page where the bottom nav is visible
     await page.goto('/new');
 
     // Verify badge shows "9+" (capped display)
