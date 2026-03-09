@@ -453,4 +453,193 @@ describe('syncProcessor', () => {
       stopProcessor();
     }, 10_000);
   });
+
+  describe('per-entity serialization', () => {
+    const fakeLock: any = (_name: string, _opts: any, cb: any) => cb(null);
+
+    /** Wait until a job reaches one of the target statuses or timeout. */
+    async function waitForJobStatus(
+      jobId: string,
+      targets: string[],
+      timeoutMs = 3000,
+    ): Promise<void> {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const job = await db.syncQueue.get(jobId);
+        if (job && targets.includes(job.status)) return;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }
+
+    it('two jobs for the same entity — only one processes at a time', async () => {
+      const { firestoreMatchRepository } = await import('../../firebase/firestoreMatchRepository');
+
+      // Control when the first save resolves — keep it blocking
+      let resolveSave!: () => void;
+      vi.mocked(firestoreMatchRepository.save).mockImplementationOnce(
+        () => new Promise<void>((resolve) => { resolveSave = resolve; }),
+      );
+
+      // Insert only the first job so it gets picked up alone
+      const jobA = createTestJob({
+        id: 'match:same-1',
+        entityId: 'same-1',
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      await db.syncQueue.put(jobA);
+
+      const { startProcessor, stopProcessor, wakeProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+
+      // Wait for jobA to start processing (its save is now blocked)
+      await waitForJobStatus(jobA.id, ['processing']);
+
+      // Now insert a second job for the SAME entity while jobA is still in-flight
+      const jobB = createTestJob({
+        id: 'match:same-1-dup',
+        entityId: 'same-1',
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      await db.syncQueue.put(jobB);
+      wakeProcessor(); // wake so it picks up jobB immediately
+
+      // Wait for jobB to be claimed and put back (it goes processing → pending)
+      await new Promise((r) => setTimeout(r, 300));
+
+      // Only one save call should have been made — jobB was filtered out
+      expect(firestoreMatchRepository.save).toHaveBeenCalledTimes(1);
+
+      // jobB should be back to pending (put back because entity in-flight)
+      const updatedB = await db.syncQueue.get(jobB.id);
+      expect(updatedB!.status).toBe('pending');
+
+      // Resolve the first save so jobA completes
+      resolveSave();
+      await waitForJobStatus(jobA.id, ['completed'], 5000);
+
+      stopProcessor();
+
+      const updatedA = await db.syncQueue.get(jobA.id);
+      expect(updatedA!.status).toBe('completed');
+    }, 15_000);
+
+    it('different entities process concurrently', async () => {
+      const { firestoreMatchRepository } = await import('../../firebase/firestoreMatchRepository');
+
+      const jobA = createTestJob({
+        entityId: 'entity-a',
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      const jobB = createTestJob({
+        entityId: 'entity-b',
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      await db.syncQueue.bulkPut([jobA, jobB]);
+
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+      await waitForJobStatus(jobA.id, ['completed'], 5000);
+      await waitForJobStatus(jobB.id, ['completed'], 5000);
+
+      // MAX_CONCURRENT=2 allows both to run concurrently
+      expect(firestoreMatchRepository.save).toHaveBeenCalledTimes(2);
+
+      const updatedA = await db.syncQueue.get(jobA.id);
+      const updatedB = await db.syncQueue.get(jobB.id);
+      expect(updatedA!.status).toBe('completed');
+      expect(updatedB!.status).toBe('completed');
+
+      stopProcessor();
+    }, 10_000);
+  });
+
+  describe('processor lifecycle', () => {
+    it('startProcessor is idempotent — calling twice does not double-start', async () => {
+      const lockSpy = vi.fn((_name: string, _opts: any, cb: any) => cb(null));
+
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(lockSpy as any);
+      startProcessor(lockSpy as any);
+
+      // The lock should only be acquired once because the second call returns early
+      expect(lockSpy).toHaveBeenCalledTimes(1);
+
+      stopProcessor();
+    });
+
+    it('stopProcessor cleans up online/offline listeners', async () => {
+      const addSpy = vi.spyOn(window, 'addEventListener');
+      const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+      const fakeLock: any = (_name: string, _opts: any, cb: any) => cb(null);
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+
+      // Verify listeners were added
+      const addedOnline = addSpy.mock.calls.some((call) => call[0] === 'online');
+      const addedOffline = addSpy.mock.calls.some((call) => call[0] === 'offline');
+      expect(addedOnline).toBe(true);
+      expect(addedOffline).toBe(true);
+
+      stopProcessor();
+
+      // Verify listeners were removed
+      const removedOnline = removeSpy.mock.calls.some((call) => call[0] === 'online');
+      const removedOffline = removeSpy.mock.calls.some((call) => call[0] === 'offline');
+      expect(removedOnline).toBe(true);
+      expect(removedOffline).toBe(true);
+
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    });
+  });
+
+  describe('no-auth guard', () => {
+    it('processOnce skips when no auth.currentUser', async () => {
+      const fakeLock: any = (_name: string, _opts: any, cb: any) => cb(null);
+
+      const authModule = await import('../../firebase/config');
+
+      // Save original value and override to null
+      const originalUser = authModule.auth.currentUser;
+      Object.defineProperty(authModule.auth, 'currentUser', {
+        get: () => null,
+        configurable: true,
+      });
+
+      const job = createTestJob({
+        entityId: 'no-auth-entity',
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      await db.syncQueue.put(job);
+
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+
+      // Wait enough time for at least one poll cycle
+      await new Promise((r) => setTimeout(r, 500));
+
+      // Job should still be pending — processOnce skips when no auth
+      const updated = await db.syncQueue.get(job.id);
+      expect(updated!.status).toBe('pending');
+
+      stopProcessor();
+
+      // Restore original auth.currentUser
+      Object.defineProperty(authModule.auth, 'currentUser', {
+        get: () => originalUser,
+        configurable: true,
+      });
+    }, 10_000);
+  });
 });
