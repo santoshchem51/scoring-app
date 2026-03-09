@@ -1,28 +1,80 @@
-## Usage
+# PickleScore
+
+Offline-first pickleball scoring and tournament management PWA. Score matches courtside (even without internet), run tournaments with pools and brackets, track player stats, and compete on leaderboards.
+
+## Features
+
+- **Match Scoring** — Sideout and rally scoring, singles and doubles, configurable points, win-by-2, best-of-N
+- **Tournaments** — Create tournaments with round-robin pools, single/double elimination brackets, live scoring
+- **Buddy Groups** — Organize casual play sessions, invite friends, track who's playing
+- **Leaderboards** — Global and friends rankings with tier-based composite scoring
+- **Achievements** — Badge system with progression tiers
+- **Player Profiles** — Stats dashboard, match history, tier ratings
+- **Offline-First** — Full functionality without internet; syncs to cloud when online
+- **PWA** — Installable on any device, works like a native app
+
+## Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| Framework | SolidJS 1.9 + TypeScript 5.9 |
+| Build | Vite 7.3 |
+| Styling | Tailwind CSS v4 |
+| State | XState v5 (scoring engine), SolidJS signals (everything else) |
+| Local DB | Dexie.js (IndexedDB) |
+| Cloud | Firebase (Firestore + Auth) |
+| Testing | Vitest, Playwright, Firebase Rules Testing |
+| PWA | vite-plugin-pwa |
+
+## Quick Start
 
 ```bash
-$ npm install # or pnpm install or yarn install
+git clone https://github.com/santoshchem51/scoring-app.git
+cd scoring-app
+npm install
+cp .env.example .env.local   # Add your Firebase credentials (optional for local dev)
+npm run dev                   # Starts on http://localhost:5173
 ```
 
-### Learn more on the [Solid Website](https://solidjs.com) and come chat with us on our [Discord](https://discord.com/invite/solidjs)
+For full setup including Firebase emulators, see [docs/setup.md](docs/setup.md).
 
-## Available Scripts
+## Development Commands
 
-In the project directory, you can run:
+| Command | Purpose |
+|---------|---------|
+| `npx vite --port 5199` | Dev server |
+| `npx vitest run` | Unit & component tests |
+| `npm run test:e2e` | E2E tests (Playwright) |
+| `npm run test:rules` | Firestore security rules tests |
+| `npx tsc --noEmit` | Type check |
+| `npm run build` | Production build |
+| `npm run emulator:start` | Firebase emulators |
 
-### `npm run dev`
+## Project Structure
 
-Runs the app in the development mode.<br>
-Open [http://localhost:5173](http://localhost:5173) to view it in the browser.
+```
+src/
+├── features/          11 feature modules (scoring, tournaments, buddies, ...)
+├── data/              Dexie DB, Firebase repos, sync queue, types
+├── shared/            Reusable components, hooks, utils
+├── stores/            App-level stores (settings, achievements, notifications)
+└── app/               Root App component
+```
 
-### `npm run build`
+## Documentation
 
-Builds the app for production to the `dist` folder.<br>
-It correctly bundles Solid in production mode and optimizes the build for the best performance.
+Start here based on what you need:
 
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+| I want to... | Read |
+|--------------|------|
+| Set up my dev environment | [Setup Guide](docs/setup.md) |
+| Understand the architecture | [Architecture](docs/architecture.md) |
+| Find a feature's code | [Feature Modules](docs/features.md) |
+| Run or write tests | [Testing Guide](docs/testing-guide.md) |
+| Debug a data/sync issue | [Debugging Guide](docs/debugging.md) |
+| Contribute code | [Contributing](CONTRIBUTING.md) |
+| See all docs | [Documentation Index](docs/index.md) |
 
-## Deployment
+## License
 
-Learn more about deploying your application with the [documentations](https://vite.dev/guide/static-deploy.html)
+[MIT](LICENSE)
