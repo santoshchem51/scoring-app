@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { db } from '../../db';
 import type { SyncJob } from '../syncQueue.types';
 
@@ -63,6 +63,17 @@ function createTestJob(overrides: Partial<SyncJob> = {}): SyncJob {
 
 describe('syncProcessor', () => {
   beforeEach(async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    await db.syncQueue.clear();
+  });
+
+  afterEach(async () => {
+    try {
+      const { stopProcessor } = await import('../syncProcessor');
+      stopProcessor();
+    } catch {}
+    vi.useRealTimers();
     await db.syncQueue.clear();
   });
 
@@ -147,5 +158,160 @@ describe('syncProcessor', () => {
       const mod = await import('../syncProcessor');
       expect(mod.JOB_TIMEOUT_MAP.playerStats).toBeGreaterThanOrEqual(30_000);
     });
+  });
+
+  describe('job execution dispatch', () => {
+    const fakeLock: any = (_name: string, _opts: any, cb: any) => cb(null);
+
+    /** Wait until a job reaches a terminal status or timeout. */
+    async function waitForJobStatus(
+      jobId: string,
+      targets: string[],
+      timeoutMs = 3000,
+    ): Promise<void> {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const job = await db.syncQueue.get(jobId);
+        if (job && targets.includes(job.status)) return;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }
+
+    it('match job calls firestoreMatchRepository.save with correct args', async () => {
+      const entityId = crypto.randomUUID();
+      const sharedWith = ['user-a', 'user-b'];
+      const job = createTestJob({
+        entityId,
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith },
+      });
+      await db.syncQueue.put(job);
+
+      const { firestoreMatchRepository } = await import('../../firebase/firestoreMatchRepository');
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+      await waitForJobStatus(job.id, ['completed', 'failed']);
+
+      expect(firestoreMatchRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: '1' }),
+        'test-user',
+        sharedWith,
+      );
+
+      const updated = await db.syncQueue.get(job.id);
+      expect(updated!.status).toBe('completed');
+
+      stopProcessor();
+    }, 10_000);
+
+    it('tournament job calls firestoreTournamentRepository.save', async () => {
+      const tournamentId = crypto.randomUUID();
+      const tournament = {
+        id: tournamentId,
+        name: 'Test Tourney',
+        date: Date.now(),
+        location: 'Court 1',
+        format: 'pools' as const,
+        config: {
+          gameType: 'singles' as const,
+          scoringMode: 'sideout' as const,
+          matchFormat: 'single' as const,
+          pointsToWin: 11 as const,
+          poolCount: 2,
+          teamsPerPoolAdvancing: 1,
+        },
+        organizerId: 'org1',
+        scorekeeperIds: [],
+        status: 'draft' as const,
+        maxPlayers: null,
+        teamFormation: null,
+        minPlayers: null,
+        entryFee: null,
+        rules: {
+          registrationDeadline: null,
+          checkInRequired: false,
+          checkInOpens: null,
+          checkInCloses: null,
+          scoringRules: '',
+          timeoutRules: '',
+          conductRules: '',
+          penalties: [],
+          additionalNotes: '',
+        },
+        pausedFrom: null,
+      };
+      await db.tournaments.put(tournament);
+
+      const job = createTestJob({
+        entityId: tournamentId,
+        type: 'tournament',
+        context: { type: 'tournament' },
+      });
+      await db.syncQueue.put(job);
+
+      const { firestoreTournamentRepository } = await import('../../firebase/firestoreTournamentRepository');
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+      await waitForJobStatus(job.id, ['completed', 'failed']);
+
+      expect(firestoreTournamentRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: tournamentId, name: 'Test Tourney' }),
+      );
+
+      const updated = await db.syncQueue.get(job.id);
+      expect(updated!.status).toBe('completed');
+
+      stopProcessor();
+      await db.tournaments.delete(tournamentId);
+    }, 10_000);
+
+    it('playerStats job calls firestorePlayerStatsRepository.processMatchCompletion', async () => {
+      const entityId = crypto.randomUUID();
+      const job = createTestJob({
+        entityId,
+        type: 'playerStats',
+        context: { type: 'playerStats', scorerUid: 'scorer-1' },
+      });
+      await db.syncQueue.put(job);
+
+      const { firestorePlayerStatsRepository } = await import('../../firebase/firestorePlayerStatsRepository');
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+      await waitForJobStatus(job.id, ['completed', 'failed']);
+
+      expect(firestorePlayerStatsRepository.processMatchCompletion).toHaveBeenCalledWith(
+        expect.objectContaining({ id: '1' }),
+        'scorer-1',
+      );
+
+      stopProcessor();
+    }, 10_000);
+
+    it('job with no local entity fails with fatal error', async () => {
+      const { matchRepository } = await import('../../repositories/matchRepository');
+      (matchRepository.getById as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+
+      const entityId = crypto.randomUUID();
+      const job = createTestJob({
+        entityId,
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      await db.syncQueue.put(job);
+
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+      await waitForJobStatus(job.id, ['completed', 'failed']);
+
+      const updated = await db.syncQueue.get(job.id);
+      expect(updated!.status).toBe('failed');
+      expect(updated!.lastError).toContain('not found');
+
+      stopProcessor();
+    }, 10_000);
   });
 });
