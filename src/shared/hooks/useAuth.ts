@@ -13,6 +13,7 @@ import { startProcessor, stopProcessor, wakeProcessor } from '../../data/firebas
 import { runAchievementMigration } from '../../features/achievements/engine/achievementMigration';
 import { startNotificationListener, stopNotificationListener, cleanupExpiredNotifications, notifications, markNotificationRead } from '../../features/notifications/store/notificationStore';
 import { onToastDismissed } from '../../features/achievements/store/achievementStore';
+import { clearTournamentCache } from '../pwa/tournamentCacheUtils';
 
 const [user, setUser] = createSignal<User | null>(null);
 const [loading, setLoading] = createSignal(true);
@@ -108,6 +109,7 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    await clearTournamentCache();
     await firebaseSignOut(auth);
   };
 

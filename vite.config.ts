@@ -37,7 +37,43 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,woff2}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/__\//, /\/[^/?]+\.[^/]+$/],
+        cleanupOutdatedCaches: true,
+        dontCacheBustURLsMatching: /\.[a-f0-9]{8}\./,
+        cacheId: 'picklescore',
+        runtimeCaching: [
+          {
+            urlPattern: /\/assets\/.+\.(js|css)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'vite-assets',
+              expiration: { maxAgeSeconds: 365 * 24 * 60 * 60 },
+            },
+          },
+          {
+            urlPattern: /\/fonts\/.+\.woff2$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'local-fonts',
+              expiration: { maxEntries: 10, maxAgeSeconds: 365 * 24 * 60 * 60 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/lh3\.googleusercontent\.com\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'google-profile-photos',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+                purgeOnQuotaError: true,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],

@@ -1,6 +1,7 @@
 import { createSignal, createEffect, onCleanup } from 'solid-js';
 import { doc, collection, onSnapshot } from 'firebase/firestore';
 import { firestore } from '../../../data/firebase/config';
+import { db } from '../../../data/db';
 import type {
   Tournament,
   TournamentTeam,
@@ -8,6 +9,8 @@ import type {
   BracketSlot,
   TournamentRegistration,
 } from '../../../data/types';
+
+const ACTIVE_STATUSES = new Set(['registration', 'pool-play', 'bracket', 'paused']);
 
 export interface TournamentLiveData {
   tournament: () => Tournament | undefined;
@@ -37,10 +40,33 @@ export function useTournamentLive(tournamentId: () => string | undefined): Tourn
     unsubscribers = [];
   };
 
-  const subscribe = (id: string) => {
+  const subscribe = async (id: string) => {
     cleanup();
     setLoading(true);
     setError('');
+
+    // Hydrate from Dexie cache immediately (stale-while-revalidate)
+    try {
+      const [cachedT, cachedTeamRows, cachedPoolRows, cachedBracketRows, cachedRegRows] =
+        await Promise.all([
+          db.cachedTournaments.get(id),
+          db.cachedTeams.where('tournamentId').equals(id).toArray(),
+          db.cachedPools.where('tournamentId').equals(id).toArray(),
+          db.cachedBrackets.where('tournamentId').equals(id).toArray(),
+          db.cachedRegistrations.where('tournamentId').equals(id).toArray(),
+        ]);
+
+      if (cachedT) {
+        setTournament(cachedT);
+        setLoading(false); // Cache hit — show UI immediately
+      }
+      if (cachedTeamRows.length) setTeams(cachedTeamRows);
+      if (cachedPoolRows.length) setPools(cachedPoolRows);
+      if (cachedBracketRows.length) setBracket(cachedBracketRows);
+      if (cachedRegRows.length) setRegistrations(cachedRegRows);
+    } catch {
+      // Cache read failed — continue to network
+    }
 
     // Listen to tournament doc
     const tournamentRef = doc(firestore, 'tournaments', id);
@@ -49,7 +75,27 @@ export function useTournamentLive(tournamentId: () => string | undefined): Tourn
         tournamentRef,
         (snap) => {
           if (snap.exists()) {
-            setTournament({ id: snap.id, ...snap.data() } as Tournament);
+            const data = { id: snap.id, ...snap.data() } as Tournament;
+            setTournament(data);
+            // Write-through to Dexie (only active statuses)
+            if (ACTIVE_STATUSES.has(data.status)) {
+              db.cachedTournaments.put({ ...data, cachedAt: Date.now() }).catch(() => {});
+            } else {
+              // Completed/cancelled — clean up cache
+              db.transaction('rw',
+                db.cachedTournaments, db.cachedTeams, db.cachedPools,
+                db.cachedBrackets, db.cachedRegistrations,
+                async () => {
+                  await Promise.all([
+                    db.cachedTournaments.delete(id),
+                    db.cachedTeams.where('tournamentId').equals(id).delete(),
+                    db.cachedPools.where('tournamentId').equals(id).delete(),
+                    db.cachedBrackets.where('tournamentId').equals(id).delete(),
+                    db.cachedRegistrations.where('tournamentId').equals(id).delete(),
+                  ]);
+                },
+              ).catch(() => {});
+            }
           } else {
             setTournament(undefined);
           }
@@ -69,7 +115,9 @@ export function useTournamentLive(tournamentId: () => string | undefined): Tourn
       onSnapshot(
         teamsRef,
         (snap) => {
-          setTeams(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TournamentTeam));
+          const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TournamentTeam);
+          setTeams(data);
+          db.cachedTeams.bulkPut(data.map(t => ({ ...t, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
         },
         (err) => console.error('Teams listener error:', err),
       ),
@@ -81,7 +129,9 @@ export function useTournamentLive(tournamentId: () => string | undefined): Tourn
       onSnapshot(
         poolsRef,
         (snap) => {
-          setPools(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TournamentPool));
+          const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TournamentPool);
+          setPools(data);
+          db.cachedPools.bulkPut(data.map(p => ({ ...p, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
         },
         (err) => console.error('Pools listener error:', err),
       ),
@@ -93,7 +143,9 @@ export function useTournamentLive(tournamentId: () => string | undefined): Tourn
       onSnapshot(
         bracketRef,
         (snap) => {
-          setBracket(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as BracketSlot));
+          const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as BracketSlot);
+          setBracket(data);
+          db.cachedBrackets.bulkPut(data.map(b => ({ ...b, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
         },
         (err) => console.error('Bracket listener error:', err),
       ),
@@ -105,7 +157,9 @@ export function useTournamentLive(tournamentId: () => string | undefined): Tourn
       onSnapshot(
         regsRef,
         (snap) => {
-          setRegistrations(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TournamentRegistration));
+          const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TournamentRegistration);
+          setRegistrations(data);
+          db.cachedRegistrations.bulkPut(data.map(r => ({ ...r, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
         },
         (err) => console.error('Registrations listener error:', err),
       ),

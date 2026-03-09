@@ -53,6 +53,10 @@ vi.mock('../../../shared/components/Logo', () => ({
   default: () => <div>Logo</div>,
 }));
 
+vi.mock('../../../shared/pwa/InstallPromptBanner', () => ({
+  default: () => <div data-testid="install-banner">InstallPromptBanner</div>,
+}));
+
 vi.mock('@solidjs/router', () => ({
   A: (props: { href: string; children: JSX.Element }) => <a href={props.href}>{props.children}</a>,
 }));

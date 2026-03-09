@@ -17,6 +17,7 @@ const {
   mockStartNotificationListener,
   mockStopNotificationListener,
   mockCleanupExpiredNotifications,
+  mockClearTournamentCache,
 } = vi.hoisted(() => ({
   mockOnAuthStateChanged: vi.fn(),
   mockSignInWithPopup: vi.fn(),
@@ -32,6 +33,7 @@ const {
   mockStartNotificationListener: vi.fn(),
   mockStopNotificationListener: vi.fn(),
   mockCleanupExpiredNotifications: vi.fn().mockResolvedValue(undefined),
+  mockClearTournamentCache: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../../data/firebase/config', () => ({
@@ -74,6 +76,10 @@ vi.mock('../../../features/notifications/store/notificationStore', () => ({
   cleanupExpiredNotifications: (...args: unknown[]) => mockCleanupExpiredNotifications(...args),
 }));
 
+vi.mock('../../pwa/tournamentCacheUtils', () => ({
+  clearTournamentCache: (...args: unknown[]) => mockClearTournamentCache(...args),
+}));
+
 function resetAllMocks() {
   mockOnAuthStateChanged.mockReset();
   mockSignInWithPopup.mockReset();
@@ -89,6 +95,7 @@ function resetAllMocks() {
   mockStartNotificationListener.mockReset();
   mockStopNotificationListener.mockReset();
   mockCleanupExpiredNotifications.mockReset().mockResolvedValue(undefined);
+  mockClearTournamentCache.mockReset().mockResolvedValue(undefined);
 }
 
 describe('useAuth', () => {
@@ -132,6 +139,7 @@ describe('useAuth', () => {
   it('should call firebase signOut on signOut', async () => {
     const authState = useAuth();
     await authState.signOut();
+    expect(mockClearTournamentCache).toHaveBeenCalledTimes(1);
     expect(mockSignOut).toHaveBeenCalled();
   });
 

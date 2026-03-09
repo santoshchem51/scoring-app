@@ -1,6 +1,6 @@
 # PickleScore Roadmap
 
-**Last updated:** 2026-03-08
+**Last updated:** 2026-03-09
 
 ---
 
@@ -118,20 +118,25 @@
 - [x] Bug fixes: markAllRead limit, phantom achievement toast
 - [x] ~120 tests (60 security rules, 20 store, 15 helpers, 12 components, 5 integration, 10 E2E)
 
+### Layer 9: PWA & Offline Hardening
+- [x] Self-hosted Oswald font (preloaded woff2, font-display: swap)
+- [x] Service worker caching (CacheFirst assets/fonts, StaleWhileRevalidate profile photos, NetworkOnly Firebase)
+- [x] Firebase Hosting config (CSP headers, cache-control, SPA rewrites)
+- [x] SW update store + toast (24h dismiss gate, mid-match suppression)
+- [x] Install prompt store (tiered dismiss, match/visit triggers, co-presence rule)
+- [x] InstallPromptBanner + IOSInstallSheet (native prompt + iOS instructions)
+- [x] PWA lifecycle init (beforeinstallprompt, appinstalled, match count query)
+- [x] Offline tournament cache (Dexie v5 schema, write-through, stale-while-revalidate hydration)
+- [x] Tournament cache utilities (clear, 90-day prune, PII scrubbing)
+- [x] Sign-out cache wipe + startup pruning
+- [x] E2E tests (SW update toast, install prompt)
+- [x] ~99 tests (config, unit, component, integration, E2E)
+
 ---
 
 ## Up Next (Priority Order)
 
-### P1 — Layer 9: PWA & Offline Hardening
-> Make it feel like a native app.
-
-- [ ] Service worker caching strategy (offline-first for scoring)
-- [ ] Install prompt (A2HS banner)
-- [ ] Offline tournament access (cached data)
-- [ ] Background sync for score uploads when reconnecting
-- [ ] App update notifications
-
-### P2 — Layer 10: Admin & Moderation
+### P1 — Layer 10: Admin & Moderation
 > Tools for organizers running larger events.
 
 - [ ] Bulk player management (import/export CSV)
@@ -140,7 +145,7 @@
 - [ ] Tournament templates (save & reuse settings)
 - [ ] Fee collection integration (Stripe/Venmo links)
 
-### P3 — Layer 8: Spectator Experience
+### P2 — Layer 8: Spectator Experience
 > Make watching tournaments engaging.
 
 - [ ] Live score updates on public page (partially done via Layer 3 Wave B)
@@ -148,7 +153,7 @@
 - [ ] Match timeline / play-by-play
 - [ ] Spectator count indicator
 
-### P4 — Layer 12: Monetization & Revenue
+### P3 — Layer 12: Monetization & Revenue
 > Sustainable business model to fund development and hosting.
 
 - [ ] Define pricing tiers (free vs premium features)
@@ -158,7 +163,7 @@
 - [ ] Cost analysis (Firebase usage, hosting, app store fees)
 - [ ] Usage analytics and conversion tracking
 
-### P5 — Layer 11: App Store Distribution
+### P4 — Layer 11: App Store Distribution
 > Get PickleScore into users' hands via app stores.
 
 - [ ] Wrap PWA for Android (TWA / Capacitor / similar)
@@ -168,7 +173,7 @@
 - [ ] App review / approval process
 - [ ] CI/CD pipeline for app store builds
 
-### P6 — Layer 13: Multi-Sport Expansion
+### P5 — Layer 13: Multi-Sport Expansion
 > Extend the scoring engine beyond pickleball to other sports.
 
 - [ ] Abstract scoring engine (pluggable rules per sport)
@@ -183,7 +188,6 @@
 ## Deferred / Future
 
 - Casual Phase 4: QR code join for casual matches
-- Gap #6: Offline tournament data caching in Dexie.js
 - Cloud Function for server-side privacy filtering (scale concern)
 - Per-venue leaderboards
 - Tournament categories / tags
@@ -205,10 +209,10 @@
 
 ## Prioritization Notes
 
-Priority order: **PWA → Admin → Spectator → Monetization → App Store → Multi-Sport**
+Priority order: **Admin → Spectator → Monetization → App Store → Multi-Sport**
 
 Rationale (growth funnel):
-1. **PWA + Admin** (P1-P2) — Polish the experience and empower organizers
-2. **Spectator** (P3) — Nice-to-have engagement for larger events
-3. **Monetization → App Store** (P4-P5) — Build business model, then distribute
-4. **Multi-Sport** (P6) — Major architectural expansion, do last
+1. **Admin** (P1) — Empower organizers running larger events
+2. **Spectator** (P2) — Nice-to-have engagement for larger events
+3. **Monetization → App Store** (P3-P4) — Build business model, then distribute
+4. **Multi-Sport** (P5) — Major architectural expansion, do last
