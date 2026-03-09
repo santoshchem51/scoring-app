@@ -102,7 +102,7 @@
 - [x] Atomic resetAwaitingAuthJobs
 - [x] TopNav sync indicator accessibility
 - [x] Error classification hardening
-- [ ] Full test suite + E2E tests
+- [x] Full test suite + E2E tests
 
 ### Layer 5: Notifications & Engagement (In-App)
 - [x] Unified notification collection (`users/{uid}/notifications/{id}`)
