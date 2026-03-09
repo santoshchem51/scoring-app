@@ -314,4 +314,143 @@ describe('syncProcessor', () => {
       stopProcessor();
     }, 10_000);
   });
+
+  describe('error handling routing', () => {
+    const fakeLock: any = (_name: string, _opts: any, cb: any) => cb(null);
+
+    /** Wait until a job reaches one of the target statuses or timeout. */
+    async function waitForJobStatus(
+      jobId: string,
+      targets: string[],
+      timeoutMs = 3000,
+    ): Promise<void> {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const job = await db.syncQueue.get(jobId);
+        if (job && targets.includes(job.status)) return;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }
+
+    /** Wait until a job satisfies a custom predicate or timeout. */
+    async function waitForJobCondition(
+      jobId: string,
+      predicate: (job: SyncJob) => boolean,
+      timeoutMs = 5000,
+    ): Promise<void> {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const job = await db.syncQueue.get(jobId);
+        if (job && predicate(job)) return;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }
+
+    it('retryable error (unavailable) → job retried with incremented retryCount', async () => {
+      const { firestoreMatchRepository } = await import('../../firebase/firestoreMatchRepository');
+      const err = new Error('Service unavailable');
+      (err as any).code = 'unavailable';
+      vi.mocked(firestoreMatchRepository.save).mockRejectedValueOnce(err);
+
+      const entityId = crypto.randomUUID();
+      const job = createTestJob({
+        entityId,
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      await db.syncQueue.put(job);
+
+      const now = Date.now();
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+      // Wait for the job to be retried: it goes pending → processing → pending(retryCount=1)
+      await waitForJobCondition(job.id, (j) => j.status === 'pending' && j.retryCount === 1);
+
+      const updated = await db.syncQueue.get(job.id);
+      expect(updated!.status).toBe('pending');
+      expect(updated!.retryCount).toBe(1);
+      expect(updated!.nextRetryAt).toBeGreaterThan(now);
+
+      stopProcessor();
+    }, 10_000);
+
+    it('auth error (unauthenticated) → job set to awaitingAuth', async () => {
+      const { firestoreMatchRepository } = await import('../../firebase/firestoreMatchRepository');
+      const err = new Error('Not authenticated');
+      (err as any).code = 'unauthenticated';
+      vi.mocked(firestoreMatchRepository.save).mockRejectedValueOnce(err);
+
+      const entityId = crypto.randomUUID();
+      const job = createTestJob({
+        entityId,
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      await db.syncQueue.put(job);
+
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+      await waitForJobStatus(job.id, ['awaitingAuth']);
+
+      const updated = await db.syncQueue.get(job.id);
+      expect(updated!.status).toBe('awaitingAuth');
+
+      stopProcessor();
+    }, 10_000);
+
+    it('fatal error (invalid-argument) → job marked failed', async () => {
+      const { firestoreMatchRepository } = await import('../../firebase/firestoreMatchRepository');
+      const err = new Error('Invalid data');
+      (err as any).code = 'invalid-argument';
+      vi.mocked(firestoreMatchRepository.save).mockRejectedValueOnce(err);
+
+      const entityId = crypto.randomUUID();
+      const job = createTestJob({
+        entityId,
+        type: 'match',
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      await db.syncQueue.put(job);
+
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+      await waitForJobStatus(job.id, ['failed']);
+
+      const updated = await db.syncQueue.get(job.id);
+      expect(updated!.status).toBe('failed');
+      expect(updated!.lastError).toContain('Invalid data');
+
+      stopProcessor();
+    }, 10_000);
+
+    it('max retries exceeded → job marked failed with "Max retries" message', async () => {
+      const { firestoreMatchRepository } = await import('../../firebase/firestoreMatchRepository');
+      const err = new Error('Service unavailable');
+      (err as any).code = 'unavailable';
+      vi.mocked(firestoreMatchRepository.save).mockRejectedValueOnce(err);
+
+      const entityId = crypto.randomUUID();
+      const job = createTestJob({
+        entityId,
+        type: 'match',
+        retryCount: 7, // match maxRetries is 7, so retryCount >= 7 triggers max exceeded
+        context: { type: 'match', ownerId: 'u1', sharedWith: [] },
+      });
+      await db.syncQueue.put(job);
+
+      const { startProcessor, stopProcessor } = await import('../syncProcessor');
+
+      startProcessor(fakeLock);
+      await waitForJobStatus(job.id, ['failed']);
+
+      const updated = await db.syncQueue.get(job.id);
+      expect(updated!.status).toBe('failed');
+      expect(updated!.lastError).toContain('Max retries');
+
+      stopProcessor();
+    }, 10_000);
+  });
 });
