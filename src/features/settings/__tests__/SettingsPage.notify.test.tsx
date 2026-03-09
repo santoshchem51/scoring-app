@@ -25,6 +25,10 @@ vi.mock('../../../shared/components/Logo', () => ({
   default: () => <span>Logo</span>,
 }));
 
+vi.mock('../../../shared/pwa/InstallPromptBanner', () => ({
+  default: () => <div data-testid="install-banner">InstallPromptBanner</div>,
+}));
+
 vi.mock('../../../data/firebase/useSyncStatus', () => ({
   syncStatus: () => 'idle',
   pendingCount: () => 0,

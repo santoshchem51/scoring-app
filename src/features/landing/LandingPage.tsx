@@ -1,6 +1,7 @@
 import type { Component } from 'solid-js';
 import { createResource, Show, For, onMount, onCleanup } from 'solid-js';
 import { A } from '@solidjs/router';
+import InstallPromptBanner from '../../shared/pwa/InstallPromptBanner';
 import { Zap, Clock, Trophy, Activity, Share2, UserPlus } from 'lucide-solid';
 import TopNav from '../../shared/components/TopNav';
 import Logo from '../../shared/components/Logo';
@@ -271,9 +272,9 @@ const LandingPage: Component = () => {
         <p class="text-xs text-on-surface-muted mt-2">
           Built for pickleball players and organizers
         </p>
-        <p class="text-xs text-on-surface-muted mt-1">
-          Install as an app from your browser menu
-        </p>
+        <div class="mt-4 max-w-sm mx-auto">
+          <InstallPromptBanner />
+        </div>
       </footer>
     </div>
   );

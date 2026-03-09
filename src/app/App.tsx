@@ -6,7 +6,9 @@ import { PageSkeleton } from '../shared/components/Skeleton';
 import { settings } from '../stores/settingsStore';
 import AchievementToast from '../features/achievements/components/AchievementToast';
 import SWUpdateToast from '../shared/pwa/SWUpdateToast';
+import InstallPromptBanner from '../shared/pwa/InstallPromptBanner';
 import { initSWUpdate } from '../shared/pwa/swUpdateStore';
+import { showInstallBanner } from '../shared/pwa/installPromptStore';
 
 interface Props {
   children?: JSX.Element;
@@ -38,7 +40,17 @@ const App: Component<Props> = (props) => {
         Skip to main content
       </a>
       <AchievementToast />
-      <SWUpdateToast />
+      <Show when={!location.pathname.startsWith('/score/')}>
+        <SWUpdateToast />
+      </Show>
+      <Show when={showInstallBanner() && !location.pathname.startsWith('/score/')}>
+        <div
+          class="fixed z-30 left-4 right-4 max-w-sm mx-auto pointer-events-auto"
+          style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          <InstallPromptBanner />
+        </div>
+      </Show>
       <Suspense fallback={
         <div class="flex flex-col min-h-screen bg-surface">
           <div class="bg-surface-light border-b border-surface-lighter px-4 py-3">

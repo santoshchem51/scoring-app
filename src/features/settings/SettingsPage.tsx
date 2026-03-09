@@ -3,6 +3,7 @@ import type { Component } from 'solid-js';
 import PageLayout from '../../shared/components/PageLayout';
 import OptionCard from '../../shared/components/OptionCard';
 import Logo from '../../shared/components/Logo';
+import InstallPromptBanner from '../../shared/pwa/InstallPromptBanner';
 import { settings, setSettings } from '../../stores/settingsStore';
 import { syncStatus, pendingCount, failedCount } from '../../data/firebase/useSyncStatus';
 import { wakeProcessor } from '../../data/firebase/syncProcessor';
@@ -420,6 +421,13 @@ const SettingsPage: Component = () => {
                 <OptionCard label="Best of 3" selected={settings().defaultMatchFormat === 'best-of-3'} onClick={() => setSettings({ defaultMatchFormat: 'best-of-3' })} />
                 <OptionCard label="Best of 5" selected={settings().defaultMatchFormat === 'best-of-5'} onClick={() => setSettings({ defaultMatchFormat: 'best-of-5' })} />
               </div>
+            </fieldset>
+
+            <fieldset class="bg-surface-light rounded-xl p-4">
+              <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+                App Installation
+              </legend>
+              <InstallPromptBanner />
             </fieldset>
           </div>
         </div>
