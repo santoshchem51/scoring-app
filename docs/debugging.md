@@ -114,6 +114,8 @@ Available at **http://localhost:4000** when emulators are running.
 
 ### Auth Emulator (port 9099)
 
+> **Note**: `npm run emulator:start` only starts Firestore. Auth emulator starts automatically with E2E tests (Playwright config) or via `firebase emulators:start --only auth,firestore`.
+
 - View created accounts
 - Generate sign-in tokens
 - Clear all auth state

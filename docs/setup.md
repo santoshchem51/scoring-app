@@ -49,8 +49,11 @@ For local development with emulators, the values above are only needed for produ
 # Start dev server (port 5199)
 npx vite --port 5199
 
-# Start Firebase emulators (Firestore on 8180, Auth on 9099)
+# Start Firebase Firestore emulator (port 8180)
 npm run emulator:start
+
+# For Auth emulator too (needed for E2E tests), Playwright config handles this automatically
+
 ```
 
 The Firebase emulator UI is available at http://localhost:4000.

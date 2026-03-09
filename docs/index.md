@@ -20,7 +20,7 @@ Developer documentation for PickleScore.
 | File | Location | Purpose |
 |------|----------|---------|
 | [CLAUDE.md](../CLAUDE.md) | Root | Canonical command reference and SolidJS rules (for AI and developers) |
-| [ROADMAP.md](../ROADMAP.md) | Root | Feature status and priority tracking |
+| [ROADMAP.md](ROADMAP.md) | `docs/` | Feature status and priority tracking |
 | [Design plans](plans/) | `docs/plans/` | Historical design documents from brainstorming sessions |
 | [Reviews](reviews/) | `docs/reviews/` | Specialist reviews of design decisions |
 | [Manual Test Plan](MANUAL_TEST_PLAN.md) | `docs/` | Manual test cases for critical workflows |

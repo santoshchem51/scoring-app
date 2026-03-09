@@ -1,6 +1,6 @@
 # Feature Modules
 
-> This doc describes what each feature IS (structure, key files, how it works). For feature status and priorities, see [ROADMAP.md](../ROADMAP.md).
+> This doc describes what each feature IS (structure, key files, how it works). For feature status and priorities, see [ROADMAP.md](ROADMAP.md).
 
 ## Module Index
 

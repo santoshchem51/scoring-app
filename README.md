@@ -33,7 +33,7 @@ git clone https://github.com/santoshchem51/scoring-app.git
 cd scoring-app
 npm install
 cp .env.example .env.local   # Add your Firebase credentials (optional for local dev)
-npm run dev                   # Starts on http://localhost:5173
+npx vite --port 5199          # Starts on http://localhost:5199
 ```
 
 For full setup including Firebase emulators, see [docs/setup.md](docs/setup.md).
