@@ -19,6 +19,7 @@ import {
 import { classifyError } from './syncErrors';
 import { computeNextRetryAt, computeRateLimitRetryAt, isMaxRetriesExceeded } from './syncRetry';
 import { setSyncProcessing, updateSyncStatus, resetSyncStatus } from './useSyncStatus';
+import { pruneStaleTournamentCache } from '../../shared/pwa/tournamentCacheUtils';
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -63,6 +64,11 @@ export async function runStartupCleanup(): Promise<void> {
   await pruneCompletedJobs();
   await pruneFailedJobs();
   lastStaleCheck = Date.now();
+
+  // Prune stale tournament cache (>90 days old)
+  await pruneStaleTournamentCache().catch((err) => {
+    console.warn('Tournament cache pruning failed:', err);
+  });
 }
 
 // ── executeJob ───────────────────────────────────────────────────────
