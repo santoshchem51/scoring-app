@@ -196,6 +196,7 @@ export type TournamentAccessMode = 'open' | 'approval' | 'invite-only' | 'group'
 export type RegistrationStatus = 'confirmed' | 'pending' | 'declined' | 'withdrawn' | 'expired';
 export type TournamentFormat = 'round-robin' | 'single-elimination' | 'pool-bracket';
 export type TournamentStatus = 'setup' | 'registration' | 'pool-play' | 'bracket' | 'completed' | 'cancelled' | 'paused';
+export type TournamentRole = 'admin' | 'moderator' | 'scorekeeper';
 export type PaymentStatus = 'unpaid' | 'paid' | 'waived';
 
 export interface EntryFee {
@@ -237,7 +238,8 @@ export interface Tournament {
   format: TournamentFormat;
   config: TournamentConfig;
   organizerId: string;
-  scorekeeperIds: string[];
+  staff: Record<string, TournamentRole>;
+  staffUids: string[];
   status: TournamentStatus;
   maxPlayers: number | null;
   teamFormation: TeamFormation | null;  // null for singles
