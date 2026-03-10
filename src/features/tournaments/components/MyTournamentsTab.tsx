@@ -38,7 +38,7 @@ const MyTournamentsTab: Component<Props> = (props) => {
       const [organized, participantResult, scorekeeping] = await Promise.all([
         firestoreTournamentRepository.getByOrganizer(uid),
         firestoreTournamentRepository.getByParticipant(uid),
-        firestoreTournamentRepository.getByScorekeeper(uid),
+        firestoreTournamentRepository.getByStaff(uid),
       ]);
 
       const { tournamentIds: participantIds, registrationStatuses } = participantResult;

@@ -86,6 +86,7 @@ describe('firestoreTournamentRepository', () => {
       expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'tournaments', 't1');
       expect(result).toEqual({
         id: 't1', name: 'Test Tournament', organizerId: 'org1',
+        staff: {}, staffUids: [],
         accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
         registrationCounts: { confirmed: 0, pending: 0 },
       });
@@ -118,11 +119,13 @@ describe('firestoreTournamentRepository', () => {
       expect(result).toEqual([
         {
           id: 't1', name: 'Tournament A', organizerId: 'org1',
+          staff: {}, staffUids: [],
           accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
           registrationCounts: { confirmed: 0, pending: 0 },
         },
         {
           id: 't2', name: 'Tournament B', organizerId: 'org1',
+          staff: {}, staffUids: [],
           accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
           registrationCounts: { confirmed: 0, pending: 0 },
         },

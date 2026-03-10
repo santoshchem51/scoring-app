@@ -99,10 +99,10 @@ export const firestoreTournamentRepository = {
     return { tournamentIds: [...idSet], registrationStatuses: statusMap };
   },
 
-  async getByScorekeeper(userId: string): Promise<Tournament[]> {
+  async getByStaff(userId: string): Promise<Tournament[]> {
     const q = query(
       collection(firestore, 'tournaments'),
-      where('scorekeeperIds', 'array-contains', userId),
+      where('staffUids', 'array-contains', userId),
       orderBy('date', 'desc'),
     );
     const snapshot = await getDocs(q);

@@ -26,7 +26,7 @@ const DiscoverPage: Component = () => {
       const [organized, participantResult, scorekeeping] = await Promise.all([
         firestoreTournamentRepository.getByOrganizer(uid),
         firestoreTournamentRepository.getByParticipant(uid),
-        firestoreTournamentRepository.getByScorekeeper(uid),
+        firestoreTournamentRepository.getByStaff(uid),
       ]);
 
       if (organized.length > 0 || participantResult.tournamentIds.length > 0 || scorekeeping.length > 0) {

@@ -129,6 +129,8 @@ export function makeTournament(organizerId: string, overrides: Record<string, un
     },
     organizerId,
     scorekeeperIds: [],
+    staff: {},
+    staffUids: [],
     status: 'setup',
     maxPlayers: null,
     teamFormation: 'byop',

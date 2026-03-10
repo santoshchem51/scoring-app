@@ -73,11 +73,13 @@ describe('firestoreTournamentRepository discovery methods', () => {
       expect(result.tournaments).toEqual([
         {
           id: 't1', name: 'Open Championship', visibility: 'public', date: 2000,
+          staff: {}, staffUids: [],
           accessMode: 'open', listed: true, buddyGroupId: null, buddyGroupName: null,
           registrationCounts: { confirmed: 0, pending: 0 },
         },
         {
           id: 't2', name: 'Spring Slam', visibility: 'public', date: 1000,
+          staff: {}, staffUids: [],
           accessMode: 'open', listed: true, buddyGroupId: null, buddyGroupName: null,
           registrationCounts: { confirmed: 0, pending: 0 },
         },
@@ -167,19 +169,19 @@ describe('firestoreTournamentRepository discovery methods', () => {
     });
   });
 
-  describe('getByScorekeeper', () => {
-    it('uses array-contains query on scorekeeperIds', async () => {
+  describe('getByStaff', () => {
+    it('uses array-contains query on staffUids', async () => {
       mockGetDocs.mockResolvedValue({
         docs: [
-          { id: 't1', data: () => ({ name: 'Tournament A', scorekeeperIds: ['sk1'] }) },
-          { id: 't2', data: () => ({ name: 'Tournament B', scorekeeperIds: ['sk1', 'sk2'] }) },
+          { id: 't1', data: () => ({ name: 'Tournament A', staff: { sk1: 'scorekeeper' }, staffUids: ['sk1'] }) },
+          { id: 't2', data: () => ({ name: 'Tournament B', staff: { sk1: 'scorekeeper', sk2: 'admin' }, staffUids: ['sk1', 'sk2'] }) },
         ],
       });
 
-      const result = await firestoreTournamentRepository.getByScorekeeper('sk1');
+      const result = await firestoreTournamentRepository.getByStaff('sk1');
 
       expect(mockCollection).toHaveBeenCalledWith('mock-firestore', 'tournaments');
-      expect(mockWhere).toHaveBeenCalledWith('scorekeeperIds', 'array-contains', 'sk1');
+      expect(mockWhere).toHaveBeenCalledWith('staffUids', 'array-contains', 'sk1');
       expect(mockOrderBy).toHaveBeenCalledWith('date', 'desc');
       expect(mockQuery).toHaveBeenCalledWith(
         'mock-collection-ref',
@@ -188,12 +190,12 @@ describe('firestoreTournamentRepository discovery methods', () => {
       );
       expect(result).toEqual([
         {
-          id: 't1', name: 'Tournament A', scorekeeperIds: ['sk1'],
+          id: 't1', name: 'Tournament A', staff: { sk1: 'scorekeeper' }, staffUids: ['sk1'],
           accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
           registrationCounts: { confirmed: 0, pending: 0 },
         },
         {
-          id: 't2', name: 'Tournament B', scorekeeperIds: ['sk1', 'sk2'],
+          id: 't2', name: 'Tournament B', staff: { sk1: 'scorekeeper', sk2: 'admin' }, staffUids: ['sk1', 'sk2'],
           accessMode: 'open', listed: false, buddyGroupId: null, buddyGroupName: null,
           registrationCounts: { confirmed: 0, pending: 0 },
         },
@@ -203,7 +205,7 @@ describe('firestoreTournamentRepository discovery methods', () => {
     it('handles empty results', async () => {
       mockGetDocs.mockResolvedValue({ docs: [] });
 
-      const result = await firestoreTournamentRepository.getByScorekeeper('nobody');
+      const result = await firestoreTournamentRepository.getByStaff('nobody');
 
       expect(result).toEqual([]);
     });

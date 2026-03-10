@@ -27,7 +27,7 @@ vi.mock('../../../data/firebase/firestoreTournamentRepository', () => ({
     getPublicTournaments: vi.fn().mockResolvedValue({ tournaments: [], lastDoc: undefined }),
     getByOrganizer: vi.fn().mockResolvedValue([]),
     getByParticipant: vi.fn().mockResolvedValue({ tournamentIds: [], registrationStatuses: new Map() }),
-    getByScorekeeper: vi.fn().mockResolvedValue([]),
+    getByStaff: vi.fn().mockResolvedValue([]),
   },
 }));
 

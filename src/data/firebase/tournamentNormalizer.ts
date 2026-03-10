@@ -5,6 +5,8 @@ export function normalizeTournament(raw: Record<string, unknown>): Tournament {
   const rawCounts = t.registrationCounts as { confirmed?: number; pending?: number } | undefined;
   return {
     ...t,
+    staff: t.staff ?? {},
+    staffUids: t.staffUids ?? [],
     accessMode: t.accessMode ?? 'open',
     listed: t.listed ?? (t.visibility === 'public'),
     buddyGroupId: t.buddyGroupId ?? null,

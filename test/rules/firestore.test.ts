@@ -574,7 +574,7 @@ describe('Teams (/tournaments/{tid}/teams/{id})', () => {
   const teamPath = `${tourneyPath}/teams/team1`;
 
   beforeEach(async () => {
-    await seedDoc(tourneyPath, makeTournament(organizerId, { scorekeeperIds: [scorekeeperId] }));
+    await seedDoc(tourneyPath, makeTournament(organizerId, { scorekeeperIds: [scorekeeperId], staff: { [scorekeeperId]: 'scorekeeper' }, staffUids: [scorekeeperId] }));
   });
 
   it('allows any authed user to read teams', async () => {
@@ -770,7 +770,7 @@ describe('Bracket (/tournaments/{tid}/bracket/{id})', () => {
   const slotPath = `${tourneyPath}/bracket/slot1`;
 
   beforeEach(async () => {
-    await seedDoc(tourneyPath, makeTournament(organizerId, { scorekeeperIds: [scorekeeperId] }));
+    await seedDoc(tourneyPath, makeTournament(organizerId, { scorekeeperIds: [scorekeeperId], staff: { [scorekeeperId]: 'scorekeeper' }, staffUids: [scorekeeperId] }));
   });
 
   it('allows any authed user to read bracket slots', async () => {

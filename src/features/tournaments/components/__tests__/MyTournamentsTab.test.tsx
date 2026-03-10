@@ -13,7 +13,7 @@ vi.mock('../../../../data/firebase/firestoreTournamentRepository', () => ({
   firestoreTournamentRepository: {
     getByOrganizer: vi.fn().mockResolvedValue([]),
     getByParticipant: vi.fn().mockResolvedValue({ tournamentIds: [], registrationStatuses: new Map() }),
-    getByScorekeeper: vi.fn().mockResolvedValue([]),
+    getByStaff: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -51,7 +51,8 @@ function makeTournament(overrides: Partial<Tournament> = {}): Tournament {
       teamsPerPoolAdvancing: 2,
     },
     organizerId: 'org1',
-    scorekeeperIds: [],
+    staff: {},
+    staffUids: [],
     status: 'registration',
     maxPlayers: 16,
     teamFormation: 'byop',
