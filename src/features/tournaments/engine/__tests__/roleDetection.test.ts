@@ -10,7 +10,8 @@ const makeTournament = (overrides?: Partial<Tournament>): Tournament => ({
   format: 'single-elimination',
   config: { gameType: 'singles', scoringMode: 'rally', matchFormat: 'single', pointsToWin: 11, poolCount: 1, teamsPerPoolAdvancing: 2 },
   organizerId: 'org-1',
-  scorekeeperIds: ['sk-1', 'sk-2'],
+  staff: { 'sk-1': 'scorekeeper', 'sk-2': 'scorekeeper' } as Record<string, import('../../../../data/types').TournamentRole>,
+  staffUids: ['sk-1', 'sk-2'],
   status: 'registration',
   maxPlayers: null,
   teamFormation: null,
@@ -55,7 +56,7 @@ describe('detectViewerRole', () => {
     expect(detectViewerRole(makeTournament(), 'org-1', [])).toBe('organizer');
   });
 
-  it('returns scorekeeper when userId is in scorekeeperIds', () => {
+  it('returns scorekeeper when userId is in staff map', () => {
     expect(detectViewerRole(makeTournament(), 'sk-1', [])).toBe('scorekeeper');
   });
 
@@ -73,7 +74,10 @@ describe('detectViewerRole', () => {
   });
 
   it('organizer takes priority over scorekeeper', () => {
-    const t = makeTournament({ scorekeeperIds: ['org-1'] });
+    const t = makeTournament({
+      staff: { 'org-1': 'scorekeeper' } as Record<string, import('../../../../data/types').TournamentRole>,
+      staffUids: ['org-1'],
+    });
     expect(detectViewerRole(t, 'org-1', [])).toBe('organizer');
   });
 
