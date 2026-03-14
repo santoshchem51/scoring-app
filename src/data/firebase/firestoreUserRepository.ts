@@ -71,6 +71,13 @@ export const firestoreUserRepository = {
     });
   },
 
+  async getByIds(uids: string[]): Promise<UserProfile[]> {
+    const unique = [...new Set(uids)];
+    if (unique.length === 0) return [];
+    const results = await Promise.all(unique.map((uid) => this.getProfile(uid)));
+    return results.filter((p): p is UserProfile => p !== null);
+  },
+
   async searchByEmailPrefix(prefix: string, maxResults: number = 5): Promise<UserProfile[]> {
     const lower = prefix.toLowerCase();
     const q = query(
