@@ -26,7 +26,7 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('../config', () => ({ firestore: 'mock-firestore' }));
 
-import { flagDispute, resolveDispute, getDisputesByTournament } from '../firestoreDisputeRepository';
+import { flagDispute, resolveDispute, getDisputesByTournament, getOpenDisputesByMatch } from '../firestoreDisputeRepository';
 
 describe('firestoreDisputeRepository', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -103,6 +103,34 @@ describe('firestoreDisputeRepository', () => {
       mockGetDocs.mockResolvedValue({ docs: [] });
       const result = await getDisputesByTournament('t1');
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('getOpenDisputesByMatch', () => {
+    it('returns open disputes for a specific match', async () => {
+      mockGetDocs.mockResolvedValue({
+        docs: [
+          { id: 'd1', data: () => ({ matchId: 'm1', status: 'open', reason: 'Bad call' }) },
+          { id: 'd2', data: () => ({ matchId: 'm1', status: 'open', reason: 'Wrong server' }) },
+        ],
+      });
+
+      const result = await getOpenDisputesByMatch('t1', 'm1');
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({ id: 'd1', matchId: 'm1', status: 'open', reason: 'Bad call' });
+      expect(result[1]).toEqual({ id: 'd2', matchId: 'm1', status: 'open', reason: 'Wrong server' });
+      expect(mockCollection).toHaveBeenCalledWith('mock-firestore', 'tournaments', 't1', 'disputes');
+      expect(mockGetDocs).toHaveBeenCalled();
+    });
+
+    it('returns empty array when no open disputes exist', async () => {
+      mockGetDocs.mockResolvedValue({ docs: [] });
+
+      const result = await getOpenDisputesByMatch('t1', 'm1');
+
+      expect(result).toEqual([]);
+      expect(mockGetDocs).toHaveBeenCalled();
     });
   });
 });

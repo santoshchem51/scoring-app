@@ -85,4 +85,15 @@ describe('detectViewerRole', () => {
     const regs = [makeReg('sk-1')];
     expect(detectViewerRole(makeTournament(), 'sk-1', regs)).toBe('scorekeeper');
   });
+
+  it('dual-role: user who is both registered participant and scorekeeper gets scorekeeper', () => {
+    const userId = 'dual-role-user';
+    const t = makeTournament({
+      staff: { 'sk-1': 'scorekeeper', 'sk-2': 'scorekeeper', [userId]: 'scorekeeper' } as Record<string, import('../../../../data/types').TournamentRole>,
+      staffUids: ['sk-1', 'sk-2', userId],
+    });
+    const regs = [makeReg(userId)];
+    // Staff role (scorekeeper) takes priority over participant role (player)
+    expect(detectViewerRole(t, userId, regs)).toBe('scorekeeper');
+  });
 });

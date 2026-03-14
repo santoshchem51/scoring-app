@@ -36,4 +36,26 @@ describe('DisputeFlag', () => {
     await fireEvent.click(screen.getByText('Submit'));
     expect(onFlag).not.toHaveBeenCalled();
   });
+
+  it('cancel button hides the form and resets state', async () => {
+    const onFlag = vi.fn();
+    render(() => <DisputeFlag onFlag={onFlag} canFlag={true} />);
+    await fireEvent.click(screen.getByText('Flag Dispute'));
+    const input = screen.getByPlaceholderText('Describe the issue...');
+    await fireEvent.input(input, { target: { value: 'Partial reason' } });
+    await fireEvent.click(screen.getByText('Cancel'));
+    // Form should be hidden — Flag Dispute button visible again
+    expect(screen.getByText('Flag Dispute')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('Describe the issue...')).toBeNull();
+  });
+
+  it('does not submit with whitespace-only reason', async () => {
+    const onFlag = vi.fn();
+    render(() => <DisputeFlag onFlag={onFlag} canFlag={true} />);
+    await fireEvent.click(screen.getByText('Flag Dispute'));
+    const input = screen.getByPlaceholderText('Describe the issue...');
+    await fireEvent.input(input, { target: { value: '   \t\n  ' } });
+    await fireEvent.click(screen.getByText('Submit'));
+    expect(onFlag).not.toHaveBeenCalled();
+  });
 });
