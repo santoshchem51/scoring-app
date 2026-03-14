@@ -150,6 +150,30 @@ describe('Tournament Role-Based Access', () => {
         updatedAt: Date.now(),
       }));
     });
+
+    // NOTE: Firestore rules cannot iterate map values, so invalid role values
+    // (e.g., 'owner', '', non-string) cannot be rejected at the rules level.
+    // These tests document the known limitation. Client-side validation is required.
+    it('rules cannot prevent "owner" value in staff map (known limitation)', async () => {
+      await seedTournament();
+      const db = authedContext(ownerId).firestore();
+      // This SUCCEEDS because rules can't validate map values — documented gap
+      await assertSucceeds(updateDoc(doc(db, `tournaments/${tourneyId}`), {
+        [`staff.bad-actor`]: 'owner',
+        staffUids: [adminId, modId, skId, 'bad-actor'],
+        updatedAt: Date.now(),
+      }));
+    });
+
+    it('rules cannot prevent empty string role value (known limitation)', async () => {
+      await seedTournament();
+      const db = authedContext(ownerId).firestore();
+      await assertSucceeds(updateDoc(doc(db, `tournaments/${tourneyId}`), {
+        [`staff.bad-actor`]: '',
+        staffUids: [adminId, modId, skId, 'bad-actor'],
+        updatedAt: Date.now(),
+      }));
+    });
   });
 
   // --- Delete: owner only ---
