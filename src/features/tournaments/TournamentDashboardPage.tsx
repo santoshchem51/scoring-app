@@ -234,13 +234,18 @@ const TournamentDashboardPage: Component = () => {
     if (!t || !u) return;
     const role = getTournamentRole(t, u.uid);
     if (!role) return;
-    await quickAddPlayers({
-      tournamentId: t.id,
-      names,
-      actorId: u.uid,
-      actorName: u.displayName ?? '',
-      actorRole: role,
-    });
+    try {
+      await quickAddPlayers({
+        tournamentId: t.id,
+        names,
+        actorId: u.uid,
+        actorName: u.displayName ?? '',
+        actorRole: role,
+      });
+    } catch (err) {
+      console.error('Failed to quick-add players:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add players.');
+    }
   };
 
   const handleExportCsv = () => {

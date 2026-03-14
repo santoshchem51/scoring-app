@@ -12,6 +12,15 @@ interface QuickAddInput {
 }
 
 export async function quickAddPlayers(input: QuickAddInput): Promise<void> {
+  if (input.names.length === 0 || input.names.length > 100) {
+    throw new Error('Quick add requires 1-100 names');
+  }
+  for (const name of input.names) {
+    if (name.length === 0 || name.length > 100) {
+      throw new Error(`Name must be 1-100 characters: "${name.slice(0, 20)}"`);
+    }
+  }
+
   const batch = writeBatch(firestore);
   const regCol = collection(firestore, 'tournaments', input.tournamentId, 'registrations');
 
@@ -40,7 +49,7 @@ export async function quickAddPlayers(input: QuickAddInput): Promise<void> {
   // Update registration counter
   const tournamentRef = doc(firestore, 'tournaments', input.tournamentId);
   batch.update(tournamentRef, {
-    'registrationCounts.confirmed': increment(input.names.length),
+    'registrationCounts.pending': increment(input.names.length),
     updatedAt: serverTimestamp(),
   });
 
