@@ -213,6 +213,25 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.visibility == 'public';
       }
 
+      // ── Subcollection role helpers (read parent tournament) ──
+      function tournamentStaffRole() {
+        let t = get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
+        return request.auth.uid == t.organizerId ? 'owner'
+          : (request.auth.uid in t.staff ? t.staff[request.auth.uid] : 'none');
+      }
+      function isTournamentAdminPlus() {
+        let role = tournamentStaffRole();
+        return role == 'owner' || role == 'admin';
+      }
+      function isTournamentModPlus() {
+        let role = tournamentStaffRole();
+        return role == 'owner' || role == 'admin' || role == 'moderator';
+      }
+      function isTournamentStaff() {
+        let role = tournamentStaffRole();
+        return role != 'none';
+      }
+
       // ── Teams (/tournaments/{tid}/teams/{teamId}) ─────────────────
       match /teams/{teamId} {
         allow read: if request.auth != null;
@@ -220,7 +239,7 @@ service cloud.firestore {
 
         allow create: if request.auth != null
           && isTournamentActive()
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && isTournamentAdminPlus()
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
@@ -230,12 +249,11 @@ service cloud.firestore {
         allow update: if request.auth != null
           && isTournamentActive()
           && request.resource.data.tournamentId == resource.data.tournamentId
-          && (get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
-              || (request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds
+          && (isTournamentAdminPlus()
+              || (isTournamentStaff()
                   && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seed', 'updatedAt'])));
 
-        allow delete: if request.auth != null
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+        allow delete: if request.auth != null && isTournamentAdminPlus();
       }
 
       // ── Pools (/tournaments/{tid}/pools/{poolId}) ─────────────────
@@ -245,7 +263,7 @@ service cloud.firestore {
 
         allow create: if request.auth != null
           && isTournamentActive()
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && isTournamentAdminPlus()
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
@@ -253,11 +271,10 @@ service cloud.firestore {
 
         allow update: if request.auth != null
           && isTournamentActive()
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && isTournamentAdminPlus()
           && request.resource.data.tournamentId == resource.data.tournamentId;
 
-        allow delete: if request.auth != null
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+        allow delete: if request.auth != null && isTournamentAdminPlus();
       }
 
       // ── Bracket (/tournaments/{tid}/bracket/{slotId}) ─────────────
@@ -267,7 +284,7 @@ service cloud.firestore {
 
         allow create: if request.auth != null
           && isTournamentActive()
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && isTournamentAdminPlus()
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.round is number
           && request.resource.data.position is number;
@@ -275,12 +292,11 @@ service cloud.firestore {
         allow update: if request.auth != null
           && isTournamentActive()
           && request.resource.data.tournamentId == resource.data.tournamentId
-          && (get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
-              || (request.auth.uid in get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.scorekeeperIds
+          && (isTournamentAdminPlus()
+              || (isTournamentStaff()
                   && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['winnerId', 'matchId', 'updatedAt'])));
 
-        allow delete: if request.auth != null
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+        allow delete: if request.auth != null && isTournamentAdminPlus();
       }
 
       // ── Registrations (/tournaments/{tid}/registrations/{regId}) ──
@@ -295,47 +311,37 @@ service cloud.firestore {
           && request.resource.data.tournamentId == tournamentId
           && tournamentData().status in ['setup', 'registration']
           && (
-            // OPEN mode: anyone, status must be confirmed
             (tournamentData().accessMode == 'open'
               && request.resource.data.status == 'confirmed')
-            // APPROVAL mode: anyone, status must be pending
             || (tournamentData().accessMode == 'approval'
               && request.resource.data.status == 'pending')
-            // INVITE-ONLY: only invited users, confirmed
             || (tournamentData().accessMode == 'invite-only'
               && exists(/databases/$(database)/documents/tournaments/$(tournamentId)/invitations/$(request.auth.uid))
               && request.resource.data.status == 'confirmed')
-            // GROUP: only group members, confirmed
             || (tournamentData().accessMode == 'group'
               && exists(/databases/$(database)/documents/buddyGroups/$(tournamentData().buddyGroupId)/members/$(request.auth.uid))
               && request.resource.data.status == 'confirmed')
-            // LEGACY: no accessMode field, fallback to existing behavior
             || (!('accessMode' in tournamentData())
               && request.resource.data.status == 'confirmed')
           );
 
-        // Organizer can add players on their behalf (manual registration)
+        // Admin+ can add players on their behalf (manual registration)
         allow create: if request.auth != null
-          && tournamentData().organizerId == request.auth.uid
+          && isTournamentAdminPlus()
           && request.resource.data.tournamentId == tournamentId
-          && request.resource.data.status == 'confirmed'
+          && request.resource.data.status in ['confirmed', 'placeholder']
           && tournamentData().status in ['setup', 'registration'];
 
-        // Organizer: approve, decline, expire, or withdraw any registration
+        // Moderator+: approve, decline, expire, or withdraw any registration
         allow update: if request.auth != null
-          && tournamentData().organizerId == request.auth.uid
+          && isTournamentModPlus()
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.tournamentId == resource.data.tournamentId
           && (
-            // Approve: pending -> confirmed
             (resource.data.status == 'pending' && request.resource.data.status == 'confirmed')
-            // Decline: pending -> declined
             || (resource.data.status == 'pending' && request.resource.data.status == 'declined')
-            // Expire: pending -> expired
             || (resource.data.status == 'pending' && request.resource.data.status == 'expired')
-            // Withdraw anyone
             || request.resource.data.status == 'withdrawn'
-            // Payment updates (backward compat) — status unchanged
             || (request.resource.data.status == resource.data.status
                 && request.resource.data.paymentStatus in ['unpaid', 'paid', 'waived'])
           );
@@ -346,10 +352,8 @@ service cloud.firestore {
           && request.resource.data.userId == resource.data.userId
           && request.resource.data.tournamentId == resource.data.tournamentId
           && (
-            // Withdraw: confirmed or pending -> withdrawn
             (request.resource.data.status == 'withdrawn'
               && resource.data.status in ['confirmed', 'pending'])
-            // Profile updates: status unchanged, payment unchanged
             || (request.resource.data.status == resource.data.status
                 && request.resource.data.paymentStatus == resource.data.paymentStatus
                 && request.resource.data.paymentNote == resource.data.paymentNote)
