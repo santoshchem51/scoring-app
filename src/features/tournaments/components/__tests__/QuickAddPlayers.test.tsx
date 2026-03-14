@@ -62,4 +62,19 @@ describe('QuickAddPlayers', () => {
     const button = screen.getByRole('button', { name: /add/i });
     expect(button).toHaveProperty('disabled', true);
   });
+
+  it('accepts intra-input duplicates without warning (current behavior)', async () => {
+    const onSubmit = vi.fn();
+    render(() => <QuickAddPlayers onSubmit={onSubmit} />);
+    const textarea = screen.getByPlaceholderText(/one name per line/i) as HTMLTextAreaElement;
+    fireEvent.input(textarea, { target: { value: 'Alice\nAlice' } });
+
+    // Component only checks against existingNames, not within the textarea itself
+    expect(screen.queryByText(/duplicate/i)).toBeNull();
+    expect(screen.getByText(/2 name/)).toBeTruthy();
+
+    const button = screen.getByRole('button', { name: /add 2 player/i });
+    fireEvent.click(button);
+    expect(onSubmit).toHaveBeenCalledWith(['Alice', 'Alice']);
+  });
 });

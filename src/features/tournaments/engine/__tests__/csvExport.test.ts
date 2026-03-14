@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { registrationsToCsv, sanitizeCsvValue } from '../csvExport';
+import { describe, it, expect, vi } from 'vitest';
+import { registrationsToCsv, sanitizeCsvValue, downloadCsv } from '../csvExport';
 
 describe('sanitizeCsvValue', () => {
   it('prefixes = with single quote', () => {
@@ -70,5 +70,29 @@ describe('registrationsToCsv', () => {
     ];
     const csv = registrationsToCsv(regs);
     expect(csv).toContain("'=EVIL()");
+  });
+});
+
+describe('downloadCsv', () => {
+  it('creates a download link and triggers click', () => {
+    const createObjectURL = vi.fn(() => 'blob:test');
+    const revokeObjectURL = vi.fn();
+    globalThis.URL.createObjectURL = createObjectURL;
+    globalThis.URL.revokeObjectURL = revokeObjectURL;
+
+    const clickSpy = vi.fn();
+    const fakeAnchor = document.createElement('a');
+    fakeAnchor.click = clickSpy;
+    vi.spyOn(document, 'createElement').mockReturnValue(fakeAnchor as any);
+
+    downloadCsv('col1,col2\nval1,val2', 'test.csv');
+
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(fakeAnchor.href).toContain('blob:test');
+    expect(fakeAnchor.download).toBe('test.csv');
+    expect(clickSpy).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:test');
+
+    vi.restoreAllMocks();
   });
 });
