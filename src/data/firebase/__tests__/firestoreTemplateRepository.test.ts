@@ -7,6 +7,8 @@ const mockGetDocs = vi.hoisted(() => vi.fn());
 const mockDeleteDoc = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const mockUpdateDoc = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
+const mockOrderBy = vi.hoisted(() => vi.fn(() => 'mock-orderBy'));
+
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   collection: mockCollection,
@@ -15,7 +17,7 @@ vi.mock('firebase/firestore', () => ({
   deleteDoc: mockDeleteDoc,
   updateDoc: mockUpdateDoc,
   query: vi.fn((...args: unknown[]) => args),
-  orderBy: vi.fn(() => 'mock-orderBy'),
+  orderBy: mockOrderBy,
   increment: vi.fn((n: number) => ({ _type: 'increment', value: n })),
 }));
 
@@ -119,6 +121,25 @@ describe('firestoreTemplateRepository', () => {
       const templates = await getTemplates('user-1');
 
       expect(templates).toEqual([]);
+    });
+
+    it('queries with orderBy updatedAt desc', async () => {
+      mockGetDocs.mockResolvedValue({ docs: [] });
+      await getTemplates('user-1');
+      expect(mockOrderBy).toHaveBeenCalledWith('updatedAt', 'desc');
+    });
+
+    it('preserves Firestore query order (updatedAt desc)', async () => {
+      mockGetDocs.mockResolvedValue({
+        docs: [
+          { id: 'tpl-new', data: () => ({ name: 'Newest', updatedAt: 3000 }) },
+          { id: 'tpl-mid', data: () => ({ name: 'Middle', updatedAt: 2000 }) },
+          { id: 'tpl-old', data: () => ({ name: 'Oldest', updatedAt: 1000 }) },
+        ],
+      });
+      const result = await getTemplates('user-1');
+      expect(result[0].name).toBe('Newest');
+      expect(result[2].name).toBe('Oldest');
     });
   });
 

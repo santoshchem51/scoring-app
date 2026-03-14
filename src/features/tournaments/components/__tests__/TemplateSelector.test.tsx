@@ -65,4 +65,23 @@ describe('TemplateSelector', () => {
     fireEvent.click(screen.getByRole('button', { name: /from template/i }));
     expect(screen.getByText(/no templates/i)).toBeTruthy();
   });
+
+  // TODO: No click-outside-to-close behavior implemented yet
+  it('does not close dropdown on outside click (no click-outside handler)', async () => {
+    const templates = [makeTemplate()];
+    render(() => (
+      <div>
+        <span data-testid="outside">Outside</span>
+        <TemplateSelector templates={templates} onSelect={vi.fn()} />
+      </div>
+    ));
+
+    // Open dropdown
+    fireEvent.click(screen.getByRole('button', { name: /from template/i }));
+    expect(screen.getByRole('listbox')).toBeTruthy();
+
+    // Click outside — dropdown remains open since no click-outside handler exists
+    fireEvent.click(screen.getByTestId('outside'));
+    expect(screen.getByRole('listbox')).toBeTruthy();
+  });
 });
