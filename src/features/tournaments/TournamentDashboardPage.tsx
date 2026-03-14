@@ -44,9 +44,13 @@ import MyStatsCard from './components/MyStatsCard';
 import ScorekeeperMatchList from './components/ScorekeeperMatchList';
 import StaffManager from './components/StaffManager';
 import ActivityLog from './components/ActivityLog';
+import DisputePanel from './components/DisputePanel';
 import { addStaffMember, removeStaffMember, updateStaffRole } from '../../data/firebase/firestoreStaffRepository';
 import { getAuditLog } from '../../data/firebase/firestoreAuditRepository';
+import { getDisputesByTournament, resolveDispute } from '../../data/firebase/firestoreDisputeRepository';
+import { canResolveDispute } from './engine/disputeHelpers';
 import { firestoreUserRepository } from '../../data/firebase/firestoreUserRepository';
+import { getTournamentRole } from './engine/roleHelpers';
 import type { TournamentRole } from '../../data/types';
 
 // Format-aware status transitions (no pool-play for single-elimination, no bracket for round-robin)
@@ -196,6 +200,29 @@ const TournamentDashboardPage: Component = () => {
     () => live.tournament()?.id,
     async (id) => getAuditLog(id),
   );
+
+  const [disputes] = createResource(
+    () => live.tournament()?.id,
+    async (id) => getDisputesByTournament(id),
+  );
+
+  const handleResolveDispute = async (disputeId: string, matchId: string, type: 'edited' | 'dismissed') => {
+    const t = live.tournament();
+    const u = user();
+    if (!t || !u) return;
+    const role = getTournamentRole(t, u.uid);
+    if (!role) return;
+    await resolveDispute({
+      tournamentId: t.id,
+      disputeId,
+      matchId,
+      resolvedBy: u.uid,
+      resolvedByName: u.displayName ?? '',
+      resolution: type === 'dismissed' ? 'Dismissed — no changes needed' : 'Scores edited',
+      type,
+      actorRole: role,
+    });
+  };
 
   const handleAddStaff = async (_uid: string, role: TournamentRole) => {
     const t = live.tournament();
@@ -813,6 +840,15 @@ const TournamentDashboardPage: Component = () => {
                 <OrganizerControls
                   tournament={t()}
                   onUpdated={handleOrganizerUpdated}
+                />
+              </Show>
+
+              {/* Disputes (moderator+ only) */}
+              <Show when={live.tournament() && user() && hasMinRole(live.tournament()!, user()!.uid, 'moderator')}>
+                <DisputePanel
+                  disputes={disputes() ?? []}
+                  canResolve={canResolveDispute(live.tournament()!, user()!.uid)}
+                  onResolve={handleResolveDispute}
                 />
               </Show>
 
