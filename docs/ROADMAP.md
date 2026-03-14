@@ -1,6 +1,6 @@
 # PickleScore Roadmap
 
-**Last updated:** 2026-03-09
+**Last updated:** 2026-03-14
 
 ---
 
@@ -132,20 +132,20 @@
 - [x] E2E tests (SW update toast, install prompt)
 - [x] ~99 tests (config, unit, component, integration, E2E)
 
+### Layer 10: Admin & Moderation
+- [x] Tiered role system (owner > admin > moderator > scorekeeper) with staff management UI
+- [x] Audit logging (score edits, disputes, status changes, registration actions)
+- [x] Dispute resolution (flag/resolve match results with audit trail)
+- [x] Quick-add players (bulk placeholder registration with CSV export)
+- [x] Tournament templates (save/load tournament settings)
+- [x] Firestore security rules (role-based access, audit immutability, dispute enforcement)
+- [x] Data migration function (scorekeeperIds → staff map)
+
 ---
 
 ## Up Next (Priority Order)
 
-### P1 — Layer 10: Admin & Moderation
-> Tools for organizers running larger events.
-
-- [ ] Bulk player management (import/export CSV)
-- [ ] Dispute resolution (flag/edit match results)
-- [ ] Multi-organizer support (co-organizers)
-- [ ] Tournament templates (save & reuse settings)
-- [ ] Fee collection integration (Stripe/Venmo links)
-
-### P2 — Layer 8: Spectator Experience
+### P1 — Layer 8: Spectator Experience
 > Make watching tournaments engaging.
 
 - [ ] Live score updates on public page (partially done via Layer 3 Wave B)
@@ -153,7 +153,7 @@
 - [ ] Match timeline / play-by-play
 - [ ] Spectator count indicator
 
-### P3 — Layer 12: Monetization & Revenue
+### P2 — Layer 12: Monetization & Revenue
 > Sustainable business model to fund development and hosting.
 
 - [ ] Define pricing tiers (free vs premium features)
@@ -163,7 +163,7 @@
 - [ ] Cost analysis (Firebase usage, hosting, app store fees)
 - [ ] Usage analytics and conversion tracking
 
-### P4 — Layer 11: App Store Distribution
+### P3 — Layer 11: App Store Distribution
 > Get PickleScore into users' hands via app stores.
 
 - [ ] Wrap PWA for Android (TWA / Capacitor / similar)
@@ -173,7 +173,7 @@
 - [ ] App review / approval process
 - [ ] CI/CD pipeline for app store builds
 
-### P5 — Layer 13: Multi-Sport Expansion
+### P4 — Layer 13: Multi-Sport Expansion
 > Extend the scoring engine beyond pickleball to other sports.
 
 - [ ] Abstract scoring engine (pluggable rules per sport)
@@ -209,10 +209,9 @@
 
 ## Prioritization Notes
 
-Priority order: **Admin → Spectator → Monetization → App Store → Multi-Sport**
+Priority order: **Spectator → Monetization → App Store → Multi-Sport**
 
 Rationale (growth funnel):
-1. **Admin** (P1) — Empower organizers running larger events
-2. **Spectator** (P2) — Nice-to-have engagement for larger events
-3. **Monetization → App Store** (P3-P4) — Build business model, then distribute
-4. **Multi-Sport** (P5) — Major architectural expansion, do last
+1. **Spectator** (P1) — Nice-to-have engagement for larger events
+2. **Monetization → App Store** (P2-P3) — Build business model, then distribute
+3. **Multi-Sport** (P4) — Major architectural expansion, do last
