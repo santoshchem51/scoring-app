@@ -1,4 +1,4 @@
-import { doc, collection, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import type { DocumentReference } from 'firebase/firestore';
 import { firestore } from './config';
 import type { AuditLogEntry, AuditAction, AuditDetails } from '../../features/tournaments/engine/auditTypes';
@@ -14,7 +14,13 @@ interface AuditInput {
   details: AuditDetails;
 }
 
-export function createAuditEntry(
+/**
+ * Builds an audit entry with a pre-allocated Firestore doc ref.
+ * DOES NOT write to Firestore. Caller must add to a WriteBatch:
+ *   const { ref, ...data } = buildAuditEntry(tournamentId, input);
+ *   batch.set(ref, data);
+ */
+export function buildAuditEntry(
   tournamentId: string,
   input: AuditInput,
 ): AuditLogEntry & { ref: DocumentReference } {
@@ -28,9 +34,10 @@ export function createAuditEntry(
   };
 }
 
-export async function getAuditLog(tournamentId: string): Promise<AuditLogEntry[]> {
+/** Fetch recent audit entries for a tournament, ordered by timestamp desc. */
+export async function getAuditLog(tournamentId: string, maxEntries = 50): Promise<AuditLogEntry[]> {
   const colRef = collection(firestore, 'tournaments', tournamentId, 'auditLog');
-  const q = query(colRef, orderBy('timestamp', 'desc'));
+  const q = query(colRef, orderBy('timestamp', 'desc'), limit(maxEntries));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLogEntry));
 }

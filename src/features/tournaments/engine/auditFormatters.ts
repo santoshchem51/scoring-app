@@ -45,5 +45,6 @@ export function formatRelativeTime(timestamp: number): string {
   if (diffSec < 60) return 'just now';
   if (diffMin < 60) return `${diffMin} min ago`;
   if (diffHr < 24) return `${diffHr} hr ago`;
+  if (diffDays === 1) return 'yesterday';
   return `${diffDays} days ago`;
 }

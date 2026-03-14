@@ -111,7 +111,11 @@ describe('formatRelativeTime', () => {
     expect(formatRelativeTime(Date.now() - 2 * 60 * 60 * 1000)).toBe('2 hr ago');
   });
 
-  it('returns "X days ago" for days', () => {
+  it('returns "yesterday" for 1 day ago', () => {
+    expect(formatRelativeTime(Date.now() - 1 * 24 * 60 * 60 * 1000)).toBe('yesterday');
+  });
+
+  it('returns "X days ago" for multiple days', () => {
     expect(formatRelativeTime(Date.now() - 3 * 24 * 60 * 60 * 1000)).toBe('3 days ago');
   });
 });

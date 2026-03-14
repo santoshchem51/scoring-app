@@ -11,17 +11,18 @@ vi.mock('firebase/firestore', () => ({
   getDocs: mockGetDocs,
   query: vi.fn((...args: unknown[]) => args),
   orderBy: vi.fn(() => 'mock-orderby'),
+  limit: vi.fn(() => 'mock-limit'),
 }));
 
 vi.mock('../config', () => ({ firestore: 'mock-firestore' }));
 
-import { createAuditEntry, getAuditLog } from '../firestoreAuditRepository';
+import { buildAuditEntry, getAuditLog } from '../firestoreAuditRepository';
 
-describe('createAuditEntry', () => {
+describe('buildAuditEntry', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns an audit entry object with server timestamp and doc ref', () => {
-    const entry = createAuditEntry('tourney-1', {
+    const entry = buildAuditEntry('tourney-1', {
       action: 'score_edit',
       actorId: 'user-1',
       actorName: 'Alice',
@@ -42,7 +43,7 @@ describe('createAuditEntry', () => {
   });
 
   it('includes targetType and targetId in the returned object', () => {
-    const entry = createAuditEntry('t1', {
+    const entry = buildAuditEntry('t1', {
       action: 'role_change',
       actorId: 'u1',
       actorName: 'Bob',
