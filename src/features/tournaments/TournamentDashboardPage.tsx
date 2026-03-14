@@ -46,7 +46,9 @@ import StaffManager from './components/StaffManager';
 import ActivityLog from './components/ActivityLog';
 import DisputePanel from './components/DisputePanel';
 import QuickAddPlayers from './components/QuickAddPlayers';
+import SaveTemplateModal from './components/SaveTemplateModal';
 import { addStaffMember, removeStaffMember, updateStaffRole } from '../../data/firebase/firestoreStaffRepository';
+import { saveTemplate } from '../../data/firebase/firestoreTemplateRepository';
 import { getAuditLog } from '../../data/firebase/firestoreAuditRepository';
 import { getDisputesByTournament, resolveDispute } from '../../data/firebase/firestoreDisputeRepository';
 import { quickAddPlayers } from '../../data/firebase/firestoreQuickAddRepository';
@@ -253,6 +255,31 @@ const TournamentDashboardPage: Component = () => {
     const csv = registrationsToCsv(regs as unknown as Array<Record<string, unknown>>);
     const t = live.tournament();
     downloadCsv(csv, `${t?.name ?? 'tournament'}-registrations.csv`);
+  };
+
+  const [showSaveTemplate, setShowSaveTemplate] = createSignal(false);
+
+  const handleSaveTemplate = async (name: string, description: string) => {
+    const t = live.tournament();
+    const u = user();
+    if (!t || !u) return;
+    try {
+      await saveTemplate(u.uid, {
+        name,
+        description,
+        format: t.format,
+        gameType: t.config.gameType,
+        config: t.config,
+        teamFormation: t.teamFormation,
+        maxPlayers: t.maxPlayers,
+        accessMode: t.accessMode,
+        rules: t.rules,
+      });
+      setShowSaveTemplate(false);
+    } catch (err) {
+      console.error('Failed to save template:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save template.');
+    }
   };
 
   const handleAddStaff = async (_uid: string, role: TournamentRole) => {
@@ -785,6 +812,12 @@ const TournamentDashboardPage: Component = () => {
                     >
                       Export CSV
                     </button>
+                    <button
+                      class="rounded-lg bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface"
+                      onClick={() => setShowSaveTemplate(true)}
+                    >
+                      Save as Template
+                    </button>
                   </Show>
                   <RegistrationForm
                     tournament={t()}
@@ -941,6 +974,14 @@ const TournamentDashboardPage: Component = () => {
                     onClose={() => setShowShareModal(false)}
                   />
                 )}
+              </Show>
+
+              {/* Save as Template Modal */}
+              <Show when={showSaveTemplate()}>
+                <SaveTemplateModal
+                  onSave={handleSaveTemplate}
+                  onClose={() => setShowSaveTemplate(false)}
+                />
               </Show>
             </>
           )}

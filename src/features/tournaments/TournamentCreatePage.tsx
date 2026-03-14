@@ -11,7 +11,10 @@ import type {
 import { validateTournamentForm } from './engine/validateTournament';
 import type { TournamentFormErrors } from './engine/validateTournament';
 import AccessModeSelector from './components/AccessModeSelector';
+import TemplateSelector from './components/TemplateSelector';
 import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
+import { getTemplates, incrementUsageCount } from '../../data/firebase/firestoreTemplateRepository';
+import type { TournamentTemplate } from './engine/templateTypes';
 
 const emptyRules: TournamentRules = {
   registrationDeadline: null, checkInRequired: false, checkInOpens: null, checkInCloses: null,
@@ -43,6 +46,24 @@ const TournamentCreatePage: Component = () => {
   const [buddyGroupId, setBuddyGroupId] = createSignal<string | null>(null);
   const [buddyGroupName, setBuddyGroupName] = createSignal<string | null>(null);
   const [buddyGroups, setBuddyGroups] = createSignal<Array<{ id: string; name: string }>>([]);
+  const [usedTemplateId, setUsedTemplateId] = createSignal<string | null>(null);
+
+  const [templates] = createResource(
+    () => user()?.uid,
+    async (uid) => getTemplates(uid),
+  );
+
+  const handleTemplateSelect = (tpl: TournamentTemplate) => {
+    setFormat(tpl.format);
+    setGameType(tpl.config.gameType);
+    setScoringMode(tpl.config.scoringMode);
+    setMatchFormat(tpl.config.matchFormat);
+    setPointsToWin(tpl.config.pointsToWin as 11 | 15 | 21);
+    setMaxPlayers(tpl.maxPlayers?.toString() ?? '');
+    setTeamFormation((tpl.teamFormation as 'byop' | 'auto-pair') ?? 'byop');
+    setAccessMode(tpl.accessMode);
+    setUsedTemplateId(tpl.id);
+  };
 
   createResource(
     () => user()?.uid,
@@ -124,6 +145,14 @@ const TournamentCreatePage: Component = () => {
       };
 
       await firestoreTournamentRepository.save(tournament);
+
+      // Increment template usage count if one was used
+      const templateId = usedTemplateId();
+      const currentUser = user();
+      if (templateId && currentUser) {
+        incrementUsageCount(currentUser.uid, templateId).catch(() => {});
+      }
+
       navigate(`/tournaments/${tournament.id}`);
     } catch (err) {
       console.error('Failed to create tournament:', err);
@@ -136,6 +165,9 @@ const TournamentCreatePage: Component = () => {
   return (
     <PageLayout title="Create Tournament">
       <div class="p-4 pb-24 space-y-6">
+        <Show when={(templates() ?? []).length > 0}>
+          <TemplateSelector templates={templates() ?? []} onSelect={handleTemplateSelect} />
+        </Show>
         <div>
           <label for="t-name" class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-2 block">Tournament Name</label>
           <input id="t-name" type="text" value={name()} onInput={(e) => setName(e.currentTarget.value)} onBlur={() => markTouched('name')} maxLength={60}
