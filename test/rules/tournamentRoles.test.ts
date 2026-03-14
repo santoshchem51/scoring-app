@@ -183,5 +183,45 @@ describe('Tournament Role-Based Access', () => {
         updatedAt: Date.now(),
       }));
     });
+
+    it('rejects negative confirmed count', async () => {
+      await seedTournament();
+      const db = authedContext(randomId).firestore();
+      await assertFails(updateDoc(doc(db, `tournaments/${tourneyId}`), {
+        registrationCounts: { confirmed: -1, pending: 0 },
+        updatedAt: Date.now(),
+      }));
+    });
+
+    it('rejects negative pending count', async () => {
+      await seedTournament();
+      const db = authedContext(randomId).firestore();
+      await assertFails(updateDoc(doc(db, `tournaments/${tourneyId}`), {
+        registrationCounts: { confirmed: 0, pending: -5 },
+        updatedAt: Date.now(),
+      }));
+    });
+
+    it('rejects non-number confirmed count', async () => {
+      await seedTournament();
+      const db = authedContext(randomId).firestore();
+      await assertFails(updateDoc(doc(db, `tournaments/${tourneyId}`), {
+        registrationCounts: { confirmed: 'many', pending: 0 },
+        updatedAt: Date.now(),
+      }));
+    });
+  });
+
+  // --- Settings update cannot manipulate registrationCounts ---
+  describe('settings update registrationCounts immutability', () => {
+    it('admin settings update cannot change registrationCounts', async () => {
+      await seedTournament();
+      const db = authedContext(adminId).firestore();
+      await assertFails(updateDoc(doc(db, `tournaments/${tourneyId}`), {
+        name: 'Legit Name Change',
+        registrationCounts: { confirmed: 999, pending: 0 },
+        updatedAt: Date.now(),
+      }));
+    });
   });
 });

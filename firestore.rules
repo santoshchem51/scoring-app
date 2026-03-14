@@ -182,7 +182,8 @@ service cloud.firestore {
               && (request.resource.data.listed == true ? request.resource.data.visibility == 'public' : request.resource.data.visibility == 'private'))
         )
         && (!('defaultTier' in request.resource.data.config)
-            || request.resource.data.config.defaultTier in ['beginner', 'intermediate', 'advanced', 'expert']);
+            || request.resource.data.config.defaultTier in ['beginner', 'intermediate', 'advanced', 'expert'])
+        && request.resource.data.registrationCounts == resource.data.registrationCounts;
 
       // Staff update: admin+ only. ONLY touches staff, staffUids, updatedAt.
       // Mutually exclusive with settings update — prevents piggyback attacks.
@@ -197,7 +198,11 @@ service cloud.firestore {
       allow update: if request.auth != null
         && request.resource.data.organizerId == resource.data.organizerId
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['registrationCounts', 'updatedAt']);
+             .hasOnly(['registrationCounts', 'updatedAt'])
+        && request.resource.data.registrationCounts.confirmed is number
+        && request.resource.data.registrationCounts.confirmed >= 0
+        && request.resource.data.registrationCounts.pending is number
+        && request.resource.data.registrationCounts.pending >= 0;
 
       // Only the owner can delete a tournament
       allow delete: if request.auth != null && isOwner();
