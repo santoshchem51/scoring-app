@@ -43,7 +43,9 @@ import MyMatchesSection from './components/MyMatchesSection';
 import MyStatsCard from './components/MyStatsCard';
 import ScorekeeperMatchList from './components/ScorekeeperMatchList';
 import StaffManager from './components/StaffManager';
+import ActivityLog from './components/ActivityLog';
 import { addStaffMember, removeStaffMember, updateStaffRole } from '../../data/firebase/firestoreStaffRepository';
+import { getAuditLog } from '../../data/firebase/firestoreAuditRepository';
 import { firestoreUserRepository } from '../../data/firebase/firestoreUserRepository';
 import type { TournamentRole } from '../../data/types';
 
@@ -188,6 +190,11 @@ const TournamentDashboardPage: Component = () => {
       if (!uids || uids.length === 0) return [];
       return firestoreUserRepository.getByIds(uids);
     },
+  );
+
+  const [auditEntries] = createResource(
+    () => live.tournament()?.id,
+    async (id) => getAuditLog(id),
   );
 
   const handleAddStaff = async (_uid: string, role: TournamentRole) => {
@@ -819,6 +826,11 @@ const TournamentDashboardPage: Component = () => {
                   onRemoveStaff={handleRemoveStaff}
                   onChangeRole={handleChangeRole}
                 />
+              </Show>
+
+              {/* Activity Log (all staff) */}
+              <Show when={live.tournament() && user() && hasMinRole(live.tournament()!, user()!.uid, 'scorekeeper')}>
+                <ActivityLog entries={auditEntries() ?? []} />
               </Show>
 
               {/* Score Edit Modal */}
