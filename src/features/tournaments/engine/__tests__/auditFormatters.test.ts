@@ -34,6 +34,13 @@ describe('formatAuditAction', () => {
     }))).toBe('Alice removed Bob from staff');
   });
 
+  it('formats role_change action for role-to-role change', () => {
+    expect(formatAuditAction(makeEntry({
+      action: 'role_change',
+      details: { action: 'role_change', targetUid: 'u2', targetName: 'Bob', oldRole: 'scorekeeper', newRole: 'admin' },
+    }))).toBe('Alice changed Bob role to admin');
+  });
+
   it('formats dispute_flag action', () => {
     expect(formatAuditAction(makeEntry({
       action: 'dispute_flag',
@@ -46,6 +53,13 @@ describe('formatAuditAction', () => {
       action: 'dispute_resolve',
       details: { action: 'dispute_resolve', matchId: 'm1', disputeId: 'd1', resolution: 'Fixed', type: 'edited' },
     }))).toBe('Alice resolved a dispute (scores edited)');
+  });
+
+  it('formats dispute_resolve action with dismissed type', () => {
+    expect(formatAuditAction(makeEntry({
+      action: 'dispute_resolve',
+      details: { action: 'dispute_resolve', matchId: 'm1', disputeId: 'd1', resolution: 'No change needed', type: 'dismissed' },
+    }))).toBe('Alice resolved a dispute (scores unchanged)');
   });
 
   it('formats registration_approve action', () => {
@@ -117,5 +131,17 @@ describe('formatRelativeTime', () => {
 
   it('returns "X days ago" for multiple days', () => {
     expect(formatRelativeTime(Date.now() - 3 * 24 * 60 * 60 * 1000)).toBe('3 days ago');
+  });
+
+  it('returns "1 min ago" at exactly 60 seconds', () => {
+    expect(formatRelativeTime(Date.now() - 60 * 1000)).toBe('1 min ago');
+  });
+
+  it('returns "1 hr ago" at exactly 60 minutes', () => {
+    expect(formatRelativeTime(Date.now() - 60 * 60 * 1000)).toBe('1 hr ago');
+  });
+
+  it('returns "yesterday" at exactly 24 hours', () => {
+    expect(formatRelativeTime(Date.now() - 24 * 60 * 60 * 1000)).toBe('yesterday');
   });
 });
