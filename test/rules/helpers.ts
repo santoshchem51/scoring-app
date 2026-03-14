@@ -128,7 +128,6 @@ export function makeTournament(organizerId: string, overrides: Record<string, un
       teamsPerPoolAdvancing: 2,
     },
     organizerId,
-    scorekeeperIds: [],
     staff: {},
     staffUids: [],
     status: 'setup',
@@ -151,8 +150,11 @@ export function makeTournament(organizerId: string, overrides: Record<string, un
     cancellationReason: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
-    visibility: 'private',
+    visibility: 'public',
     shareCode: null,
+    accessMode: 'open',
+    listed: true,
+    registrationCounts: { confirmed: 0, pending: 0 },
     ...overrides,
   };
 }
@@ -203,6 +205,7 @@ export function makeRegistration(userId: string, tournamentId: string, overrides
     userId,
     playerName: 'Test Player',
     teamId: null,
+    status: 'confirmed',
     paymentStatus: 'unpaid',
     paymentNote: '',
     lateEntry: false,

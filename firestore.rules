@@ -91,6 +91,24 @@ service cloud.firestore {
     // ── Tournaments (/tournaments/{tournamentId}) ─────────────────────
     match /tournaments/{tournamentId} {
 
+      // ── Role helper functions ──
+      function isOwner() {
+        return request.auth.uid == resource.data.organizerId;
+      }
+      function callerStaffRole() {
+        return request.auth.uid in resource.data.staff
+          ? resource.data.staff[request.auth.uid] : 'none';
+      }
+      function isAdminPlus() {
+        return isOwner() || callerStaffRole() == 'admin';
+      }
+      function isModPlus() {
+        return isAdminPlus() || callerStaffRole() == 'moderator';
+      }
+      function isStaff() {
+        return isModPlus() || callerStaffRole() == 'scorekeeper';
+      }
+
       // Helper: read tournament data (cached per rule evaluation)
       function tournamentData() {
         return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data;
@@ -117,7 +135,10 @@ service cloud.firestore {
         && request.resource.data.config.scoringMode in ['sideout', 'rally']
         && request.resource.data.config.matchFormat in ['single', 'best-of-3', 'best-of-5']
         && request.resource.data.config.pointsToWin in [11, 15, 21]
-        && request.resource.data.scorekeeperIds is list
+        && request.resource.data.staff is map
+        && request.resource.data.staff.size() == 0
+        && request.resource.data.staffUids is list
+        && request.resource.data.staffUids.size() == 0
         && request.resource.data.visibility in ['private', 'public']
         && request.resource.data.accessMode in ['open', 'approval', 'invite-only', 'group']
         && request.resource.data.listed is bool
@@ -132,9 +153,11 @@ service cloud.firestore {
         && (!('defaultTier' in request.resource.data.config)
             || request.resource.data.config.defaultTier in ['beginner', 'intermediate', 'advanced', 'expert']);
 
-      // Update: status transitions + field validation + organizerId immutable
-      allow update: if request.auth != null && request.auth.uid == resource.data.organizerId
+      // Settings update: admin+ only. Touches everything EXCEPT staff/staffUids.
+      allow update: if request.auth != null && isAdminPlus()
         && request.resource.data.organizerId == resource.data.organizerId
+        && request.resource.data.staff == resource.data.staff
+        && request.resource.data.staffUids == resource.data.staffUids
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 100
@@ -143,22 +166,17 @@ service cloud.firestore {
         && request.resource.data.format in ['round-robin', 'single-elimination', 'pool-bracket']
         && request.resource.data.config is map
         && request.resource.data.config.gameType in ['singles', 'doubles']
-        && request.resource.data.scorekeeperIds is list
         && (
-          // Valid status transitions
           (resource.data.status == 'setup' && request.resource.data.status in ['registration', 'cancelled']) ||
           (resource.data.status == 'registration' && request.resource.data.status in ['pool-play', 'bracket', 'cancelled']) ||
           (resource.data.status == 'pool-play' && request.resource.data.status in ['bracket', 'paused', 'completed', 'cancelled']) ||
           (resource.data.status == 'bracket' && request.resource.data.status in ['completed', 'paused', 'cancelled']) ||
           (resource.data.status == 'paused' && request.resource.data.status in ['pool-play', 'bracket', 'completed', 'cancelled']) ||
-          // Allow updates that don't change status
           request.resource.data.status == resource.data.status
         )
         && request.resource.data.visibility in ['private', 'public']
         && (
-          // If accessMode hasn't changed, allow (backward compat for old tournaments)
           !('accessMode' in resource.data) && !('accessMode' in request.resource.data)
-          // If accessMode is present, validate invariants
           || (request.resource.data.accessMode in ['open', 'approval', 'invite-only', 'group']
               && request.resource.data.listed is bool
               && (request.resource.data.listed == true ? request.resource.data.visibility == 'public' : request.resource.data.visibility == 'private'))
@@ -166,14 +184,23 @@ service cloud.firestore {
         && (!('defaultTier' in request.resource.data.config)
             || request.resource.data.config.defaultTier in ['beginner', 'intermediate', 'advanced', 'expert']);
 
+      // Staff update: admin+ only. ONLY touches staff, staffUids, updatedAt.
+      // Mutually exclusive with settings update — prevents piggyback attacks.
+      allow update: if request.auth != null && isAdminPlus()
+        && request.resource.data.organizerId == resource.data.organizerId
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['staff', 'staffUids', 'updatedAt'])
+        && request.resource.data.staff is map
+        && request.resource.data.staffUids is list;
+
       // Counter-only update: any authenticated user (for atomic registration batches)
       allow update: if request.auth != null
         && request.resource.data.organizerId == resource.data.organizerId
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['registrationCounts', 'updatedAt']);
 
-      // Only the organizer can delete a tournament
-      allow delete: if request.auth != null && request.auth.uid == resource.data.organizerId;
+      // Only the owner can delete a tournament
+      allow delete: if request.auth != null && isOwner();
 
       // Helper: check tournament is in an active state (not completed/cancelled)
       function isTournamentActive() {

@@ -361,7 +361,7 @@ describe('Tournaments (/tournaments/{tid})', () => {
   });
 
   it('denies unauthenticated read', async () => {
-    await seedDoc('tournaments/t1', makeTournament(organizerId));
+    await seedDoc('tournaments/t1', makeTournament(organizerId, { visibility: 'private', listed: false }));
     const db = unauthedContext().firestore();
     await assertFails(getDoc(doc(db, 'tournaments/t1')));
   });
@@ -444,9 +444,9 @@ describe('Tournaments (/tournaments/{tid})', () => {
     await assertFails(setDoc(doc(db, 'tournaments/t1'), makeTournament(organizerId, { config: badConfig })));
   });
 
-  it('denies create with non-list scorekeeperIds', async () => {
+  it('denies create with non-map staff', async () => {
     const db = authedContext(organizerId).firestore();
-    await assertFails(setDoc(doc(db, 'tournaments/t1'), makeTournament(organizerId, { scorekeeperIds: 'not-a-list' })));
+    await assertFails(setDoc(doc(db, 'tournaments/t1'), makeTournament(organizerId, { staff: 'not-a-map' })));
   });
 
   // ── Status transitions ──────────────────────────────────────────────
@@ -574,7 +574,7 @@ describe('Teams (/tournaments/{tid}/teams/{id})', () => {
   const teamPath = `${tourneyPath}/teams/team1`;
 
   beforeEach(async () => {
-    await seedDoc(tourneyPath, makeTournament(organizerId, { scorekeeperIds: [scorekeeperId], staff: { [scorekeeperId]: 'scorekeeper' }, staffUids: [scorekeeperId] }));
+    await seedDoc(tourneyPath, makeTournament(organizerId, { staff: { [scorekeeperId]: 'scorekeeper' }, staffUids: [scorekeeperId] }));
   });
 
   it('allows any authed user to read teams', async () => {
@@ -584,6 +584,7 @@ describe('Teams (/tournaments/{tid}/teams/{id})', () => {
   });
 
   it('denies unauthenticated read of teams', async () => {
+    await seedDoc(tourneyPath, makeTournament(organizerId, { visibility: 'private', listed: false, staff: { [scorekeeperId]: 'scorekeeper' }, staffUids: [scorekeeperId] }));
     await seedDoc(teamPath, makeTeam('t1'));
     const db = unauthedContext().firestore();
     await assertFails(getDoc(doc(db, teamPath)));
@@ -693,6 +694,7 @@ describe('Pools (/tournaments/{tid}/pools/{id})', () => {
   });
 
   it('denies unauthenticated read of pools', async () => {
+    await seedDoc(tourneyPath, makeTournament(organizerId, { visibility: 'private', listed: false }));
     await seedDoc(poolPath, makePool('t1'));
     const db = unauthedContext().firestore();
     await assertFails(getDoc(doc(db, poolPath)));
@@ -770,7 +772,7 @@ describe('Bracket (/tournaments/{tid}/bracket/{id})', () => {
   const slotPath = `${tourneyPath}/bracket/slot1`;
 
   beforeEach(async () => {
-    await seedDoc(tourneyPath, makeTournament(organizerId, { scorekeeperIds: [scorekeeperId], staff: { [scorekeeperId]: 'scorekeeper' }, staffUids: [scorekeeperId] }));
+    await seedDoc(tourneyPath, makeTournament(organizerId, { staff: { [scorekeeperId]: 'scorekeeper' }, staffUids: [scorekeeperId] }));
   });
 
   it('allows any authed user to read bracket slots', async () => {
@@ -780,6 +782,7 @@ describe('Bracket (/tournaments/{tid}/bracket/{id})', () => {
   });
 
   it('denies unauthenticated read of bracket', async () => {
+    await seedDoc(tourneyPath, makeTournament(organizerId, { visibility: 'private', listed: false, staff: { [scorekeeperId]: 'scorekeeper' }, staffUids: [scorekeeperId] }));
     await seedDoc(slotPath, makeBracketSlot('t1'));
     const db = unauthedContext().firestore();
     await assertFails(getDoc(doc(db, slotPath)));
@@ -870,6 +873,7 @@ describe('Registrations (/tournaments/{tid}/registrations/{id})', () => {
   });
 
   it('denies unauthenticated read of registrations', async () => {
+    await seedDoc(tourneyPath, makeTournament(organizerId, { status: 'registration', visibility: 'private', listed: false }));
     await seedDoc(regPath, makeRegistration(playerId, 't1'));
     const db = unauthedContext().firestore();
     await assertFails(getDoc(doc(db, regPath)));
@@ -879,7 +883,8 @@ describe('Registrations (/tournaments/{tid}/registrations/{id})', () => {
 
   it('allows player to register themselves', async () => {
     const db = authedContext(playerId).firestore();
-    await assertSucceeds(setDoc(doc(db, regPath), makeRegistration(playerId, 't1')));
+    const playerRegPath = `${tourneyPath}/registrations/${playerId}`;
+    await assertSucceeds(setDoc(doc(db, playerRegPath), makeRegistration(playerId, 't1', { id: playerId, status: 'confirmed' })));
   });
 
   it('denies registering as a different user', async () => {
@@ -932,16 +937,17 @@ describe('Registrations (/tournaments/{tid}/registrations/{id})', () => {
   it('allows organizer to update any registration field', async () => {
     await seedDoc(regPath, makeRegistration(playerId, 't1'));
     const db = authedContext(organizerId).firestore();
-    await assertSucceeds(updateDoc(doc(db, regPath), { paymentStatus: 'paid', paymentNote: 'Venmo' }));
+    await assertSucceeds(updateDoc(doc(db, regPath), { status: 'confirmed', paymentStatus: 'paid' }));
   });
 
   it('allows player to update own registration (without touching payment)', async () => {
     await seedDoc(regPath, makeRegistration(playerId, 't1'));
     const db = authedContext(playerId).firestore();
     await assertSucceeds(updateDoc(doc(db, regPath), {
-      teamId: 'team-1',
-      paymentStatus: 'unpaid',    // must stay same
+      status: 'confirmed',         // must stay same
+      paymentStatus: 'unpaid',     // must stay same
       paymentNote: '',             // must stay same
+      skillRating: 'intermediate',
     }));
   });
 
@@ -1001,16 +1007,16 @@ describe('Registrations (/tournaments/{tid}/registrations/{id})', () => {
 
   // ── Delete ─────────────────────────────────────────────────────────
 
-  it('allows player to delete their own registration', async () => {
+  it('denies player delete (use withdrawn status instead)', async () => {
     await seedDoc(regPath, makeRegistration(playerId, 't1'));
     const db = authedContext(playerId).firestore();
-    await assertSucceeds(deleteDoc(doc(db, regPath)));
+    await assertFails(deleteDoc(doc(db, regPath)));
   });
 
-  it('allows organizer to delete any registration', async () => {
+  it('denies organizer delete (use withdrawn status instead)', async () => {
     await seedDoc(regPath, makeRegistration(playerId, 't1'));
     const db = authedContext(organizerId).firestore();
-    await assertSucceeds(deleteDoc(doc(db, regPath)));
+    await assertFails(deleteDoc(doc(db, regPath)));
   });
 
   it('denies other player from deleting a registration', async () => {
