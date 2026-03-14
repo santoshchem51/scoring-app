@@ -371,6 +371,24 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // ── Audit Log (/tournaments/{tid}/auditLog/{logId}) ───────────
+      match /auditLog/{logId} {
+        // Staff can create audit entries — actorId must match auth.uid
+        allow create: if request.auth != null
+          && isTournamentStaff()
+          && request.resource.data.actorId == request.auth.uid
+          && request.resource.data.keys().hasAll([
+               'action', 'actorId', 'actorName', 'actorRole',
+               'targetType', 'targetId', 'details', 'timestamp'
+             ]);
+
+        // Staff can read audit entries
+        allow read: if request.auth != null && isTournamentStaff();
+
+        // Audit log is immutable — no updates or deletes ever
+        allow update, delete: if false;
+      }
+
       // ── Invitations (/tournaments/{tid}/invitations/{invId}) ──
       match /invitations/{invitationId} {
         // Organizer can read all invitations for their tournament
