@@ -43,4 +43,5 @@ export const registrationStatusLabels: Record<string, string> = {
   declined: 'Declined',
   withdrawn: 'Withdrawn',
   expired: 'Expired',
+  placeholder: 'Placeholder',
 };

@@ -193,7 +193,7 @@ export interface CachedAchievement extends UnlockedAchievement {
 
 export type TournamentVisibility = 'private' | 'public';
 export type TournamentAccessMode = 'open' | 'approval' | 'invite-only' | 'group';
-export type RegistrationStatus = 'confirmed' | 'pending' | 'declined' | 'withdrawn' | 'expired';
+export type RegistrationStatus = 'confirmed' | 'pending' | 'declined' | 'withdrawn' | 'expired' | 'placeholder';
 export type TournamentFormat = 'round-robin' | 'single-elimination' | 'pool-bracket';
 export type TournamentStatus = 'setup' | 'registration' | 'pool-play' | 'bracket' | 'completed' | 'cancelled' | 'paused';
 export type TournamentRole = 'admin' | 'moderator' | 'scorekeeper';
