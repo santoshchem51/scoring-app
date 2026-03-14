@@ -1,6 +1,10 @@
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import type { Component } from 'solid-js';
+import { setDoc } from 'firebase/firestore';
 import { firestoreRegistrationRepository } from '../../../data/firebase/firestoreRegistrationRepository';
+import { buildAuditEntry } from '../../../data/firebase/firestoreAuditRepository';
+import { getTournamentRole } from '../engine/roleHelpers';
+import { useAuth } from '../../../shared/hooks/useAuth';
 import type { TournamentRegistration, Tournament } from '../../../data/types';
 import ApprovalQueue from './ApprovalQueue';
 import { getExpiredRegistrationUserIds } from '../engine/registrationExpiry';
@@ -12,6 +16,7 @@ interface Props {
 }
 
 const OrganizerPlayerManager: Component<Props> = (props) => {
+  const { user } = useAuth();
   const [playerName, setPlayerName] = createSignal('');
   const [skillRating, setSkillRating] = createSignal<string>('');
   const [partnerName, setPartnerName] = createSignal('');
@@ -43,6 +48,21 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
       await firestoreRegistrationRepository.updateRegistrationStatus(
         props.tournament.id, userId, 'pending', 'confirmed',
       );
+      const currentUser = user();
+      if (currentUser) {
+        const reg = props.registrations.find(r => r.userId === userId);
+        const audit = buildAuditEntry(props.tournament.id, {
+          action: 'registration_approve',
+          actorId: currentUser.uid,
+          actorName: currentUser.displayName ?? '',
+          actorRole: getTournamentRole(props.tournament, currentUser.uid) ?? 'owner',
+          targetType: 'registration',
+          targetId: userId,
+          details: { action: 'registration_approve', registrationId: userId, playerName: reg?.playerName ?? '' },
+        });
+        const { ref: auditRef, id: _auditId, ...auditData } = audit;
+        setDoc(auditRef, auditData).catch(() => {});
+      }
       props.onUpdated();
     } catch (err) {
       console.error('Failed to approve registration:', err);
@@ -54,6 +74,21 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
       await firestoreRegistrationRepository.updateRegistrationStatus(
         props.tournament.id, userId, 'pending', 'declined', reason,
       );
+      const currentUser = user();
+      if (currentUser) {
+        const reg = props.registrations.find(r => r.userId === userId);
+        const audit = buildAuditEntry(props.tournament.id, {
+          action: 'registration_decline',
+          actorId: currentUser.uid,
+          actorName: currentUser.displayName ?? '',
+          actorRole: getTournamentRole(props.tournament, currentUser.uid) ?? 'owner',
+          targetType: 'registration',
+          targetId: userId,
+          details: { action: 'registration_decline', registrationId: userId, playerName: reg?.playerName ?? '', reason },
+        });
+        const { ref: auditRef, id: _auditId, ...auditData } = audit;
+        setDoc(auditRef, auditData).catch(() => {});
+      }
       props.onUpdated();
     } catch (err) {
       console.error('Failed to decline registration:', err);
