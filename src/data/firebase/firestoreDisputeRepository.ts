@@ -57,7 +57,7 @@ export async function flagDispute(input: FlagInput): Promise<string> {
     targetId: input.matchId,
     details: { action: 'dispute_flag', matchId: input.matchId, reason: input.reason },
   });
-  const { ref: auditRef, ...auditData } = audit;
+  const { ref: auditRef, id: _auditId, ...auditData } = audit;
   batch.set(auditRef, auditData);
 
   await batch.commit();
@@ -91,7 +91,7 @@ export async function resolveDispute(input: ResolveInput): Promise<void> {
       type: input.type,
     },
   });
-  const { ref: auditRef, ...auditData } = audit;
+  const { ref: auditRef, id: _auditId, ...auditData } = audit;
   batch.set(auditRef, auditData);
 
   await batch.commit();

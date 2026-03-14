@@ -201,7 +201,7 @@ const TournamentDashboardPage: Component = () => {
     async (id) => getAuditLog(id),
   );
 
-  const [disputes] = createResource(
+  const [disputes, { refetch: refetchDisputes }] = createResource(
     () => live.tournament()?.id,
     async (id) => getDisputesByTournament(id),
   );
@@ -222,6 +222,7 @@ const TournamentDashboardPage: Component = () => {
       type,
       actorRole: role,
     });
+    refetchDisputes();
   };
 
   const handleAddStaff = async (_uid: string, role: TournamentRole) => {
