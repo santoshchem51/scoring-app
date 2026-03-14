@@ -25,7 +25,7 @@ vi.mock('../firestoreAuditRepository', () => ({
   })),
 }));
 
-import { quickAddPlayers } from '../firestoreQuickAddRepository';
+import { quickAddPlayers, claimPlaceholder } from '../firestoreQuickAddRepository';
 
 describe('quickAddPlayers', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -81,5 +81,26 @@ describe('quickAddPlayers', () => {
       action: 'player_quick_add',
       details: expect.objectContaining({ count: 3, names: ['Alice', 'Bob', 'Carol'] }),
     }));
+  });
+});
+
+describe('claimPlaceholder', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('updates registration, adjusts counters, and writes audit entry', async () => {
+    await claimPlaceholder({
+      tournamentId: 't1',
+      registrationId: 'reg-1',
+      userId: 'user-1',
+      displayName: 'Alice',
+      actorId: 'admin-1',
+      actorName: 'Admin',
+      actorRole: 'admin',
+    });
+
+    const batch = mockWriteBatch();
+    expect(batch.update).toHaveBeenCalledTimes(2); // reg + counter
+    expect(batch.set).toHaveBeenCalledTimes(1); // audit
+    expect(batch.commit).toHaveBeenCalled();
   });
 });

@@ -48,7 +48,8 @@ import DisputePanel from './components/DisputePanel';
 import QuickAddPlayers from './components/QuickAddPlayers';
 import SaveTemplateModal from './components/SaveTemplateModal';
 import { addStaffMember, removeStaffMember, updateStaffRole } from '../../data/firebase/firestoreStaffRepository';
-import { saveTemplate } from '../../data/firebase/firestoreTemplateRepository';
+import { saveTemplate, getTemplates } from '../../data/firebase/firestoreTemplateRepository';
+import { MAX_TEMPLATES_PER_USER } from './engine/templateTypes';
 import { getAuditLog } from '../../data/firebase/firestoreAuditRepository';
 import { getDisputesByTournament, resolveDispute } from '../../data/firebase/firestoreDisputeRepository';
 import { quickAddPlayers } from '../../data/firebase/firestoreQuickAddRepository';
@@ -252,9 +253,10 @@ const TournamentDashboardPage: Component = () => {
 
   const handleExportCsv = () => {
     const regs = live.registrations();
-    const csv = registrationsToCsv(regs as unknown as Array<Record<string, unknown>>);
+    const csv = registrationsToCsv(regs);
     const t = live.tournament();
-    downloadCsv(csv, `${t?.name ?? 'tournament'}-registrations.csv`);
+    const safeName = (t?.name ?? 'tournament').replace(/[^a-zA-Z0-9_-]/g, '_');
+    downloadCsv(csv, `${safeName}-registrations.csv`);
   };
 
   const [showSaveTemplate, setShowSaveTemplate] = createSignal(false);
@@ -264,6 +266,12 @@ const TournamentDashboardPage: Component = () => {
     const u = user();
     if (!t || !u) return;
     try {
+      // Enforce max templates limit
+      const existing = await getTemplates(u.uid);
+      if (existing.length >= MAX_TEMPLATES_PER_USER) {
+        setError(`Maximum ${MAX_TEMPLATES_PER_USER} templates allowed. Delete some to save new ones.`);
+        return;
+      }
       await saveTemplate(u.uid, {
         name,
         description,
@@ -804,7 +812,7 @@ const TournamentDashboardPage: Component = () => {
                     </Show>
                     {/* Quick Add + CSV Export (admin+) */}
                     <div class="flex gap-2">
-                      <QuickAddPlayers onSubmit={handleQuickAdd} />
+                      <QuickAddPlayers onSubmit={handleQuickAdd} existingNames={live.registrations().map(r => r.playerName || '')} />
                     </div>
                     <button
                       class="rounded-lg bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface"

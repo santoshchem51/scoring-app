@@ -68,3 +68,50 @@ export async function quickAddPlayers(input: QuickAddInput): Promise<void> {
 
   await batch.commit();
 }
+
+export async function claimPlaceholder(input: {
+  tournamentId: string;
+  registrationId: string;
+  userId: string;
+  displayName: string;
+  actorId: string;
+  actorName: string;
+  actorRole: EffectiveRole;
+}): Promise<void> {
+  const batch = writeBatch(firestore);
+  const regRef = doc(firestore, 'tournaments', input.tournamentId, 'registrations', input.registrationId);
+
+  batch.update(regRef, {
+    userId: input.userId,
+    status: 'confirmed',
+    playerName: input.displayName,
+    statusUpdatedAt: Date.now(),
+  });
+
+  // Adjust counters: pending -1, confirmed +1
+  const tournamentRef = doc(firestore, 'tournaments', input.tournamentId);
+  batch.update(tournamentRef, {
+    'registrationCounts.pending': increment(-1),
+    'registrationCounts.confirmed': increment(1),
+  });
+
+  // Audit entry
+  const audit = buildAuditEntry(input.tournamentId, {
+    action: 'player_claim',
+    actorId: input.actorId,
+    actorName: input.actorName,
+    actorRole: input.actorRole,
+    targetType: 'registration',
+    targetId: input.registrationId,
+    details: {
+      action: 'player_claim',
+      registrationId: input.registrationId,
+      placeholderName: input.displayName,
+      claimedByUid: input.userId,
+    },
+  });
+  const { ref: auditRef, id: _auditId, ...auditData } = audit;
+  batch.set(auditRef, auditData);
+
+  await batch.commit();
+}
