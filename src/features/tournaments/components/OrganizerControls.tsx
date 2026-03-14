@@ -2,6 +2,8 @@ import { createSignal, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { firestoreTournamentRepository } from '../../../data/firebase/firestoreTournamentRepository';
+import { useAuth } from '../../../shared/hooks/useAuth';
+import { writeStatusAudit } from './OrganizerControls.audit';
 import type { Tournament } from '../../../data/types';
 
 interface Props {
@@ -10,6 +12,7 @@ interface Props {
 }
 
 const OrganizerControls: Component<Props> = (props) => {
+  const { user } = useAuth();
   const [showCancel, setShowCancel] = createSignal(false);
   const [error, setError] = createSignal('');
   const [loading, setLoading] = createSignal(false);
@@ -22,13 +25,16 @@ const OrganizerControls: Component<Props> = (props) => {
     setError('');
     setLoading(true);
     try {
+      const oldStatus = props.tournament.status;
       if (isPaused()) {
         // Resume: restore to pre-pause status
         const resumeTo = props.tournament.pausedFrom ?? 'pool-play';
         await firestoreTournamentRepository.updateStatus(props.tournament.id, resumeTo, { pausedFrom: null });
+        writeStatusAudit(props.tournament, user(), oldStatus, resumeTo);
       } else {
         // Pause: save current status, then set to paused
         await firestoreTournamentRepository.updateStatus(props.tournament.id, 'paused', { pausedFrom: props.tournament.status });
+        writeStatusAudit(props.tournament, user(), oldStatus, 'paused');
       }
       props.onUpdated();
     } catch (e) {
@@ -42,7 +48,9 @@ const OrganizerControls: Component<Props> = (props) => {
     setError('');
     setLoading(true);
     try {
+      const oldStatus = props.tournament.status;
       await firestoreTournamentRepository.updateStatus(props.tournament.id, 'cancelled', { reason: 'Cancelled by organizer' });
+      writeStatusAudit(props.tournament, user(), oldStatus, 'cancelled', 'Cancelled by organizer');
       setShowCancel(false);
       props.onUpdated();
     } catch (e) {
@@ -57,7 +65,9 @@ const OrganizerControls: Component<Props> = (props) => {
     setError('');
     setLoading(true);
     try {
+      const oldStatus = props.tournament.status;
       await firestoreTournamentRepository.updateStatus(props.tournament.id, 'completed');
+      writeStatusAudit(props.tournament, user(), oldStatus, 'completed');
       props.onUpdated();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to end tournament');
