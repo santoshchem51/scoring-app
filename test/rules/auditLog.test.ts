@@ -59,6 +59,15 @@ describe('Audit Log Security Rules', () => {
       ));
     });
 
+    it('rejects audit entry with extra fields', async () => {
+      await seedTournament();
+      const db = authedContext(adminId).firestore();
+      await assertFails(setDoc(
+        doc(db, `tournaments/${tourneyId}/auditLog/log-extra`),
+        { ...makeAuditEntry(adminId), maliciousField: 'injected', isAdmin: true },
+      ));
+    });
+
     it('non-staff cannot create audit entry', async () => {
       await seedTournament();
       const db = authedContext(randomId).firestore();
