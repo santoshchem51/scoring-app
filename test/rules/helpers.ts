@@ -154,6 +154,8 @@ export function makeTournament(organizerId: string, overrides: Record<string, un
     shareCode: null,
     accessMode: 'open',
     listed: true,
+    buddyGroupId: null,
+    buddyGroupName: null,
     registrationCounts: { confirmed: 0, pending: 0 },
     ...overrides,
   };

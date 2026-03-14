@@ -187,6 +187,9 @@ service cloud.firestore {
 
       // Staff update: admin+ only. ONLY touches staff, staffUids, updatedAt.
       // Mutually exclusive with settings update — prevents piggyback attacks.
+      // WARNING: Firestore rules cannot iterate map values, so staff role values
+      // are NOT validated here (could be 'owner', '', or any string). Application
+      // layer MUST enforce values in ['admin','moderator','scorekeeper'].
       allow update: if request.auth != null && isAdminPlus()
         && request.resource.data.organizerId == resource.data.organizerId
         && request.resource.data.diff(resource.data).affectedKeys()
