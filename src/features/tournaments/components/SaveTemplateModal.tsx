@@ -1,6 +1,8 @@
 import { createSignal, Show } from 'solid-js';
 import { MAX_TEMPLATE_NAME_LENGTH } from '../engine/templateTypes';
 
+const MAX_DESCRIPTION_LENGTH = 200;
+
 interface SaveTemplateModalProps {
   onSave: (name: string, description: string) => void;
   onClose: () => void;
@@ -19,6 +21,10 @@ export default function SaveTemplateModal(props: SaveTemplateModalProps) {
     }
     if (trimmedName.length > MAX_TEMPLATE_NAME_LENGTH) {
       setError(`Name must be ${MAX_TEMPLATE_NAME_LENGTH} characters or less`);
+      return;
+    }
+    if (description().trim().length > MAX_DESCRIPTION_LENGTH) {
+      setError(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
       return;
     }
     setError('');
@@ -46,6 +52,7 @@ export default function SaveTemplateModal(props: SaveTemplateModalProps) {
               placeholder="Description (optional)"
               value={description()}
               onInput={(e) => setDescription(e.target.value)}
+              maxLength={MAX_DESCRIPTION_LENGTH}
               class="w-full border rounded px-3 py-2"
               rows={3}
             />

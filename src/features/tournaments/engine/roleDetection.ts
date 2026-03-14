@@ -13,6 +13,8 @@ export function detectViewerRole(
 ): ViewerRole {
   if (!userId) return 'spectator';
   if (tournament.organizerId === userId) return 'organizer';
+  // NOTE: All staff roles (admin, moderator, scorekeeper) collapse to 'scorekeeper'
+  // for ViewerRole. Role-specific permissions use hasMinRole() from roleHelpers.ts instead.
   if (tournament.staff[userId]) return 'scorekeeper';
   if (registrations.some((r) => r.userId === userId)) return 'player';
   return 'spectator';

@@ -1,5 +1,5 @@
 import {
-  doc, collection, getDocs, query, orderBy, where,
+  doc, collection, getDocs, query, orderBy, where, limit,
   serverTimestamp, writeBatch,
 } from 'firebase/firestore';
 import { firestore } from './config';
@@ -101,7 +101,7 @@ export async function resolveDispute(input: ResolveInput): Promise<void> {
 
 export async function getDisputesByTournament(tournamentId: string): Promise<MatchDispute[]> {
   const colRef = collection(firestore, 'tournaments', tournamentId, 'disputes');
-  const q = query(colRef, orderBy('createdAt', 'desc'));
+  const q = query(colRef, orderBy('createdAt', 'desc'), limit(100));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as MatchDispute));
 }

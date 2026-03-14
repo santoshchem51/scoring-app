@@ -34,8 +34,8 @@ const TournamentCreatePage: Component = () => {
   const [matchFormat, setMatchFormat] = createSignal<MatchFormat>('single');
   const [pointsToWin, setPointsToWin] = createSignal<11 | 15 | 21>(11);
   const [defaultTier, setDefaultTier] = createSignal<Tier>('beginner');
-  const [poolCount, _setPoolCount] = createSignal(2);
-  const [teamsAdvancing, _setTeamsAdvancing] = createSignal(2);
+  const [poolCount, setPoolCount] = createSignal(2);
+  const [teamsAdvancing, setTeamsAdvancing] = createSignal(2);
   const [maxPlayers, setMaxPlayers] = createSignal('');
   const [teamFormation, setTeamFormation] = createSignal<'byop' | 'auto-pair'>('byop');
   const [saving, setSaving] = createSignal(false);
@@ -63,6 +63,8 @@ const TournamentCreatePage: Component = () => {
     setMaxPlayers(tpl.maxPlayers?.toString() ?? '');
     setTeamFormation((tpl.teamFormation as 'byop' | 'auto-pair') ?? 'byop');
     setAccessMode(tpl.accessMode);
+    if (tpl.config.poolCount) setPoolCount(tpl.config.poolCount);
+    if (tpl.config.teamsPerPoolAdvancing) setTeamsAdvancing(tpl.config.teamsPerPoolAdvancing);
     setUsedTemplateId(tpl.id);
   };
 

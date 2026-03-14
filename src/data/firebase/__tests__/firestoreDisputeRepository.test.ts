@@ -19,6 +19,7 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn((...args: unknown[]) => args),
   where: vi.fn(() => 'mock-where'),
   orderBy: vi.fn(() => 'mock-orderby'),
+  limit: vi.fn(() => 'mock-limit'),
   serverTimestamp: vi.fn(() => 'SERVER_TS'),
   writeBatch: mockWriteBatch,
 }));
