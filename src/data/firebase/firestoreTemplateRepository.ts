@@ -1,11 +1,34 @@
 import { doc, collection, setDoc, getDocs, deleteDoc, updateDoc, query, orderBy, increment } from 'firebase/firestore';
 import { firestore } from './config';
 import type { TournamentTemplate } from '../../features/tournaments/engine/templateTypes';
+import type { TournamentFormat, TournamentConfig, TournamentAccessMode, TournamentRules } from '../types';
 
-/** Save (create or overwrite) a tournament template for a user. */
-export async function saveTemplate(userId: string, template: TournamentTemplate): Promise<void> {
-  const ref = doc(firestore, 'users', userId, 'templates', template.id);
-  await setDoc(ref, template);
+/** Input for creating a new template — repo generates id, timestamps, usageCount. */
+export interface TemplateInput {
+  name: string;
+  description?: string;
+  format: TournamentFormat;
+  gameType: TournamentConfig['gameType'];
+  config: TournamentConfig;
+  teamFormation: string | null;
+  maxPlayers: number | null;
+  accessMode: TournamentAccessMode;
+  rules: TournamentRules;
+}
+
+/** Save a new tournament template for a user. Generates id, timestamps, usageCount. */
+export async function saveTemplate(userId: string, input: TemplateInput): Promise<string> {
+  const colRef = collection(firestore, 'users', userId, 'templates');
+  const docRef = doc(colRef);
+  const now = Date.now();
+  await setDoc(docRef, {
+    id: docRef.id,
+    ...input,
+    createdAt: now,
+    updatedAt: now,
+    usageCount: 0,
+  });
+  return docRef.id;
 }
 
 /** Get all templates for a user, sorted by updatedAt descending. */

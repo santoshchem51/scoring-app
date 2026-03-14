@@ -2,7 +2,8 @@ import { describe, it, beforeAll, afterAll, beforeEach } from 'vitest';
 import { doc, setDoc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import {
   setupTestEnv, teardownTestEnv, clearFirestore,
-  authedContext, assertSucceeds, assertFails,
+  authedContext, unauthedContext, assertSucceeds, assertFails,
+  getTestEnv,
 } from './helpers';
 
 beforeAll(async () => { await setupTestEnv(); });
@@ -61,5 +62,24 @@ describe('Template Security Rules', () => {
   it('other user cannot write another user template', async () => {
     const otherDb = authedContext(otherId).firestore();
     await assertFails(setDoc(doc(otherDb, `users/${userId}/templates/tpl-1`), makeTemplate()));
+  });
+
+  it('unauthenticated user cannot read templates', async () => {
+    const ownerDb = authedContext(userId).firestore();
+    await setDoc(doc(ownerDb, `users/${userId}/templates/tpl-1`), makeTemplate());
+    const db = unauthedContext().firestore();
+    await assertFails(getDoc(doc(db, `users/${userId}/templates/tpl-1`)));
+  });
+
+  it('unauthenticated user cannot create templates', async () => {
+    const db = unauthedContext().firestore();
+    await assertFails(setDoc(doc(db, `users/${userId}/templates/tpl-1`), makeTemplate()));
+  });
+
+  it('unauthenticated user cannot delete templates', async () => {
+    const ownerDb = authedContext(userId).firestore();
+    await setDoc(doc(ownerDb, `users/${userId}/templates/tpl-1`), makeTemplate());
+    const db = unauthedContext().firestore();
+    await assertFails(deleteDoc(doc(db, `users/${userId}/templates/tpl-1`)));
   });
 });

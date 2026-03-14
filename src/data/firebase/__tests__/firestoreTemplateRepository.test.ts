@@ -68,15 +68,29 @@ describe('firestoreTemplateRepository', () => {
   beforeEach(() => vi.clearAllMocks());
 
   describe('saveTemplate', () => {
-    it('writes template to correct Firestore path', async () => {
-      const template = makeTemplate();
+    it('writes template with generated id, timestamps, and usageCount: 0', async () => {
+      const input = {
+        name: 'Weekly Doubles',
+        format: 'round-robin' as const,
+        gameType: 'doubles' as const,
+        config: makeTemplate().config,
+        teamFormation: 'byop',
+        maxPlayers: 16,
+        accessMode: 'open' as const,
+        rules: makeTemplate().rules,
+      };
 
-      await saveTemplate('user-1', template);
+      await saveTemplate('user-1', input);
 
-      expect(mockDoc).toHaveBeenCalledWith('mock-firestore', 'users', 'user-1', 'templates', 'tpl-1');
+      expect(mockCollection).toHaveBeenCalledWith('mock-firestore', 'users', 'user-1', 'templates');
       expect(mockSetDoc).toHaveBeenCalledWith(
-        expect.objectContaining({ id: expect.any(String) }),
-        template,
+        expect.anything(),
+        expect.objectContaining({
+          name: 'Weekly Doubles',
+          usageCount: 0,
+          createdAt: expect.any(Number),
+          updatedAt: expect.any(Number),
+        }),
       );
     });
   });

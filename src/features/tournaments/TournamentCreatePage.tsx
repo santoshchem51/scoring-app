@@ -59,6 +59,7 @@ const TournamentCreatePage: Component = () => {
     setScoringMode(tpl.config.scoringMode);
     setMatchFormat(tpl.config.matchFormat);
     setPointsToWin(tpl.config.pointsToWin as 11 | 15 | 21);
+    if (tpl.config.defaultTier) setDefaultTier(tpl.config.defaultTier as Tier);
     setMaxPlayers(tpl.maxPlayers?.toString() ?? '');
     setTeamFormation((tpl.teamFormation as 'byop' | 'auto-pair') ?? 'byop');
     setAccessMode(tpl.accessMode);
