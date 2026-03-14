@@ -67,6 +67,27 @@ describe('Dispute Security Rules', () => {
       const db = authedContext(randomId).firestore();
       await assertFails(setDoc(doc(db, `tournaments/${tourneyId}/disputes/d4`), makeDispute(randomId)));
     });
+
+    it('rejects create with extra fields', async () => {
+      await seedTournament();
+      const db = authedContext(modId).firestore();
+      await assertFails(setDoc(doc(db, `tournaments/${tourneyId}/disputes/d-extra`),
+        { ...makeDispute(modId), maliciousField: 'injected' }));
+    });
+
+    it('rejects create with flaggedBy != auth.uid', async () => {
+      await seedTournament();
+      const db = authedContext(modId).firestore();
+      await assertFails(setDoc(doc(db, `tournaments/${tourneyId}/disputes/d-spoof`),
+        makeDispute('someone-else')));
+    });
+
+    it('rejects create with empty reason', async () => {
+      await seedTournament();
+      const db = authedContext(modId).firestore();
+      await assertFails(setDoc(doc(db, `tournaments/${tourneyId}/disputes/d-empty`),
+        { ...makeDispute(modId), reason: '' }));
+    });
   });
 
   describe('update (resolve)', () => {
@@ -85,6 +106,31 @@ describe('Dispute Security Rules', () => {
       await assertFails(updateDoc(doc(db, `tournaments/${tourneyId}/disputes/d1`),
         { status: 'resolved-edited', resolvedBy: skId, resolvedByName: 'SK', resolution: 'Fixed', resolvedAt: new Date() }));
     });
+
+    it('cannot re-resolve an already resolved dispute', async () => {
+      await seedTournament();
+      const resolved = { ...makeDispute(ownerId), status: 'resolved-edited', resolvedBy: modId, resolvedByName: 'Mod', resolution: 'Fixed', resolvedAt: new Date() };
+      await seedDoc(`tournaments/${tourneyId}/disputes/d-resolved`, resolved);
+      const db = authedContext(modId).firestore();
+      await assertFails(updateDoc(doc(db, `tournaments/${tourneyId}/disputes/d-resolved`),
+        { status: 'resolved-dismissed', resolvedBy: modId, resolvedByName: 'Mod', resolution: 'Changed', resolvedAt: new Date() }));
+    });
+
+    it('cannot tamper with reason during resolve', async () => {
+      await seedTournament();
+      await seedDoc(`tournaments/${tourneyId}/disputes/d1`, makeDispute(ownerId));
+      const db = authedContext(modId).firestore();
+      await assertFails(updateDoc(doc(db, `tournaments/${tourneyId}/disputes/d1`),
+        { status: 'resolved-dismissed', resolvedBy: modId, resolvedByName: 'Mod', resolution: 'Dismissed', resolvedAt: new Date(), reason: 'Tampered reason' }));
+    });
+
+    it('cannot change flaggedBy during resolve', async () => {
+      await seedTournament();
+      await seedDoc(`tournaments/${tourneyId}/disputes/d1`, makeDispute(ownerId));
+      const db = authedContext(modId).firestore();
+      await assertFails(updateDoc(doc(db, `tournaments/${tourneyId}/disputes/d1`),
+        { status: 'resolved-dismissed', resolvedBy: modId, resolvedByName: 'Mod', resolution: 'Dismissed', resolvedAt: new Date(), flaggedBy: 'tampered' }));
+    });
   });
 
   describe('read', () => {
@@ -93,6 +139,13 @@ describe('Dispute Security Rules', () => {
       await seedDoc(`tournaments/${tourneyId}/disputes/d1`, makeDispute(ownerId));
       const db = authedContext(skId).firestore();
       await assertSucceeds(getDoc(doc(db, `tournaments/${tourneyId}/disputes/d1`)));
+    });
+
+    it('non-staff cannot read disputes', async () => {
+      await seedTournament();
+      await seedDoc(`tournaments/${tourneyId}/disputes/d1`, makeDispute(ownerId));
+      const db = authedContext(randomId).firestore();
+      await assertFails(getDoc(doc(db, `tournaments/${tourneyId}/disputes/d1`)));
     });
   });
 
