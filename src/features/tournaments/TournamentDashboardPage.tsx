@@ -45,9 +45,12 @@ import ScorekeeperMatchList from './components/ScorekeeperMatchList';
 import StaffManager from './components/StaffManager';
 import ActivityLog from './components/ActivityLog';
 import DisputePanel from './components/DisputePanel';
+import QuickAddPlayers from './components/QuickAddPlayers';
 import { addStaffMember, removeStaffMember, updateStaffRole } from '../../data/firebase/firestoreStaffRepository';
 import { getAuditLog } from '../../data/firebase/firestoreAuditRepository';
 import { getDisputesByTournament, resolveDispute } from '../../data/firebase/firestoreDisputeRepository';
+import { quickAddPlayers } from '../../data/firebase/firestoreQuickAddRepository';
+import { registrationsToCsv, downloadCsv } from './engine/csvExport';
 import { canResolveDispute } from './engine/disputeHelpers';
 import { firestoreUserRepository } from '../../data/firebase/firestoreUserRepository';
 import { getTournamentRole } from './engine/roleHelpers';
@@ -223,6 +226,28 @@ const TournamentDashboardPage: Component = () => {
       actorRole: role,
     });
     refetchDisputes();
+  };
+
+  const handleQuickAdd = async (names: string[]) => {
+    const t = live.tournament();
+    const u = user();
+    if (!t || !u) return;
+    const role = getTournamentRole(t, u.uid);
+    if (!role) return;
+    await quickAddPlayers({
+      tournamentId: t.id,
+      names,
+      actorId: u.uid,
+      actorName: u.displayName ?? '',
+      actorRole: role,
+    });
+  };
+
+  const handleExportCsv = () => {
+    const regs = live.registrations();
+    const csv = registrationsToCsv(regs as unknown as Array<Record<string, unknown>>);
+    const t = live.tournament();
+    downloadCsv(csv, `${t?.name ?? 'tournament'}-registrations.csv`);
   };
 
   const handleAddStaff = async (_uid: string, role: TournamentRole) => {
@@ -745,6 +770,16 @@ const TournamentDashboardPage: Component = () => {
                         onUpdated={handleRegistered}
                       />
                     </Show>
+                    {/* Quick Add + CSV Export (admin+) */}
+                    <div class="flex gap-2">
+                      <QuickAddPlayers onSubmit={handleQuickAdd} />
+                    </div>
+                    <button
+                      class="rounded-lg bg-surface-container-high px-4 py-2 text-sm font-medium text-on-surface"
+                      onClick={handleExportCsv}
+                    >
+                      Export CSV
+                    </button>
                   </Show>
                   <RegistrationForm
                     tournament={t()}
