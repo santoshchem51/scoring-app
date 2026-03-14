@@ -50,6 +50,34 @@ describe('Audit Log Security Rules', () => {
       ));
     });
 
+    it('owner can create audit entry', async () => {
+      await seedTournament();
+      const db = authedContext(ownerId).firestore();
+      await assertSucceeds(setDoc(
+        doc(db, `tournaments/${tourneyId}/auditLog/log-owner`),
+        makeAuditEntry(ownerId),
+      ));
+    });
+
+    it('scorekeeper can create audit entry', async () => {
+      await seedTournament();
+      const db = authedContext(skId).firestore();
+      await assertSucceeds(setDoc(
+        doc(db, `tournaments/${tourneyId}/auditLog/log-sk`),
+        makeAuditEntry(skId),
+      ));
+    });
+
+    it('rejects audit entry missing required field', async () => {
+      await seedTournament();
+      const db = authedContext(adminId).firestore();
+      const { actorRole: _, ...incomplete } = makeAuditEntry(adminId);
+      await assertFails(setDoc(
+        doc(db, `tournaments/${tourneyId}/auditLog/log-incomplete`),
+        incomplete,
+      ));
+    });
+
     it('rejects if actorId does not match auth.uid', async () => {
       await seedTournament();
       const db = authedContext(adminId).firestore();
