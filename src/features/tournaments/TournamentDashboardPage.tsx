@@ -37,10 +37,15 @@ import ShareTournamentModal from './components/ShareTournamentModal';
 import { useTournamentLive } from './hooks/useTournamentLive';
 import { detectViewerRole } from './engine/roleDetection';
 import type { ViewerRole } from './engine/roleDetection';
+import { hasMinRole } from './engine/roleHelpers';
 import { getPlayerTeamId, getPlayerMatches, getPlayerStats } from './engine/playerStats';
 import MyMatchesSection from './components/MyMatchesSection';
 import MyStatsCard from './components/MyStatsCard';
 import ScorekeeperMatchList from './components/ScorekeeperMatchList';
+import StaffManager from './components/StaffManager';
+import { addStaffMember, removeStaffMember, updateStaffRole } from '../../data/firebase/firestoreStaffRepository';
+import { firestoreUserRepository } from '../../data/firebase/firestoreUserRepository';
+import type { TournamentRole } from '../../data/types';
 
 // Format-aware status transitions (no pool-play for single-elimination, no bracket for round-robin)
 const statusTransitions: Record<TournamentFormat, Partial<Record<TournamentStatus, TournamentStatus>>> = {
@@ -164,6 +169,45 @@ const TournamentDashboardPage: Component = () => {
     if (!t) return 'spectator';
     return detectViewerRole(t, u?.uid ?? null, live.registrations());
   });
+
+  const isAdminPlus = () => {
+    const t = live.tournament();
+    const u = user();
+    return !!t && !!u && hasMinRole(t, u.uid, 'admin');
+  };
+
+  const isModPlus = () => {
+    const t = live.tournament();
+    const u = user();
+    return !!t && !!u && hasMinRole(t, u.uid, 'moderator');
+  };
+
+  const [staffProfiles] = createResource(
+    () => live.tournament()?.staffUids,
+    async (uids) => {
+      if (!uids || uids.length === 0) return [];
+      return firestoreUserRepository.getByIds(uids);
+    },
+  );
+
+  const handleAddStaff = async (_uid: string, role: TournamentRole) => {
+    const t = live.tournament();
+    if (!t) return;
+    // TODO: Wire up user search modal — for now this is called from StaffManager's Add button
+    await addStaffMember(t.id, _uid, role);
+  };
+
+  const handleRemoveStaff = async (uid: string) => {
+    const t = live.tournament();
+    if (!t) return;
+    await removeStaffMember(t.id, uid);
+  };
+
+  const handleChangeRole = async (uid: string, newRole: TournamentRole) => {
+    const t = live.tournament();
+    if (!t) return;
+    await updateStaffRole(t.id, uid, newRole);
+  };
 
   const playerTeamId = createMemo(() => {
     const u = user();
@@ -606,7 +650,7 @@ const TournamentDashboardPage: Component = () => {
                   </Show>
                 </div>
                 <div class="flex items-center gap-2">
-                  <Show when={isOrganizer()}>
+                  <Show when={isAdminPlus()}>
                     <button
                       type="button"
                       onClick={() => setShowShareModal(true)}
@@ -615,7 +659,7 @@ const TournamentDashboardPage: Component = () => {
                       Share
                     </button>
                   </Show>
-                  <Show when={isOrganizer() && nextStatus()}>
+                  <Show when={isAdminPlus() && nextStatus()}>
                     <button type="button" onClick={handleStatusAdvance}
                       disabled={advancing()}
                       class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform ${advancing() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
@@ -652,7 +696,7 @@ const TournamentDashboardPage: Component = () => {
               {/* Registration Section */}
               <Show when={t().status === 'registration'}>
                 <div class="space-y-4">
-                  <Show when={isOrganizer()}>
+                  <Show when={isAdminPlus()}>
                     <OrganizerPlayerManager
                       tournament={t()}
                       registrations={live.registrations()}
@@ -691,7 +735,7 @@ const TournamentDashboardPage: Component = () => {
               </Show>
 
               {/* Scorekeeper Match List */}
-              <Show when={role() === 'scorekeeper'}>
+              <Show when={role() === 'scorekeeper' || (live.tournament() && user() && hasMinRole(live.tournament()!, user()!.uid, 'scorekeeper') && role() !== 'player')}>
                 <ScorekeeperMatchList
                   pools={live.pools()}
                   bracket={live.bracket()}
@@ -725,7 +769,7 @@ const TournamentDashboardPage: Component = () => {
                         advancingCount={t().config.teamsPerPoolAdvancing ?? 2}
                         schedule={pool.schedule}
                         onScoreMatch={handleScorePoolMatch}
-                        onEditMatch={isOrganizer() ? handleEditPoolMatch : undefined}
+                        onEditMatch={isModPlus() ? handleEditPoolMatch : undefined}
                       />
                     )}
                   </For>
@@ -740,13 +784,13 @@ const TournamentDashboardPage: Component = () => {
                     slots={live.bracket()}
                     teamNames={teamNames()}
                     onScoreMatch={handleScoreBracketMatch}
-                    onEditMatch={isOrganizer() ? handleEditBracketMatch : undefined}
+                    onEditMatch={isModPlus() ? handleEditBracketMatch : undefined}
                   />
                 </div>
               </Show>
 
               {/* Fee Tracker (organizer only, when entry fee exists) */}
-              <Show when={isOrganizer() && t().entryFee}>
+              <Show when={isAdminPlus() && t().entryFee}>
                 <FeeTracker
                   tournamentId={t().id}
                   entryFee={t().entryFee!}
@@ -758,10 +802,22 @@ const TournamentDashboardPage: Component = () => {
               </Show>
 
               {/* Organizer Controls */}
-              <Show when={isOrganizer() && !['completed', 'cancelled'].includes(t().status)}>
+              <Show when={isAdminPlus() && !['completed', 'cancelled'].includes(t().status)}>
                 <OrganizerControls
                   tournament={t()}
                   onUpdated={handleOrganizerUpdated}
+                />
+              </Show>
+
+              {/* Staff Management (admin+ only) */}
+              <Show when={isAdminPlus()}>
+                <StaffManager
+                  tournament={t()}
+                  currentUserId={user()!.uid}
+                  staffProfiles={staffProfiles() ?? []}
+                  onAddStaff={handleAddStaff}
+                  onRemoveStaff={handleRemoveStaff}
+                  onChangeRole={handleChangeRole}
                 />
               </Show>
 
