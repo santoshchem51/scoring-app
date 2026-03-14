@@ -21,7 +21,13 @@ service cloud.firestore {
 
       // ── Templates (/users/{userId}/templates/{templateId}) ────────
       match /templates/{templateId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.keys().hasAll(['name', 'format', 'config', 'createdAt', 'updatedAt', 'usageCount'])
+          && request.resource.data.name is string
+          && request.resource.data.usageCount == 0;
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
       }
     }
 
@@ -439,17 +445,16 @@ service cloud.firestore {
 
       // ── Invitations (/tournaments/{tid}/invitations/{invId}) ──
       match /invitations/{invitationId} {
-        // Organizer can read all invitations for their tournament
-        allow read: if request.auth != null
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid;
+        // Admin+ can read all invitations for their tournament
+        allow read: if request.auth != null && isTournamentAdminPlus();
 
         // Invited user can read their own invitation
         allow read: if request.auth != null
           && resource.data.invitedUserId == request.auth.uid;
 
-        // Only organizer can create invitations
+        // Admin+ can create invitations
         allow create: if request.auth != null
-          && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.organizerId == request.auth.uid
+          && isTournamentAdminPlus()
           && request.resource.data.tournamentId == tournamentId
           && request.resource.data.invitedUserId is string
           && request.resource.data.invitedEmail is string
@@ -465,6 +470,9 @@ service cloud.firestore {
           && request.resource.data.invitedUserId == resource.data.invitedUserId
           && request.resource.data.tournamentId == resource.data.tournamentId
           && request.resource.data.invitedByUserId == resource.data.invitedByUserId;
+
+        // Admin+ can delete invitations (e.g., revoke before accepted)
+        allow delete: if request.auth != null && isTournamentAdminPlus();
       }
     }
 
