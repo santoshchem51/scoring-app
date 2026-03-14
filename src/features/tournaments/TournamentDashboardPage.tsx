@@ -218,17 +218,22 @@ const TournamentDashboardPage: Component = () => {
     if (!t || !u) return;
     const role = getTournamentRole(t, u.uid);
     if (!role) return;
-    await resolveDispute({
-      tournamentId: t.id,
-      disputeId,
-      matchId,
-      resolvedBy: u.uid,
-      resolvedByName: u.displayName ?? '',
-      resolution: type === 'dismissed' ? 'Dismissed — no changes needed' : 'Scores edited',
-      type,
-      actorRole: role,
-    });
-    refetchDisputes();
+    try {
+      await resolveDispute({
+        tournamentId: t.id,
+        disputeId,
+        matchId,
+        resolvedBy: u.uid,
+        resolvedByName: u.displayName ?? '',
+        resolution: type === 'dismissed' ? 'Dismissed — no changes needed' : 'Scores edited',
+        type,
+        actorRole: role,
+      });
+      refetchDisputes();
+    } catch (err) {
+      console.error('Failed to resolve dispute:', err);
+      setError(err instanceof Error ? err.message : 'Failed to resolve dispute.');
+    }
   };
 
   const handleQuickAdd = async (names: string[]) => {

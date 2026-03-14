@@ -27,6 +27,16 @@ export type AuditDetails =
   | { action: 'player_quick_add'; count: number; names: string[] }
   | { action: 'player_claim'; registrationId: string; placeholderName: string; claimedByUid: string };
 
+/** Firestore Timestamp — may be a server timestamp, number, or Firestore Timestamp object */
+export type FirestoreTimestamp = number | { toMillis: () => number } | unknown;
+
+/**
+ * NOTE: top-level `action` must match `details.action` — enforced by callers, not the type system.
+ *
+ * actorName and actorRole are self-reported by the client.
+ * They are advisory fields for display — not validated against the staff map.
+ * Security enforcement happens via Firestore rules checking auth.uid against staff map.
+ */
 export interface AuditLogEntry {
   id: string;
   action: AuditAction;
@@ -36,5 +46,5 @@ export interface AuditLogEntry {
   targetType: 'match' | 'registration' | 'tournament' | 'staff';
   targetId: string;
   details: AuditDetails;
-  timestamp: unknown;
+  timestamp: FirestoreTimestamp;
 }

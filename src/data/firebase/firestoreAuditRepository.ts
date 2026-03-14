@@ -39,5 +39,6 @@ export async function getAuditLog(tournamentId: string, maxEntries = 50): Promis
   const colRef = collection(firestore, 'tournaments', tournamentId, 'auditLog');
   const q = query(colRef, orderBy('timestamp', 'desc'), limit(maxEntries));
   const snap = await getDocs(q);
+  // Firestore data is untyped — trust the schema enforced by buildAuditEntry + security rules
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as AuditLogEntry));
 }

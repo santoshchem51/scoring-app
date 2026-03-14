@@ -1,3 +1,5 @@
+import type { TournamentRegistration } from '../../../data/types';
+
 export function sanitizeCsvValue(value: string | null | undefined): string {
   if (!value) return '';
   if (/^[=+\-@]/.test(value)) return "'" + value;
@@ -11,16 +13,27 @@ function escapeCsv(value: string): string {
   return value;
 }
 
-export function registrationsToCsv(registrations: Array<Record<string, unknown>>): string {
+/** Sanitize and escape a value for CSV output. Non-string values are stringified first. */
+function safeCsvCell(value: unknown): string {
+  const str = value != null ? String(value) : '';
+  return escapeCsv(sanitizeCsvValue(str));
+}
+
+/** Registration with possible extra fields (e.g. email) from Firestore docs */
+type CsvRegistration = TournamentRegistration & Record<string, unknown>;
+
+// NOTE: CSV export includes email/PII. This is admin-only functionality
+// (gated by hasMinRole check on dashboard). No redaction needed.
+export function registrationsToCsv(registrations: CsvRegistration[]): string {
   const headers = ['Name', 'Email', 'Skill Rating', 'Status', 'Team', 'Payment Status', 'Registered At'];
   const rows = registrations.map((r) => [
-    escapeCsv(sanitizeCsvValue(String(r.playerName ?? ''))),
-    escapeCsv(sanitizeCsvValue(String(r.email ?? ''))),
+    safeCsvCell(r.playerName),
+    safeCsvCell(r.email),
     r.skillRating != null ? String(r.skillRating) : '',
-    String(r.status ?? ''),
-    String(r.teamId ?? ''),
-    String(r.paymentStatus ?? ''),
-    r.registeredAt ? new Date(r.registeredAt as number).toISOString() : '',
+    safeCsvCell(r.status),
+    safeCsvCell(r.teamId),
+    safeCsvCell(r.paymentStatus),
+    r.registeredAt ? new Date(r.registeredAt).toISOString() : '',
   ]);
   return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
 }
