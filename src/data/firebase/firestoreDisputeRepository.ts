@@ -61,6 +61,7 @@ export async function flagDispute(input: FlagInput): Promise<string> {
   batch.set(auditRef, auditData);
 
   await batch.commit();
+  // TODO: Notify staff — requires tournament staff list
   return disputeRef.id;
 }
 
@@ -95,6 +96,7 @@ export async function resolveDispute(input: ResolveInput): Promise<void> {
   batch.set(auditRef, auditData);
 
   await batch.commit();
+  // TODO: Notify flagger — requires looking up the dispute's flaggedBy
 }
 
 export async function getDisputesByTournament(tournamentId: string): Promise<MatchDispute[]> {

@@ -46,6 +46,20 @@ describe('firestoreDisputeRepository', () => {
       expect(batch.commit).toHaveBeenCalled();
       expect(result).toBeDefined();
     });
+
+    it('returns a non-empty string dispute ID', async () => {
+      const result = await flagDispute({
+        tournamentId: 't1',
+        matchId: 'm1',
+        flaggedBy: 'u1',
+        flaggedByName: 'Alice',
+        reason: 'Wrong score',
+        actorRole: 'moderator',
+      });
+
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+    });
   });
 
   describe('resolveDispute', () => {

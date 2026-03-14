@@ -13,6 +13,8 @@ import {
   createAchievementUnlockedNotif,
   createTierUpNotif,
   createTierDownNotif,
+  createDisputeFlaggedNotif,
+  createDisputeResolvedNotif,
   EXPIRY_DAYS,
 } from '../notificationHelpers';
 
@@ -133,6 +135,22 @@ const TYPE_MAP: Array<{
     expectedCategory: 'stats',
     expectedType: 'tier_down',
     expectedActionUrlPattern: /\/profile/,
+    expectedExpiryDays: 30,
+  },
+  {
+    name: 'dispute_flagged',
+    factory: () => createDisputeFlaggedNotif('u1', 't1', 'Spring Open', 'm1', 'Wrong score'),
+    expectedCategory: 'tournament',
+    expectedType: 'dispute_flagged',
+    expectedActionUrlPattern: /\/tournaments\/t1/,
+    expectedExpiryDays: 30,
+  },
+  {
+    name: 'dispute_resolved',
+    factory: () => createDisputeResolvedNotif('u1', 't1', 'Spring Open', 'm1', 'Score corrected', 'edited'),
+    expectedCategory: 'tournament',
+    expectedType: 'dispute_resolved',
+    expectedActionUrlPattern: /\/tournaments\/t1/,
     expectedExpiryDays: 30,
   },
 ];
@@ -264,5 +282,26 @@ describe('notification helpers', () => {
     expect(result.message).toContain('intermediate');
     expect(result.payload.tierFrom).toBe('advanced');
     expect(result.payload.tierTo).toBe('intermediate');
+  });
+
+  it('dispute_flagged includes tournament name and reason', () => {
+    const result = createDisputeFlaggedNotif('u1', 't1', 'Spring Open', 'm1', 'Wrong score');
+    expect(result.message).toContain('Spring Open');
+    expect(result.message).toContain('Wrong score');
+    expect(result.payload.tournamentId).toBe('t1');
+    expect(result.payload.matchId).toBe('m1');
+  });
+
+  it('dispute_resolved (edited) includes tournament name and resolution', () => {
+    const result = createDisputeResolvedNotif('u1', 't1', 'Spring Open', 'm1', 'Score corrected', 'edited');
+    expect(result.message).toContain('Spring Open');
+    expect(result.message).toContain('resolved (score edited)');
+    expect(result.message).toContain('Score corrected');
+  });
+
+  it('dispute_resolved (dismissed) includes dismissed wording', () => {
+    const result = createDisputeResolvedNotif('u1', 't1', 'Spring Open', 'm1', 'No issue found', 'dismissed');
+    expect(result.message).toContain('dismissed');
+    expect(result.message).toContain('No issue found');
   });
 });

@@ -138,6 +138,28 @@ export function createAchievementUnlockedNotif(
     EXPIRY_DAYS.long);
 }
 
+// ── Disputes ──
+
+export function createDisputeFlaggedNotif(
+  userId: string, tournamentId: string, tournamentName: string, matchId: string, reason: string,
+): AppNotification {
+  return makeNotif(userId, 'tournament', 'dispute_flagged',
+    `A match in ${tournamentName} has been disputed: ${reason}`,
+    `/tournaments/${tournamentId}`,
+    { tournamentId, matchId },
+    EXPIRY_DAYS.standard);
+}
+
+export function createDisputeResolvedNotif(
+  userId: string, tournamentId: string, tournamentName: string, matchId: string, resolution: string, type: 'edited' | 'dismissed',
+): AppNotification {
+  return makeNotif(userId, 'tournament', 'dispute_resolved',
+    `Your dispute in ${tournamentName} was ${type === 'edited' ? 'resolved (score edited)' : 'dismissed'}: ${resolution}`,
+    `/tournaments/${tournamentId}`,
+    { tournamentId, matchId },
+    EXPIRY_DAYS.standard);
+}
+
 // ── Stats ──
 
 export function createTierUpNotif(

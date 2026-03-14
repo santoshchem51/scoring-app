@@ -450,7 +450,9 @@ export type NotificationType =
   | 'match_result_recorded'
   | 'achievement_unlocked'
   | 'tier_up'
-  | 'tier_down';
+  | 'tier_down'
+  | 'dispute_flagged'
+  | 'dispute_resolved';
 
 export interface NotificationPayload {
   sessionId?: string;
