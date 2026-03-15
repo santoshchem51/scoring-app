@@ -187,3 +187,64 @@ export function makeMatchRefSeed(overrides: Record<string, unknown> = {}) {
     },
   };
 }
+
+export function makeScoreEvent(matchId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id: uid('event'),
+    matchId,
+    gameNumber: 1,
+    timestamp: Date.now(),
+    type: 'POINT_SCORED',
+    team: 1,
+    team1Score: 1,
+    team2Score: 0,
+    recordedBy: 'test-scorer',
+    visibility: 'public',
+    ...overrides,
+  };
+}
+
+export function makePublicMatch(ownerId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id: uid('match'),
+    config: {
+      gameType: 'singles',
+      scoringMode: 'rally',
+      matchFormat: 'best-of-3',
+      pointsToWin: 11,
+    },
+    team1PlayerIds: [],
+    team2PlayerIds: [],
+    team1Name: 'Team Alpha',
+    team2Name: 'Team Beta',
+    games: [],
+    winningSide: null,
+    status: 'in-progress',
+    startedAt: Date.now(),
+    completedAt: null,
+    ownerId,
+    sharedWith: [],
+    visibility: 'public',
+    syncedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export function makeSpectatorProjection(overrides: Record<string, unknown> = {}) {
+  return {
+    publicTeam1Name: 'Team Alpha',
+    publicTeam2Name: 'Team Beta',
+    team1Score: 0,
+    team2Score: 0,
+    gameNumber: 1,
+    team1Wins: 0,
+    team2Wins: 0,
+    status: 'in-progress',
+    visibility: 'public',
+    tournamentId: '',
+    tournamentShareCode: '',
+    spectatorCount: 0,
+    updatedAt: Date.now(),
+    ...overrides,
+  };
+}
