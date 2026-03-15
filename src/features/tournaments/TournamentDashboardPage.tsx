@@ -582,7 +582,7 @@ const TournamentDashboardPage: Component = () => {
     try {
       await matchRepository.save(match);
       // Sync match to Firestore for real-time LiveScoreCard
-      cloudSync.syncMatchToCloud(match);
+      cloudSync.syncMatchToCloud(match, [], 'public');
       // Set matchId on bracket slot so BracketView shows LiveScoreCard
       if (extra.bracketSlotId) {
         await firestoreBracketRepository.updateMatchId(t.id, extra.bracketSlotId, match.id);

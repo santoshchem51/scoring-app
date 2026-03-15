@@ -146,6 +146,7 @@ describe('cloudSync', () => {
           type: 'match',
           ownerId: 'test-user-uid',
           sharedWith: ['buddy-1', 'buddy-2'],
+          visibility: 'private',
         });
       });
     });
