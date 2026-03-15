@@ -114,7 +114,9 @@ export function buildMatchRefFromMatch(
   const scores = match.games
     .map((g) => `${g.team1Score}-${g.team2Score}`)
     .join(', ');
-  const gameScores = match.games.map((g) => [g.team1Score, g.team2Score]);
+  // Firestore Admin SDK doesn't support nested arrays in the emulator's gRPC layer.
+  // Store gameScores as an array of {t1, t2} maps instead of [[11,5],[9,11]].
+  const gameScoresFlat = match.games.map((g) => ({ t1: g.team1Score, t2: g.team2Score }));
 
   return {
     matchId: match.id,
@@ -124,7 +126,7 @@ export function buildMatchRefFromMatch(
     scoringMode: match.config.scoringMode,
     result,
     scores,
-    gameScores,
+    gameScores: gameScoresFlat as unknown as number[][],
     playerTeam,
     opponentNames,
     opponentIds: [],
