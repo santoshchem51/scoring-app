@@ -25,7 +25,7 @@ const PublicTournamentPage: Component = () => {
   );
 
   // Step 2: Subscribe to live updates once we have the tournament ID
-  const live = useTournamentLive(() => resolved()?.id);
+  const live = useTournamentLive(() => resolved()?.id, { skipRegistrations: true });
 
   // Use live data if available, fall back to resolved data during initial load
   const tournament = () => live.tournament() ?? resolved();

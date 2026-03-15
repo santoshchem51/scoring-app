@@ -22,7 +22,10 @@ export interface TournamentLiveData {
   error: () => string;
 }
 
-export function useTournamentLive(tournamentId: () => string | undefined): TournamentLiveData {
+export function useTournamentLive(
+  tournamentId: () => string | undefined,
+  options?: { skipRegistrations?: boolean },
+): TournamentLiveData {
   const [tournament, setTournament] = createSignal<Tournament | undefined>(undefined);
   const [teams, setTeams] = createSignal<TournamentTeam[]>([]);
   const [pools, setPools] = createSignal<TournamentPool[]>([]);
@@ -152,18 +155,20 @@ export function useTournamentLive(tournamentId: () => string | undefined): Tourn
     );
 
     // Listen to registrations sub-collection
-    const regsRef = collection(firestore, 'tournaments', id, 'registrations');
-    unsubscribers.push(
-      onSnapshot(
-        regsRef,
-        (snap) => {
-          const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TournamentRegistration);
-          setRegistrations(data);
-          db.cachedRegistrations.bulkPut(data.map(r => ({ ...r, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
-        },
-        (err) => console.error('Registrations listener error:', err),
-      ),
-    );
+    if (!options?.skipRegistrations) {
+      const regsRef = collection(firestore, 'tournaments', id, 'registrations');
+      unsubscribers.push(
+        onSnapshot(
+          regsRef,
+          (snap) => {
+            const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TournamentRegistration);
+            setRegistrations(data);
+            db.cachedRegistrations.bulkPut(data.map(r => ({ ...r, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
+          },
+          (err) => console.error('Registrations listener error:', err),
+        ),
+      );
+    }
   };
 
   createEffect(() => {

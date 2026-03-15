@@ -1,4 +1,4 @@
-import { Show } from 'solid-js';
+import { Show, createSignal, createEffect, onCleanup } from 'solid-js';
 import type { Component } from 'solid-js';
 
 interface SpectatorScoreboardProps {
@@ -18,6 +18,28 @@ interface SpectatorScoreboardProps {
 }
 
 const SpectatorScoreboard: Component<SpectatorScoreboardProps> = (props) => {
+  const [announcement, setAnnouncement] = createSignal('');
+  let announceTimer: number | undefined;
+
+  // Debounce score announcements (3 seconds)
+  createEffect(() => {
+    const text = `${props.team1Name} ${props.team1Score}, ${props.team2Name} ${props.team2Score}.${
+      props.status === 'in-progress' && props.isServing
+        ? ` ${props.isServing === 1 ? props.team1Name : props.team2Name} serving.`
+        : props.status === 'completed' ? ' Final.' : ''
+    }`;
+
+    if (announceTimer !== undefined) clearTimeout(announceTimer);
+    announceTimer = window.setTimeout(() => {
+      setAnnouncement(text);
+      announceTimer = undefined;
+    }, 3000);
+  });
+
+  onCleanup(() => {
+    if (announceTimer !== undefined) clearTimeout(announceTimer);
+  });
+
   return (
     <Show
       when={!props.loading}
@@ -164,8 +186,7 @@ const SpectatorScoreboard: Component<SpectatorScoreboardProps> = (props) => {
             'white-space': 'nowrap', border: '0'
           }}
         >
-          {props.team1Name} {props.team1Score}, {props.team2Name} {props.team2Score}.
-          {props.status === 'in-progress' ? ` ${props.isServing === 1 ? props.team1Name : props.team2Name} serving.` : ` ${props.status === 'completed' ? 'Final.' : ''}`}
+          {announcement()}
         </div>
       </div>
     </Show>
