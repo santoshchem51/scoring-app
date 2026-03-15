@@ -1,5 +1,6 @@
-import { Show, For } from 'solid-js';
+import { Show, For, createSignal } from 'solid-js';
 import type { Component, JSX } from 'solid-js';
+import LiveMatchCard from './LiveMatchCard';
 
 export interface LiveNowMatch {
   matchId: string;
@@ -29,15 +30,14 @@ const LiveNowSection: Component<LiveNowSectionProps> = (props): JSX.Element => {
   const hasUpcoming = () => (props.upcomingMatches?.length ?? 0) > 0;
   const showSection = () => hasLive() || hasUpcoming();
 
-  const visibleMatches = () => props.matches.slice(0, MAX_VISIBLE);
+  const [expanded, setExpanded] = createSignal(false);
+
+  const visibleMatches = () => {
+    if (expanded()) return props.matches;
+    return props.matches.slice(0, MAX_VISIBLE);
+  };
   const overflowCount = () => props.matches.length - MAX_VISIBLE;
   const visibleUpcoming = () => (props.upcomingMatches ?? []).slice(0, MAX_VISIBLE);
-
-  const buildAriaLabel = (match: LiveNowMatch): string => {
-    const courtPart = match.court ? `Court ${match.court}: ` : '';
-    const statusPart = match.status === 'in-progress' ? 'live' : 'final';
-    return `${courtPart}${match.team1Name} versus ${match.team2Name}, ${statusPart}`;
-  };
 
   return (
     <Show when={showSection()}>
@@ -99,43 +99,29 @@ const LiveNowSection: Component<LiveNowSectionProps> = (props): JSX.Element => {
           <ul class="space-y-2">
             <For each={visibleMatches()}>
               {(match) => (
-                <li>
-                  <a
-                    href={`/t/${props.tournamentCode}/match/${match.matchId}`}
-                    aria-label={buildAriaLabel(match)}
-                    class={`block rounded-lg border border-surface-lighter bg-surface-light px-3 py-2 hover:bg-surface-lighter focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary transition-colors border-l-4 ${match.status === 'in-progress' ? 'border-l-amber-500' : 'border-l-green-500'}`}
-                  >
-                    <div class="flex items-center justify-between" aria-hidden="true">
-                      <span class="text-sm text-on-surface truncate">
-                        <Show when={match.court}>
-                          <span class="text-on-surface-muted">Ct {match.court}: </span>
-                        </Show>
-                        {match.team1Name} vs {match.team2Name}
-                      </span>
-                      <span class="text-on-surface-muted ml-2" aria-hidden="true">&rarr;</span>
-                    </div>
-                    <div aria-hidden="true" class="mt-0.5">
-                      <Show when={match.status === 'in-progress'}>
-                        <span class="inline-flex items-center gap-1 text-xs font-semibold text-red-400">
-                          <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                          LIVE
-                        </span>
-                      </Show>
-                      <Show when={match.status === 'completed'}>
-                        <span class="text-xs font-semibold text-green-400">FINAL</span>
-                      </Show>
-                    </div>
-                  </a>
-                </li>
+                <LiveMatchCard
+                  matchId={match.matchId}
+                  team1Name={match.team1Name}
+                  team2Name={match.team2Name}
+                  court={match.court}
+                  status={match.status}
+                  tournamentCode={props.tournamentCode}
+                />
               )}
             </For>
           </ul>
 
           <Show when={overflowCount() > 0}>
             <div class="mt-2 text-center">
-              <span class="text-xs text-on-surface-muted">
-                {overflowCount()} more live &rarr;
-              </span>
+              <button
+                type="button"
+                class="text-xs text-primary hover:text-primary-light transition-colors"
+                onClick={() => setExpanded((prev) => !prev)}
+              >
+                {expanded()
+                  ? 'Show fewer'
+                  : `+${overflowCount()} more live`}
+              </button>
             </div>
           </Show>
         </Show>
