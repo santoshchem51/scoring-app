@@ -2,6 +2,7 @@ import type { Component, JSX } from 'solid-js';
 import { Show, Suspense, createEffect, onMount } from 'solid-js';
 import { useLocation } from '@solidjs/router';
 import BottomNav from '../shared/components/BottomNav';
+import { useTheme } from '../shared/hooks/useTheme';
 import { PageSkeleton } from '../shared/components/Skeleton';
 import { settings } from '../stores/settingsStore';
 import AchievementToast from '../features/achievements/components/AchievementToast';
@@ -18,13 +19,12 @@ const App: Component<Props> = (props) => {
   const location = useLocation();
   const showBottomNav = () => location.pathname !== '/';
 
+  // Apply theme CSS variables + theme-color meta
+  useTheme();
+
   createEffect(() => {
     const mode = settings().displayMode;
     document.documentElement.classList.toggle('outdoor', mode === 'outdoor');
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-      meta.setAttribute('content', mode === 'outdoor' ? '#ffffff' : '#1e1e2e');
-    }
   });
 
   onMount(() => {
