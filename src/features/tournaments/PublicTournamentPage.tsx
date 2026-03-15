@@ -7,8 +7,11 @@ import { useTournamentLive } from './hooks/useTournamentLive';
 import PoolTable from './components/PoolTable';
 import BracketView from './components/BracketView';
 import TournamentResults from './components/TournamentResults';
+import LiveNowSection from './components/LiveNowSection';
+import TournamentPhaseIndicator from './components/TournamentPhaseIndicator';
 import { statusLabels, statusColors, formatLabels } from './constants';
 import { InteractiveBackground } from '../../shared/canvas';
+import { getInProgressMatches } from './engine/matchFiltering';
 
 const PublicTournamentPage: Component = () => {
   const params = useParams();
@@ -52,6 +55,30 @@ const PublicTournamentPage: Component = () => {
     return inPhase && hasBracketFormat;
   });
 
+  const inProgressMatches = createMemo(() => {
+    const { poolMatches, bracketMatches } = getInProgressMatches(live.pools(), live.bracket());
+    const names = teamNames();
+
+    // Convert to LiveNowMatch format
+    const matches = [
+      ...poolMatches.map((m) => ({
+        matchId: m.matchId,
+        team1Name: names[m.team1Id] ?? m.team1Id,
+        team2Name: names[m.team2Id] ?? m.team2Id,
+        court: m.court ?? undefined,
+        status: 'in-progress' as const,
+      })),
+      ...bracketMatches.map((s) => ({
+        matchId: s.matchId,
+        team1Name: names[s.team1Id ?? ''] ?? 'TBD',
+        team2Name: names[s.team2Id ?? ''] ?? 'TBD',
+        court: undefined,
+        status: 'in-progress' as const,
+      })),
+    ];
+    return matches;
+  });
+
   // --- Render ---
 
   return (
@@ -86,6 +113,20 @@ const PublicTournamentPage: Component = () => {
                     </span>
                   </div>
                 </div>
+
+                {/* Tournament Phase Indicator */}
+                <Show when={['pool-play', 'bracket', 'completed'].includes(t().status)}>
+                  <TournamentPhaseIndicator
+                    status={t().status}
+                    liveMatchCount={inProgressMatches().length}
+                  />
+                </Show>
+
+                {/* Live Now Section */}
+                <LiveNowSection
+                  matches={inProgressMatches()}
+                  tournamentCode={params.code}
+                />
 
                 {/* Info Grid */}
                 <div class="grid grid-cols-2 gap-3">
