@@ -14,7 +14,6 @@ export interface SpectatorProjection {
   status: string;
   visibility: string;
   tournamentId: string;
-  tournamentShareCode: string;
   spectatorCount: number;
   updatedAt: number;
 }
@@ -22,7 +21,6 @@ export interface SpectatorProjection {
 export function buildSpectatorProjection(
   match: Match,
   names: { publicTeam1Name: string; publicTeam2Name: string },
-  shareCode: string,
 ): SpectatorProjection {
   const { team1Score, team2Score } = extractLiveScore(match);
   const { team1Wins, team2Wins } = extractGameCount(match);
@@ -46,7 +44,6 @@ export function buildSpectatorProjection(
     status: match.status,
     visibility: 'public',
     tournamentId: match.tournamentId ?? '',
-    tournamentShareCode: shareCode,
     spectatorCount: 0,
     updatedAt: Date.now(),
   };
