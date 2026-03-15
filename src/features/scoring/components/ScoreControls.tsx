@@ -30,9 +30,10 @@ const ScoreControls: Component<Props> = (props) => {
           disabled={!team1Active()}
           aria-label={`Score point for ${props.team1Name}`}
           aria-disabled={!team1Active()}
-          class={`font-bold text-lg py-6 rounded-2xl transition-transform truncate px-3 ${
+          class={`font-bold text-lg py-6 rounded-2xl truncate px-3 uppercase tracking-wider ${
             team1Active() ? 'bg-primary text-surface active:scale-95' : 'bg-primary/30 text-surface/50 cursor-not-allowed'
           }`}
+          style={{ "font-family": "var(--font-score)", "font-weight": "400", "transition": "transform 0.15s ease" }}
         >
           +1 {props.team1Name}
         </button>
@@ -42,9 +43,10 @@ const ScoreControls: Component<Props> = (props) => {
           disabled={!team2Active()}
           aria-label={`Score point for ${props.team2Name}`}
           aria-disabled={!team2Active()}
-          class={`font-bold text-lg py-6 rounded-2xl transition-transform truncate px-3 ${
+          class={`font-bold text-lg py-6 rounded-2xl truncate px-3 uppercase tracking-wider ${
             team2Active() ? 'bg-accent text-surface active:scale-95' : 'bg-accent/30 text-surface/50 cursor-not-allowed'
           }`}
+          style={{ "font-family": "var(--font-score)", "font-weight": "400", "transition": "transform 0.15s ease" }}
         >
           +1 {props.team2Name}
         </button>
@@ -56,7 +58,8 @@ const ScoreControls: Component<Props> = (props) => {
           type="button"
           onClick={() => { props.onSideOut(); sounds.sideOut(); haptics.double(); }}
           aria-label="Side out - change serving team"
-          class="w-full bg-surface-lighter text-on-surface font-semibold text-base py-6 rounded-2xl active:scale-95 transition-transform"
+          class="w-full text-on-surface font-semibold text-base py-6 rounded-2xl active:scale-95 uppercase tracking-wider border border-court-line-strong"
+          style={{ "font-family": "var(--font-score)", "font-weight": "400", "background": "var(--color-surface-overlay)", "transition": "transform 0.15s ease" }}
         >
           Side Out
         </button>
@@ -67,7 +70,8 @@ const ScoreControls: Component<Props> = (props) => {
         type="button"
         onClick={() => { props.onUndo(); sounds.undo(); haptics.light(); }}
         aria-label="Undo last action"
-        class="w-full bg-surface-light text-on-surface-muted font-medium text-sm py-3 rounded-xl active:scale-95 transition-transform"
+        class="w-full text-on-surface-muted font-medium text-sm py-3 rounded-xl active:scale-95"
+        style={{ "background": "var(--color-surface-overlay)", "opacity": "0.7", "transition": "transform 0.15s ease" }}
       >
         Undo Last
       </button>
