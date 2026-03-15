@@ -16,6 +16,7 @@ import { useCelebration } from '../../shared/hooks/useCelebration';
 import { DEFAULT_TEAM1_COLOR, DEFAULT_TEAM2_COLOR } from '../../shared/constants/teamColors';
 import { shareScoreCard } from '../../shared/utils/shareScoreCard';
 import { useVoiceAnnouncements } from '../../shared/hooks/useVoiceAnnouncements';
+import { hexToRgb } from '../../shared/utils/colorUtils';
 import { cloudSync } from '../../data/firebase/cloudSync';
 import { firestorePoolRepository } from '../../data/firebase/firestorePoolRepository';
 import { firestoreBracketRepository } from '../../data/firebase/firestoreBracketRepository';
@@ -284,7 +285,17 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
 
   return (
     <PageLayout title="Live Score">
-      <div class="flex flex-col gap-6 py-4">
+      <div
+        class="flex flex-col gap-6 py-4 ambient-bg"
+        classList={{
+          'serving-team-1': ctx().servingTeam === 1,
+          'serving-team-2': ctx().servingTeam === 2,
+        }}
+        style={{
+          "--team1-color-rgb": hexToRgb(t1Color()),
+          "--team2-color-rgb": hexToRgb(t2Color()),
+        } as import('solid-js').JSX.CSSProperties}
+      >
         {/* Match info header */}
         <div class="flex items-center justify-center gap-4 px-4">
           <span class="text-sm text-on-surface-muted">
@@ -320,8 +331,8 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
 
         {/* Score Call */}
         <Show when={props.match.config.scoringMode === 'sideout' && props.match.config.gameType === 'doubles' && stateName() === 'serving'}>
-          <div class="text-center">
-            <span class="text-2xl font-bold text-on-surface tabular-nums" style={{ "font-family": "var(--font-score)" }}>
+          <div class="text-center py-3 mx-4 border-t border-b" style={{ "border-color": "var(--color-court-line-strong)" }}>
+            <span class="text-2xl font-bold text-on-surface tabular-nums tracking-widest" style={{ "font-family": "var(--font-score)", "font-weight": "500" }}>
               {ctx().servingTeam === 1
                 ? `${ctx().team1Score}-${ctx().team2Score}-${ctx().serverNumber}`
                 : `${ctx().team2Score}-${ctx().team1Score}-${ctx().serverNumber}`}
@@ -329,6 +340,9 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
             <p class="text-xs text-on-surface-muted mt-1">Score Call</p>
           </div>
         </Show>
+
+        {/* Court-line divider */}
+        <div class="court-line mx-4" aria-hidden="true" />
 
         {/* Scoreboard */}
         <Scoreboard
@@ -348,6 +362,9 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           onSwipeUndo={() => undo()}
         />
 
+        {/* Court-line divider */}
+        <div class="court-line mx-4" aria-hidden="true" />
+
         {/* State-dependent controls */}
         <Switch>
           <Match when={stateName() === 'serving'}>
@@ -365,7 +382,17 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
                 />
               }
             >
-              <div class="fixed inset-0 bg-surface z-40 flex">
+              <div
+                class="fixed inset-0 bg-surface z-40 flex ambient-bg"
+                classList={{
+                  'serving-team-1': ctx().servingTeam === 1,
+                  'serving-team-2': ctx().servingTeam === 2,
+                }}
+                style={{
+                  "--team1-color-rgb": hexToRgb(t1Color()),
+                  "--team2-color-rgb": hexToRgb(t2Color()),
+                } as import('solid-js').JSX.CSSProperties}
+              >
                 {/* Left side: Scoreboard */}
                 <div class="flex-1 flex flex-col justify-center">
                   <div class="flex items-center justify-center gap-4 px-4 mb-4">
