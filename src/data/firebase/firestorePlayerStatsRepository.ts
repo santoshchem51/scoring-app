@@ -112,8 +112,16 @@ function resolveOpponentTier(
   return nearestTier(avgMultiplier);
 }
 
-async function writePublicTier(uid: string, tier: Tier): Promise<void> {
-  await setDoc(doc(firestore, 'users', uid, 'public', 'tier'), { tier });
+async function writePublicTier(
+  uid: string,
+  tier: Tier,
+  displayName?: string,
+  profileVisibility?: 'public' | 'private',
+): Promise<void> {
+  const data: Record<string, unknown> = { tier };
+  if (displayName !== undefined) data.displayName = displayName;
+  if (profileVisibility !== undefined) data.profileVisibility = profileVisibility;
+  await setDoc(doc(firestore, 'users', uid, 'public', 'tier'), data, { merge: true });
 }
 
 async function resolveParticipantUids(
