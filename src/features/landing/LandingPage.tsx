@@ -126,7 +126,7 @@ const LandingPage: Component = () => {
       {/* Hero */}
       <section ref={heroSectionEl} class="relative px-4 pt-12 pb-16 md:pt-20 md:pb-24 text-center overflow-hidden">
         <InteractiveBackground mode="animated" />
-        <div ref={cardEl} class="relative z-10 max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl rounded-2xl px-8 py-10 backdrop-blur-md border border-white/5" style={{ "background": "rgba(15, 17, 24, 0.5)" }}>
+        <div ref={cardEl} class="relative z-10 max-w-lg mx-auto md:max-w-2xl lg:max-w-4xl rounded-2xl px-8 py-10 backdrop-blur-md border border-white/5" style={{ "background": "var(--color-glass-surface)", "border-color": "var(--color-glass-border)" }}>
           <div ref={logoEl} class="flex justify-center mb-6">
             <Logo size="xl" showIcon />
           </div>
@@ -153,10 +153,39 @@ const LandingPage: Component = () => {
             </A>
           </div>
         </div>
+        {/* Abstract court diagram */}
+        <div class="absolute inset-0 pointer-events-none" aria-hidden="true" style={{ "opacity": "0.15" }}>
+          {/* Baselines (top and bottom) */}
+          <div class="absolute top-[10%] left-[15%] right-[15%] h-[1px]" style={{ "background": "var(--color-court-line-strong)" }} />
+          <div class="absolute bottom-[10%] left-[15%] right-[15%] h-[1px]" style={{ "background": "var(--color-court-line-strong)" }} />
+          {/* Kitchen lines */}
+          <div class="absolute top-[35%] left-[15%] right-[15%] h-[1px]" style={{ "background": "var(--color-court-line)" }} />
+          <div class="absolute bottom-[35%] left-[15%] right-[15%] h-[1px]" style={{ "background": "var(--color-court-line)" }} />
+          {/* Net (center horizontal) */}
+          <div class="absolute top-1/2 left-[15%] right-[15%] h-[2px] -translate-y-1/2" style={{ "background": "var(--color-court-line-strong)" }} />
+          {/* Net diamond */}
+          <div
+            class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rotate-45"
+            style={{ "border": "1.5px solid var(--color-court-line-strong)", "background": "var(--color-court-line)" }}
+          />
+          {/* Sidelines */}
+          <div class="absolute top-[10%] bottom-[10%] left-[15%] w-[1px]" style={{ "background": "var(--color-court-line)" }} />
+          <div class="absolute top-[10%] bottom-[10%] right-[15%] w-[1px]" style={{ "background": "var(--color-court-line)" }} />
+        </div>
+        {/* Scan line animation */}
+        <div
+          class="scan-line absolute top-0 left-0 w-[10%] h-[2px] pointer-events-none"
+          aria-hidden="true"
+          style={{
+            "background": "linear-gradient(90deg, transparent, var(--color-primary), transparent)",
+            "animation": "scanLine 4s ease-in-out infinite",
+            "--scan-container-height": "400px",
+          } as import('solid-js').JSX.CSSProperties}
+        />
       </section>
 
       {/* Divider */}
-      <div class="h-px mx-auto max-w-lg md:max-w-3xl lg:max-w-5xl" style={{ "background": "linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.3), rgba(249, 115, 22, 0.2), transparent)" }} />
+      <div class="h-px mx-auto max-w-lg md:max-w-3xl lg:max-w-5xl" style={{ "background": "linear-gradient(90deg, transparent, var(--color-court-line-strong), var(--color-court-line), transparent)" }} />
 
       {/* Features */}
       <section ref={featuresEl} class="px-4 py-12 md:py-16 bg-surface-light/50">
@@ -204,7 +233,7 @@ const LandingPage: Component = () => {
       </section>
 
       {/* Divider */}
-      <div class="h-px mx-auto max-w-lg md:max-w-3xl lg:max-w-5xl" style={{ "background": "linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.3), rgba(249, 115, 22, 0.2), transparent)" }} />
+      <div class="h-px mx-auto max-w-lg md:max-w-3xl lg:max-w-5xl" style={{ "background": "linear-gradient(90deg, transparent, var(--color-court-line-strong), var(--color-court-line), transparent)" }} />
 
       {/* How It Works */}
       <section ref={stepsEl} class="px-4 py-12 md:py-16">
@@ -229,7 +258,7 @@ const LandingPage: Component = () => {
                 <div use:tilt={{ maxDeg: 4, scale: 1.0 }} class="text-center" style={{ "transition": "transform 0.3s ease-out" }}>
                   <div
                     class="step-circle w-10 h-10 rounded-full bg-primary text-surface font-bold text-lg flex items-center justify-center mx-auto mb-3"
-                    style={{ "box-shadow": "0 0 20px rgba(34,197,94,0.3)" }}
+                    style={{ "box-shadow": "0 0 20px var(--color-primary-glow)" }}
                   >
                     {i() + 1}
                   </div>
@@ -243,7 +272,7 @@ const LandingPage: Component = () => {
       </section>
 
       {/* Divider */}
-      <div class="h-px mx-auto max-w-lg md:max-w-3xl lg:max-w-5xl" style={{ "background": "linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.3), rgba(249, 115, 22, 0.2), transparent)" }} />
+      <div class="h-px mx-auto max-w-lg md:max-w-3xl lg:max-w-5xl" style={{ "background": "linear-gradient(90deg, transparent, var(--color-court-line-strong), var(--color-court-line), transparent)" }} />
 
       {/* Upcoming Tournaments */}
       <TournamentPreview />
@@ -296,8 +325,8 @@ const FEATURES: Feature[] = [
     title: 'Quick Scoring',
     description: 'One-tap start, swipe to score, works offline court-side. Get your game going in seconds — no setup, no accounts, just play.',
     icon: Zap,
-    accent: 'emerald',
-    accentRgb: '34, 197, 94',
+    accent: 'gold',
+    accentRgb: '212, 168, 83',
     hero: true,
   },
   {
@@ -305,7 +334,7 @@ const FEATURES: Feature[] = [
     description: 'Every game saved automatically. Track wins, losses, and streaks across all your matches with detailed breakdowns.',
     icon: Clock,
     accent: 'amber',
-    accentRgb: '245, 158, 11',
+    accentRgb: '232, 164, 32',
     hero: true,
   },
   {
@@ -319,15 +348,15 @@ const FEATURES: Feature[] = [
     title: 'Live Real-Time Scores',
     description: 'Point-by-point updates, live standings, spectator views.',
     icon: Activity,
-    accent: 'cyan',
-    accentRgb: '6, 182, 212',
+    accent: 'teal',
+    accentRgb: '78, 205, 196',
   },
   {
     title: 'Sharing & QR Codes',
     description: 'Public links, QR codes, instant tournament access for anyone.',
     icon: Share2,
-    accent: 'orange',
-    accentRgb: '249, 115, 22',
+    accent: 'terracotta',
+    accentRgb: '232, 114, 90',
   },
   {
     title: 'Player Invitations',
