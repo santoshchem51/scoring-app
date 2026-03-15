@@ -28,7 +28,7 @@ const BottomNav: Component = () => {
 
   return (
     <nav aria-label="Main navigation" class="fixed bottom-0 left-0 right-0 safe-bottom px-4 pb-2">
-      <div class="max-w-lg mx-auto md:max-w-3xl flex justify-around py-1 glass-panel rounded-2xl" style={{ "backdrop-filter": "blur(30px)", "-webkit-backdrop-filter": "blur(30px)" }}>
+      <div class="max-w-lg mx-auto md:max-w-3xl flex justify-around py-1 glass-panel rounded-2xl">
         <A href="/new" class={linkClass('/new')} aria-current={isActive('/new') ? 'page' : undefined} aria-label="New Game">
           <Show when={isActive('/new')}>
             <div class="absolute bottom-0 left-2 right-2 court-line" aria-hidden="true" />

@@ -74,7 +74,7 @@ const Scoreboard: Component<Props> = (props) => {
           "--team-color": t1Color(),
           "--team-color-rgb": hexToRgb(t1Color()),
         } as import('solid-js').JSX.CSSProperties}
-        aria-label={`${props.team1Name}: ${props.team1Score}${isServing(1) ? ', serving' : ''}`}
+        aria-label={`${props.team1Name}: ${props.team1Score}${isServing(1) ? ', serving' : ''}${team1GamePoint() ? ', game point' : ''}`}
       >
         <span
           class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2 uppercase tracking-wider"
@@ -127,7 +127,7 @@ const Scoreboard: Component<Props> = (props) => {
           "--team-color": t2Color(),
           "--team-color-rgb": hexToRgb(t2Color()),
         } as import('solid-js').JSX.CSSProperties}
-        aria-label={`${props.team2Name}: ${props.team2Score}${isServing(2) ? ', serving' : ''}`}
+        aria-label={`${props.team2Name}: ${props.team2Score}${isServing(2) ? ', serving' : ''}${team2GamePoint() ? ', game point' : ''}`}
       >
         <span
           class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2 uppercase tracking-wider"

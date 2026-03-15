@@ -120,7 +120,7 @@ const TopNav: Component<TopNavProps> = (props) => {
                 <button
                   ref={bellRef}
                   type="button"
-                  aria-label="Notifications"
+                  aria-label={unreadCount() > 0 ? `Notifications, ${unreadCount()} unread` : 'Notifications'}
                   aria-expanded={notifPanelOpen()}
                   aria-haspopup="dialog"
                   onClick={() => setNotifPanelOpen(!notifPanelOpen())}

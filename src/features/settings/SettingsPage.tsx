@@ -73,8 +73,8 @@ const SettingsPage: Component = () => {
                             <div class="text-sm text-on-surface-muted mt-0.5">{theme.description}</div>
                           </div>
                           <div class="flex items-center gap-2">
-                            {/* Color swatch preview */}
-                            <div class="flex gap-1">
+                            {/* Color swatch preview (decorative) */}
+                            <div class="flex gap-1" aria-hidden="true">
                               <div class="w-4 h-4 rounded-full" style={{ background: theme.colors['--color-primary'] }} />
                               <div class="w-4 h-4 rounded-full" style={{ background: theme.teamDefaults.team1 }} />
                               <div class="w-4 h-4 rounded-full" style={{ background: theme.teamDefaults.team2 }} />
@@ -232,11 +232,13 @@ const SettingsPage: Component = () => {
                       class="w-full bg-surface text-on-surface rounded-lg px-3 py-2 text-sm border border-surface-lighter"
                     >
                       <option value="">System Default</option>
-                      {voices().map((v) => (
-                        <option value={v.voiceURI}>
-                          {v.name} {v.lang ? `(${v.lang})` : ''}
-                        </option>
-                      ))}
+                      <For each={voices()}>
+                        {(v) => (
+                          <option value={v.voiceURI}>
+                            {v.name} {v.lang ? `(${v.lang})` : ''}
+                          </option>
+                        )}
+                      </For>
                     </select>
                   </div>
 
@@ -305,9 +307,9 @@ const SettingsPage: Component = () => {
                     </div>
                     <Show when={pendingCount() > 0 || failedCount() > 0}>
                       <div class="text-xs text-on-surface-muted">
-                        {pendingCount() > 0 && `${pendingCount()} pending`}
-                        {pendingCount() > 0 && failedCount() > 0 && ' \u00b7 '}
-                        {failedCount() > 0 && `${failedCount()} failed`}
+                        <Show when={pendingCount() > 0}>{`${pendingCount()} pending`}</Show>
+                        <Show when={pendingCount() > 0 && failedCount() > 0}>{' \u00b7 '}</Show>
+                        <Show when={failedCount() > 0}>{`${failedCount()} failed`}</Show>
                       </div>
                     </Show>
                   </div>
