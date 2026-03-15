@@ -128,6 +128,23 @@ async function executeJobWork(job: SyncJob, uid: string): Promise<void> {
         }
       }
 
+      // Revocation: if tournament match is no longer public, mark projection as revoked
+      if (match.tournamentId && ctx.visibility && ctx.visibility !== 'public') {
+        try {
+          const { writeSpectatorProjection } = await import('./firestoreSpectatorRepository');
+          await writeSpectatorProjection(match.id, {
+            publicTeam1Name: '', publicTeam2Name: '',
+            team1Score: 0, team2Score: 0, gameNumber: 0,
+            team1Wins: 0, team2Wins: 0,
+            status: 'revoked', visibility: 'private',
+            tournamentId: match.tournamentId ?? '',
+            spectatorCount: 0, updatedAt: Date.now(),
+          } as any);
+        } catch (err) {
+          console.warn('[syncProcessor] Revocation failed (non-fatal):', err);
+        }
+      }
+
       break;
     }
 
