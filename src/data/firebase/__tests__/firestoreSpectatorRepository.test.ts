@@ -10,7 +10,7 @@ vi.mock('firebase/firestore', () => ({
 import { buildSpectatorProjection } from '../firestoreSpectatorRepository';
 
 describe('buildSpectatorProjection', () => {
-  it('builds projection with sanitized names', () => {
+  it('does NOT include tournamentShareCode in projection', () => {
     const result = buildSpectatorProjection(
       {
         id: 'm1', status: 'in-progress', tournamentId: 't1',
@@ -21,15 +21,34 @@ describe('buildSpectatorProjection', () => {
         winningSide: null, startedAt: Date.now(), completedAt: null,
       },
       { publicTeam1Name: 'Sarah M.', publicTeam2Name: 'Player B' },
-      'ABC12345',
+    );
+    expect(result).not.toHaveProperty('tournamentShareCode');
+  });
+
+  it('includes all required fields in projection', () => {
+    const result = buildSpectatorProjection(
+      {
+        id: 'm1', status: 'in-progress', tournamentId: 't1',
+        team1Name: 'Sarah M.', team2Name: 'Mike T.',
+        games: [], lastSnapshot: JSON.stringify({ team1Score: 5, team2Score: 3, gameNumber: 2 }),
+        config: { gameType: 'singles', scoringMode: 'rally', matchFormat: 'best-of-3', pointsToWin: 11 },
+        team1PlayerIds: ['uid1'], team2PlayerIds: ['uid2'],
+        winningSide: null, startedAt: Date.now(), completedAt: null,
+      },
+      { publicTeam1Name: 'Sarah M.', publicTeam2Name: 'Player B' },
     );
     expect(result.publicTeam1Name).toBe('Sarah M.');
     expect(result.publicTeam2Name).toBe('Player B');
     expect(result.team1Score).toBe(5);
     expect(result.team2Score).toBe(3);
-    expect(result.tournamentShareCode).toBe('ABC12345');
+    expect(result.gameNumber).toBe(2);
     expect(result.visibility).toBe('public');
     expect(result.spectatorCount).toBe(0);
+    expect(result.status).toBe('in-progress');
+    expect(result.tournamentId).toBe('t1');
+    expect(typeof result.updatedAt).toBe('number');
+    expect(typeof result.team1Wins).toBe('number');
+    expect(typeof result.team2Wins).toBe('number');
     // Must NOT contain sensitive fields
     expect(result).not.toHaveProperty('team1PlayerIds');
     expect(result).not.toHaveProperty('team2PlayerIds');
@@ -50,7 +69,6 @@ describe('buildSpectatorProjection', () => {
         winningSide: null, startedAt: Date.now(), completedAt: null,
       },
       { publicTeam1Name: 'Team A', publicTeam2Name: 'Team B' },
-      'XYZ99999',
     );
     expect(result.team1Score).toBe(11);
     expect(result.team2Score).toBe(7);
@@ -68,7 +86,6 @@ describe('buildSpectatorProjection', () => {
         winningSide: null, startedAt: Date.now(), completedAt: null,
       },
       { publicTeam1Name: 'A', publicTeam2Name: 'B' },
-      'CODE1234',
     );
     expect(result.gameNumber).toBe(1);
     expect(result.team1Score).toBe(0);

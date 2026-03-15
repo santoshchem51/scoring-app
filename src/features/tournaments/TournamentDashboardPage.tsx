@@ -591,7 +591,7 @@ const TournamentDashboardPage: Component = () => {
           match.team1PlayerIds, match.team2PlayerIds,
           match.team1Name, match.team2Name,
         ).then((names) => {
-          const projection = buildSpectatorProjection(match, names, t.shareCode ?? '');
+          const projection = buildSpectatorProjection(match, names);
           writeSpectatorProjection(match.id, projection).catch((err) => {
             console.warn('Failed to write spectator projection:', err);
           });

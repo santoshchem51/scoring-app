@@ -40,6 +40,7 @@ export const firestoreTournamentRepository = {
     const q = query(
       collection(firestore, 'tournaments'),
       where('shareCode', '==', shareCode),
+      where('visibility', '==', 'public'),
     );
     const snapshot = await getDocs(q);
     if (snapshot.empty) return undefined;

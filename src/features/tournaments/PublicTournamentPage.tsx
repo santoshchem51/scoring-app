@@ -13,6 +13,7 @@ import TournamentPhaseIndicator from './components/TournamentPhaseIndicator';
 import { statusLabels, statusColors, formatLabels } from './constants';
 import { InteractiveBackground } from '../../shared/canvas';
 import { getInProgressMatches } from './engine/matchFiltering';
+import { useTournamentLiveMatches } from './hooks/useTournamentLiveMatches';
 import SpectatorFooter from '../../shared/components/SpectatorFooter';
 
 const PublicTournamentPage: Component = () => {
@@ -26,6 +27,9 @@ const PublicTournamentPage: Component = () => {
 
   // Step 2: Subscribe to live updates once we have the tournament ID
   const live = useTournamentLive(() => resolved()?.id, { skipRegistrations: true });
+
+  // Step 3: Subscribe to in-progress pool matches via Firestore query
+  const { liveMatches } = useTournamentLiveMatches(() => resolved()?.id);
 
   // Use live data if available, fall back to resolved data during initial load
   const tournament = () => live.tournament() ?? resolved();
@@ -58,31 +62,33 @@ const PublicTournamentPage: Component = () => {
   });
 
   const inProgressMatches = createMemo(() => {
-    const { startedPoolMatches, bracketMatches } = getInProgressMatches(live.pools(), live.bracket());
     const names = teamNames();
 
-    // Convert to LiveNowMatch format
-    const matches = [
-      ...startedPoolMatches.map((m) => ({
-        matchId: m.matchId,
-        team1Name: names[m.team1Id] ?? m.team1Id,
-        team2Name: names[m.team2Id] ?? m.team2Id,
-        court: m.court ?? undefined,
-        status: 'in-progress' as const,
-      })),
-      ...bracketMatches.map((s) => ({
-        matchId: s.matchId,
-        team1Name: names[s.team1Id ?? ''] ?? 'TBD',
-        team2Name: names[s.team2Id ?? ''] ?? 'TBD',
-        court: undefined,
-        status: 'in-progress' as const,
-      })),
-    ];
-    return matches;
+    // Pool matches: from Firestore query (server-side filtered, only in-progress)
+    const poolMatches = liveMatches().map((m) => ({
+      matchId: m.id,
+      team1Name: m.team1Name ?? names[m.tournamentTeam1Id ?? ''] ?? 'TBD',
+      team2Name: m.team2Name ?? names[m.tournamentTeam2Id ?? ''] ?? 'TBD',
+      court: m.court ?? undefined,
+      status: 'in-progress' as const,
+    }));
+
+    // Bracket matches: still from bracket slot data (matchId set, winnerId null)
+    const { bracketMatches } = getInProgressMatches([], live.bracket());
+    const bracketLive = bracketMatches.map((s) => ({
+      matchId: s.matchId,
+      team1Name: names[s.team1Id ?? ''] ?? 'TBD',
+      team2Name: names[s.team2Id ?? ''] ?? 'TBD',
+      court: undefined,
+      status: 'in-progress' as const,
+    }));
+
+    return [...poolMatches, ...bracketLive];
   });
 
-  // Track recently completed matches for 5-minute retention
-  const RETENTION_MS = 5 * 60 * 1000;
+  // Track recently completed matches for 2-minute retention
+  const RETENTION_MS = 2 * 60 * 1000;
+  const MAX_RETAINED = 3;
   const [retainedMatches, setRetainedMatches] = createSignal<Map<string, { match: LiveNowMatch; completedAt: number }>>(new Map());
 
   createEffect(on(inProgressMatches, (current, prev) => {
@@ -116,6 +122,11 @@ const PublicTournamentPage: Component = () => {
       for (const [id, entry] of next) {
         if (now - entry.completedAt > RETENTION_MS) next.delete(id);
       }
+      // Cap retained count
+      if (next.size > MAX_RETAINED) {
+        const sorted = [...next.entries()].sort((a, b) => b[1].completedAt - a[1].completedAt);
+        return new Map(sorted.slice(0, MAX_RETAINED));
+      }
       return next;
     });
   }, 30_000);
@@ -125,11 +136,11 @@ const PublicTournamentPage: Component = () => {
     clearInterval(pruneInterval);
   });
 
-  // Merge live + retained for LiveNowSection
+  // Merge live + retained for LiveNowSection (live first, then FINAL)
   const allVisibleMatches = createMemo(() => {
-    const liveMatches = inProgressMatches();
+    const live = inProgressMatches();
     const retained = Array.from(retainedMatches().values()).map(r => r.match);
-    return [...liveMatches, ...retained];
+    return [...live, ...retained];
   });
 
   const currentRound = createMemo(() => {

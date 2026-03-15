@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,6 +17,7 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const firestore = getFirestore(app);
+export const functions = getFunctions(app);
 
 // App Check — protects Firebase services from abuse
 // Uses reCAPTCHA Enterprise in production, debug token in development
@@ -37,6 +39,7 @@ if (import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
 if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS !== 'false') {
   connectFirestoreEmulator(firestore, '127.0.0.1', 8180);
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectFunctionsEmulator(functions, '127.0.0.1', 5001);
 
   // Expose Firebase SDK on window for E2E tests (page.evaluate can't resolve bare specifiers)
   (window as any).__TEST_FIREBASE__ = { auth, firestore };

@@ -4,7 +4,6 @@ import { auth } from './config';
 import { matchRepository } from '../repositories/matchRepository';
 import { firestoreMatchRepository } from './firestoreMatchRepository';
 import { firestoreTournamentRepository } from './firestoreTournamentRepository';
-import { firestorePlayerStatsRepository } from './firestorePlayerStatsRepository';
 import {
   claimNextJobs,
   completeJob,
@@ -116,6 +115,36 @@ async function executeJobWork(job: SyncJob, uid: string): Promise<void> {
       }
       const ctx = job.context as { type: 'match'; ownerId: string; sharedWith: string[]; visibility?: 'private' | 'shared' | 'public' };
       await firestoreMatchRepository.save(match, uid, ctx.sharedWith, ctx.visibility);
+
+      // Side-effect: update spectator projection for in-progress PUBLIC tournament matches
+      if (match.tournamentId && match.status === 'in-progress' && ctx.visibility === 'public') {
+        try {
+          const { buildSpectatorProjection, writeSpectatorProjection } = await import('./firestoreSpectatorRepository');
+          const names = { publicTeam1Name: match.team1Name, publicTeam2Name: match.team2Name };
+          const projection = buildSpectatorProjection(match, names);
+          await writeSpectatorProjection(match.id, projection);
+        } catch (err) {
+          console.warn('[syncProcessor] Projection update failed (non-fatal):', err);
+        }
+      }
+
+      // Revocation: if tournament match is no longer public, mark projection as revoked
+      if (match.tournamentId && ctx.visibility && ctx.visibility !== 'public') {
+        try {
+          const { writeSpectatorProjection } = await import('./firestoreSpectatorRepository');
+          await writeSpectatorProjection(match.id, {
+            publicTeam1Name: '', publicTeam2Name: '',
+            team1Score: 0, team2Score: 0, gameNumber: 0,
+            team1Wins: 0, team2Wins: 0,
+            status: 'revoked', visibility: 'private',
+            tournamentId: match.tournamentId ?? '',
+            spectatorCount: 0, updatedAt: Date.now(),
+          });
+        } catch (err) {
+          console.warn('[syncProcessor] Revocation failed (non-fatal):', err);
+        }
+      }
+
       break;
     }
 
@@ -131,14 +160,8 @@ async function executeJobWork(job: SyncJob, uid: string): Promise<void> {
     }
 
     case 'playerStats': {
-      const match = await matchRepository.getById(job.entityId);
-      if (!match) {
-        const err = new Error(`Match ${job.entityId} not found locally for playerStats`);
-        (err as any).code = 'not-found';
-        throw err;
-      }
-      const ctx = job.context as { type: 'playerStats'; scorerUid: string };
-      await firestorePlayerStatsRepository.processMatchCompletion(match, ctx.scorerUid);
+      const { callProcessMatchCompletion } = await import('./callProcessMatchCompletion');
+      await callProcessMatchCompletion(job.entityId);
       break;
     }
 

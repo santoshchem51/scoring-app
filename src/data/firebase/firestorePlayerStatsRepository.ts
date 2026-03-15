@@ -112,6 +112,11 @@ function resolveOpponentTier(
   return nearestTier(avgMultiplier);
 }
 
+/**
+ * @deprecated Use Cloud Function processMatchCompletion instead.
+ * This client-side write will be blocked by security rules.
+ * Kept temporarily for reference during migration bake period.
+ */
 async function writePublicTier(
   uid: string,
   tier: Tier,
@@ -223,6 +228,11 @@ interface StatsEnrichment {
 }
 
 export const firestorePlayerStatsRepository = {
+  /**
+   * @deprecated Use Cloud Function processMatchCompletion instead.
+   * Client-side stats/leaderboard/matchRef writes are now blocked by security rules.
+   * Kept temporarily for reference during migration bake period.
+   */
   async updatePlayerStats(
     uid: string,
     match: Match,
@@ -408,6 +418,11 @@ export const firestorePlayerStatsRepository = {
     }
   },
 
+  /**
+   * @deprecated Use Cloud Function processMatchCompletion instead.
+   * Client-side stats pipeline is replaced by the server-side callable.
+   * Kept temporarily for reference during migration bake period.
+   */
   async processMatchCompletion(
     match: Match,
     scorerUid: string,

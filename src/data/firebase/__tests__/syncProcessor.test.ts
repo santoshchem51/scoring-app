@@ -14,6 +14,9 @@ vi.mock('../../firebase/firestoreTournamentRepository', () => ({
 vi.mock('../../firebase/firestorePlayerStatsRepository', () => ({
   firestorePlayerStatsRepository: { processMatchCompletion: vi.fn().mockResolvedValue(undefined) },
 }));
+vi.mock('../../firebase/callProcessMatchCompletion', () => ({
+  callProcessMatchCompletion: vi.fn().mockResolvedValue({ status: 'ok' }),
+}));
 vi.mock('../../firebase/config', () => ({
   auth: { currentUser: { uid: 'test-user', getIdToken: vi.fn().mockResolvedValue('token') } },
   firestore: {},
@@ -278,16 +281,13 @@ describe('syncProcessor', () => {
       });
       await db.syncQueue.put(job);
 
-      const { firestorePlayerStatsRepository } = await import('../../firebase/firestorePlayerStatsRepository');
+      const { callProcessMatchCompletion } = await import('../../firebase/callProcessMatchCompletion');
       const { startProcessor, stopProcessor } = await import('../syncProcessor');
 
       startProcessor(fakeLock);
       await waitForJobStatus(job.id, ['completed', 'failed']);
 
-      expect(firestorePlayerStatsRepository.processMatchCompletion).toHaveBeenCalledWith(
-        expect.objectContaining({ id: '1' }),
-        'scorer-1',
-      );
+      expect(callProcessMatchCompletion).toHaveBeenCalledWith(entityId);
 
       stopProcessor();
     }, 10_000);
