@@ -1,7 +1,7 @@
 import { render, screen } from '@solidjs/testing-library';
 import { describe, it, expect } from 'vitest';
 import LiveNowSection from '../LiveNowSection';
-import type { LiveNowMatch } from '../LiveNowSection';
+import type { LiveNowMatch, UpcomingMatch } from '../LiveNowSection';
 
 const makeMatch = (overrides: Partial<LiveNowMatch> & { matchId: string }): LiveNowMatch => ({
   team1Name: 'Team A',
@@ -135,5 +135,80 @@ describe('LiveNowSection', () => {
     const items = screen.getAllByRole('listitem');
     expect(items.length).toBeGreaterThanOrEqual(2);
     expect(items[0].tagName).toBe('LI');
+  });
+
+  // --- Up Next tests ---
+
+  const upcomingMatches: UpcomingMatch[] = [
+    { team1Name: 'Lisa', team2Name: 'Tom', court: '2' },
+    { team1Name: 'Jane', team2Name: 'Bob', scheduledTime: 'Starts in ~15 min' },
+  ];
+
+  it('shows "UP NEXT" header when no live matches but upcoming matches exist', () => {
+    render(() => (
+      <LiveNowSection matches={[]} tournamentCode="ABC" upcomingMatches={upcomingMatches} />
+    ));
+    expect(screen.getByText('UP NEXT')).toBeInTheDocument();
+    expect(screen.queryByText('LIVE NOW')).toBeNull();
+  });
+
+  it('shows upcoming match cards with team names', () => {
+    render(() => (
+      <LiveNowSection matches={[]} tournamentCode="ABC" upcomingMatches={upcomingMatches} />
+    ));
+    expect(screen.getByText(/Lisa vs Tom/)).toBeInTheDocument();
+    expect(screen.getByText(/Jane vs Bob/)).toBeInTheDocument();
+  });
+
+  it('shows "UPCOMING" badge on upcoming cards', () => {
+    render(() => (
+      <LiveNowSection matches={[]} tournamentCode="ABC" upcomingMatches={upcomingMatches} />
+    ));
+    const list = screen.getByRole('list');
+    expect(list.textContent).toContain('UPCOMING');
+  });
+
+  it('returns null when both live and upcoming are empty', () => {
+    const { container } = render(() => (
+      <LiveNowSection matches={[]} tournamentCode="ABC" upcomingMatches={[]} />
+    ));
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('prefers live matches over upcoming when both exist', () => {
+    render(() => (
+      <LiveNowSection
+        matches={defaultMatches}
+        tournamentCode="ABC"
+        upcomingMatches={upcomingMatches}
+      />
+    ));
+    expect(screen.getByText('LIVE NOW')).toBeInTheDocument();
+    expect(screen.queryByText('UP NEXT')).toBeNull();
+    // Live match cards should be links
+    const links = screen.getAllByRole('link');
+    expect(links.length).toBeGreaterThan(0);
+  });
+
+  it('upcoming cards are not links', () => {
+    render(() => (
+      <LiveNowSection matches={[]} tournamentCode="ABC" upcomingMatches={upcomingMatches} />
+    ));
+    const links = screen.queryAllByRole('link');
+    expect(links).toHaveLength(0);
+  });
+
+  it('caps upcoming matches at 3', () => {
+    const manyUpcoming: UpcomingMatch[] = [
+      { team1Name: 'A', team2Name: 'B' },
+      { team1Name: 'C', team2Name: 'D' },
+      { team1Name: 'E', team2Name: 'F' },
+      { team1Name: 'G', team2Name: 'H' },
+    ];
+    render(() => (
+      <LiveNowSection matches={[]} tournamentCode="ABC" upcomingMatches={manyUpcoming} />
+    ));
+    const items = screen.getAllByRole('listitem');
+    expect(items).toHaveLength(3);
   });
 });

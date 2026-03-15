@@ -79,6 +79,21 @@ const PublicTournamentPage: Component = () => {
     return matches;
   });
 
+  const upcomingMatches = createMemo(() => {
+    const names = teamNames();
+    const upcoming = live.pools().flatMap((pool) =>
+      pool.schedule
+        .filter((entry) => entry.matchId == null)
+        .slice(0, 3)
+        .map((entry) => ({
+          team1Name: names[entry.team1Id] ?? entry.team1Id,
+          team2Name: names[entry.team2Id] ?? entry.team2Id,
+          court: entry.court ?? undefined,
+        }))
+    );
+    return upcoming.slice(0, 3);
+  });
+
   // --- Render ---
 
   return (
@@ -126,6 +141,7 @@ const PublicTournamentPage: Component = () => {
                 <LiveNowSection
                   matches={inProgressMatches()}
                   tournamentCode={params.code}
+                  upcomingMatches={upcomingMatches()}
                 />
 
                 {/* Info Grid */}
