@@ -37,6 +37,13 @@ vi.mock('../hooks/useScoreEventStream', () => ({
   }),
 }));
 
+vi.mock('../hooks/useSpectatorProjection', () => ({
+  useSpectatorProjection: () => ({
+    projection: () => undefined,
+    loading: () => false,
+  }),
+}));
+
 vi.mock('../engine/scoreExtraction', () => ({
   extractLiveScore: () => ({ team1Score: 5, team2Score: 3 }),
   extractGameCount: () => ({ team1Wins: 1, team2Wins: 0 }),

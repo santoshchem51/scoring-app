@@ -132,6 +132,20 @@ const PublicTournamentPage: Component = () => {
     return [...liveMatches, ...retained];
   });
 
+  const currentRound = createMemo(() => {
+    const pools = live.pools();
+    if (pools.length === 0) return undefined;
+    const rounds = pools.flatMap(p => p.schedule.filter(e => e.matchId != null).map(e => e.round));
+    return rounds.length > 0 ? Math.max(...rounds) : undefined;
+  });
+
+  const totalRounds = createMemo(() => {
+    const pools = live.pools();
+    if (pools.length === 0) return undefined;
+    const rounds = pools.flatMap(p => p.schedule.map(e => e.round));
+    return rounds.length > 0 ? Math.max(...rounds) : undefined;
+  });
+
   const upcomingMatches = createMemo(() => {
     const names = teamNames();
     const upcoming = live.pools().flatMap((pool) =>
@@ -187,6 +201,8 @@ const PublicTournamentPage: Component = () => {
                   <TournamentPhaseIndicator
                     status={t().status}
                     liveMatchCount={inProgressMatches().length}
+                    currentRound={currentRound()}
+                    totalRounds={totalRounds()}
                   />
                 </Show>
 

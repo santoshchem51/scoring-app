@@ -44,7 +44,7 @@ const LiveNowSection: Component<LiveNowSectionProps> = (props): JSX.Element => {
       <section aria-labelledby="live-now-heading">
         <Show when={hasLive()} fallback={
           <>
-            <div data-testid="live-now-header" class="flex items-center gap-2 mb-3">
+            <div data-testid="live-now-header" class="flex items-center gap-2 mb-3 animate-[fadeIn_300ms_ease-out] motion-reduce:animate-none">
               <span
                 class="w-2.5 h-2.5 rounded-full bg-yellow-500"
                 aria-hidden="true"
@@ -82,7 +82,7 @@ const LiveNowSection: Component<LiveNowSectionProps> = (props): JSX.Element => {
             </ul>
           </>
         }>
-          <div data-testid="live-now-header" class="flex items-center gap-2 mb-3">
+          <div data-testid="live-now-header" class="flex items-center gap-2 mb-3 animate-[fadeIn_300ms_ease-out] motion-reduce:animate-none">
             <span
               data-testid="live-dot"
               class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"

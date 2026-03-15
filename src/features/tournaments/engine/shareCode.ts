@@ -2,11 +2,21 @@
 export const SHARE_CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 export function generateShareCode(length = 8): string {
-  const values = new Uint8Array(length);
-  crypto.getRandomValues(values);
+  const maxValid = Math.floor(256 / SHARE_CODE_CHARS.length) * SHARE_CODE_CHARS.length;
+  const bytes = new Uint8Array(length * 2); // over-provision for rejections
+  crypto.getRandomValues(bytes);
+
   let code = '';
-  for (let i = 0; i < length; i++) {
-    code += SHARE_CODE_CHARS[values[i] % SHARE_CODE_CHARS.length];
+  let i = 0;
+  while (code.length < length) {
+    if (i >= bytes.length) {
+      crypto.getRandomValues(bytes);
+      i = 0;
+    }
+    if (bytes[i] < maxValid) {
+      code += SHARE_CODE_CHARS[bytes[i] % SHARE_CODE_CHARS.length];
+    }
+    i++;
   }
   return code;
 }

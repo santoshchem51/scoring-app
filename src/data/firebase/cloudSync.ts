@@ -142,6 +142,7 @@ export const cloudSync = {
         type: 'match',
         ownerId: user.uid,
         sharedWith: [],
+        visibility: match.tournamentId ? 'public' : 'private',
       });
       enqueued++;
     }

@@ -1,5 +1,6 @@
 import { render, screen } from '@solidjs/testing-library';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { createSignal } from 'solid-js';
 import SpectatorScoreboard from '../SpectatorScoreboard';
 
 const defaultProps = {
@@ -85,5 +86,55 @@ describe('SpectatorScoreboard', () => {
     ));
     expect(screen.getByText('Alice / Carol')).toBeInTheDocument();
     expect(screen.getByText('Bob / Dave')).toBeInTheDocument();
+  });
+
+  it('shows flash overlay on team 1 when team1Score changes', async () => {
+    vi.useFakeTimers();
+    const [score, setScore] = createSignal(5);
+    render(() => <SpectatorScoreboard {...defaultProps} team1Score={score()} />);
+
+    const team1Row = screen.getByText('Alice').closest('[data-team="1"]')!;
+    const flashOverlay = team1Row.querySelector('[data-testid="flash-overlay"]');
+    expect(flashOverlay).toBeTruthy();
+    // Initially no flash (opacity-0)
+    expect(flashOverlay!.className).toContain('opacity-0');
+
+    setScore(6);
+    // After reactive update, flash should be active
+    await vi.advanceTimersByTimeAsync(0);
+    expect(flashOverlay!.className).toContain('opacity-100');
+
+    // After 300ms, flash fades
+    await vi.advanceTimersByTimeAsync(300);
+    expect(flashOverlay!.className).toContain('opacity-0');
+
+    vi.useRealTimers();
+  });
+
+  it('shows flash overlay on team 2 when team2Score changes', async () => {
+    vi.useFakeTimers();
+    const [score, setScore] = createSignal(3);
+    render(() => <SpectatorScoreboard {...defaultProps} team2Score={score()} />);
+
+    const team2Row = screen.getByText('Bob').closest('[data-team="2"]')!;
+    const flashOverlay = team2Row.querySelector('[data-testid="flash-overlay"]');
+    expect(flashOverlay).toBeTruthy();
+    expect(flashOverlay!.className).toContain('opacity-0');
+
+    setScore(4);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(flashOverlay!.className).toContain('opacity-100');
+
+    await vi.advanceTimersByTimeAsync(300);
+    expect(flashOverlay!.className).toContain('opacity-0');
+
+    vi.useRealTimers();
+  });
+
+  it('flash overlay has motion-reduce class', () => {
+    render(() => <SpectatorScoreboard {...defaultProps} />);
+    const team1Row = screen.getByText('Alice').closest('[data-team="1"]')!;
+    const flashOverlay = team1Row.querySelector('[data-testid="flash-overlay"]');
+    expect(flashOverlay!.className).toContain('motion-reduce:transition-none');
   });
 });

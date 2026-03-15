@@ -105,6 +105,11 @@ textarea:focus-visible {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Skeleton loader — sweeping shimmer */
 .skeleton {
   background: linear-gradient(

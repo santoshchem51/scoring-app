@@ -1,4 +1,4 @@
-import { Show, createSignal, createEffect, onCleanup } from 'solid-js';
+import { Show, createSignal, createEffect, on, onCleanup } from 'solid-js';
 import type { Component } from 'solid-js';
 
 interface SpectatorScoreboardProps {
@@ -19,7 +19,29 @@ interface SpectatorScoreboardProps {
 
 const SpectatorScoreboard: Component<SpectatorScoreboardProps> = (props) => {
   const [announcement, setAnnouncement] = createSignal('');
+  const [flash1, setFlash1] = createSignal(false);
+  const [flash2, setFlash2] = createSignal(false);
   let announceTimer: number | undefined;
+  let flash1Timer: number | undefined;
+  let flash2Timer: number | undefined;
+
+  // Flash effect when team 1 scores
+  createEffect(on(() => props.team1Score, (curr, prev) => {
+    if (prev !== undefined && curr !== prev) {
+      setFlash1(true);
+      if (flash1Timer !== undefined) clearTimeout(flash1Timer);
+      flash1Timer = window.setTimeout(() => { setFlash1(false); flash1Timer = undefined; }, 300);
+    }
+  }));
+
+  // Flash effect when team 2 scores
+  createEffect(on(() => props.team2Score, (curr, prev) => {
+    if (prev !== undefined && curr !== prev) {
+      setFlash2(true);
+      if (flash2Timer !== undefined) clearTimeout(flash2Timer);
+      flash2Timer = window.setTimeout(() => { setFlash2(false); flash2Timer = undefined; }, 300);
+    }
+  }));
 
   // Debounce score announcements (3 seconds)
   createEffect(() => {
@@ -38,6 +60,8 @@ const SpectatorScoreboard: Component<SpectatorScoreboardProps> = (props) => {
 
   onCleanup(() => {
     if (announceTimer !== undefined) clearTimeout(announceTimer);
+    if (flash1Timer !== undefined) clearTimeout(flash1Timer);
+    if (flash2Timer !== undefined) clearTimeout(flash2Timer);
   });
 
   return (
@@ -113,8 +137,13 @@ const SpectatorScoreboard: Component<SpectatorScoreboardProps> = (props) => {
         </div>
 
         {/* Team 1 row */}
-        <div class="flex items-center justify-between mb-1" data-team="1">
-          <div class="flex items-center gap-1.5 min-w-0">
+        <div class="relative flex items-center justify-between mb-1" data-team="1">
+          <div
+            data-testid="flash-overlay"
+            class={`absolute inset-0 rounded bg-blue-500/20 transition-opacity duration-200 ${flash1() ? 'opacity-100' : 'opacity-0'} motion-reduce:transition-none`}
+            aria-hidden="true"
+          />
+          <div class="relative z-10 flex items-center gap-1.5 min-w-0">
             <Show when={props.isServing === 1}>
               <span data-serving aria-hidden="true" class="text-yellow-500 text-xs flex-shrink-0">●</span>
               <span class="sr-only">(serving)</span>
@@ -124,7 +153,7 @@ const SpectatorScoreboard: Component<SpectatorScoreboardProps> = (props) => {
             </span>
           </div>
           <span
-            class="font-mono font-bold text-on-surface"
+            class="relative z-10 font-mono font-bold text-on-surface"
             style={{
               'font-variant-numeric': 'tabular-nums',
               'font-size': 'clamp(48px, 10vw, 64px)',
@@ -138,8 +167,13 @@ const SpectatorScoreboard: Component<SpectatorScoreboardProps> = (props) => {
         </div>
 
         {/* Team 2 row */}
-        <div class="flex items-center justify-between mb-1" data-team="2">
-          <div class="flex items-center gap-1.5 min-w-0">
+        <div class="relative flex items-center justify-between mb-1" data-team="2">
+          <div
+            data-testid="flash-overlay"
+            class={`absolute inset-0 rounded bg-blue-500/20 transition-opacity duration-200 ${flash2() ? 'opacity-100' : 'opacity-0'} motion-reduce:transition-none`}
+            aria-hidden="true"
+          />
+          <div class="relative z-10 flex items-center gap-1.5 min-w-0">
             <Show when={props.isServing === 2}>
               <span data-serving aria-hidden="true" class="text-yellow-500 text-xs flex-shrink-0">●</span>
               <span class="sr-only">(serving)</span>
@@ -149,7 +183,7 @@ const SpectatorScoreboard: Component<SpectatorScoreboardProps> = (props) => {
             </span>
           </div>
           <span
-            class="font-mono font-bold text-on-surface"
+            class="relative z-10 font-mono font-bold text-on-surface"
             style={{
               'font-variant-numeric': 'tabular-nums',
               'font-size': 'clamp(48px, 10vw, 64px)',

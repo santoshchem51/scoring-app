@@ -4,6 +4,7 @@ import { useParams, A } from '@solidjs/router';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
 import { useLiveMatch } from './hooks/useLiveMatch';
 import { useScoreEventStream } from './hooks/useScoreEventStream';
+import { useSpectatorProjection } from './hooks/useSpectatorProjection';
 import { extractLiveScore, extractGameCount } from './engine/scoreExtraction';
 import SpectatorScoreboard from './components/SpectatorScoreboard';
 import PlayByPlayFeed from './components/PlayByPlayFeed';
@@ -31,6 +32,13 @@ const PublicMatchPage: Component = () => {
 
   // Step 3: Score event stream for play-by-play
   const eventStream = useScoreEventStream(() => params.matchId);
+
+  // Step 4: Spectator projection for sanitized team names
+  const spectator = useSpectatorProjection(() => params.matchId);
+
+  // Derived: team names — prefer spectator projection (sanitized), fall back to match doc
+  const team1Name = createMemo(() => spectator.projection()?.publicTeam1Name ?? liveMatch.match()?.team1Name ?? 'Team 1');
+  const team2Name = createMemo(() => spectator.projection()?.publicTeam2Name ?? liveMatch.match()?.team2Name ?? 'Team 2');
 
   // Derived: validate match belongs to this tournament
   const mismatch = createMemo(() => {
@@ -103,8 +111,8 @@ const PublicMatchPage: Component = () => {
             {/* Scoreboard */}
             <div class="flex-none p-4 pb-0">
               <SpectatorScoreboard
-                team1Name={liveMatch.match()?.team1Name ?? 'Team 1'}
-                team2Name={liveMatch.match()?.team2Name ?? 'Team 2'}
+                team1Name={team1Name()}
+                team2Name={team2Name()}
                 team1Score={liveScore().team1Score}
                 team2Score={liveScore().team2Score}
                 team1Wins={gameCount().team1Wins}
@@ -136,14 +144,14 @@ const PublicMatchPage: Component = () => {
               <Show when={activeTab() === 'play-by-play'} fallback={
                 <MatchAnalytics
                   events={eventStream.events()}
-                  team1Name={liveMatch.match()?.team1Name ?? 'Team 1'}
-                  team2Name={liveMatch.match()?.team2Name ?? 'Team 2'}
+                  team1Name={team1Name()}
+                  team2Name={team2Name()}
                 />
               }>
                 <PlayByPlayFeed
                   events={eventStream.events()}
-                  team1Name={liveMatch.match()?.team1Name ?? 'Team 1'}
-                  team2Name={liveMatch.match()?.team2Name ?? 'Team 2'}
+                  team1Name={team1Name()}
+                  team2Name={team2Name()}
                 />
               </Show>
             </div>

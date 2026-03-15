@@ -37,27 +37,15 @@ const MatchAnalytics: Component<MatchAnalyticsProps> = (props) => {
   return (
     <section aria-label="Match analytics">
       {/* Momentum Bar */}
-      <div style={{ "margin-bottom": "16px" }}>
-        <div
-          style={{
-            display: "flex",
-            height: "32px",
-            "border-radius": "4px",
-            overflow: "hidden",
-          }}
-        >
+      <div class="mb-4">
+        <div class="flex h-8 rounded overflow-hidden">
           <div
             style={{
               "flex-basis": `${momentum().team1Pct}%`,
               "background-color": TEAM1_COLOR,
-              color: "white",
-              display: "flex",
-              "align-items": "center",
-              "justify-content": "center",
-              "font-size": "14px",
-              "font-weight": "bold",
               transition: momentumTransition,
             }}
+            class="flex items-center justify-center text-sm font-bold text-white"
           >
             {momentum().team1Pct}%
           </div>
@@ -65,14 +53,9 @@ const MatchAnalytics: Component<MatchAnalyticsProps> = (props) => {
             style={{
               "flex-basis": `${momentum().team2Pct}%`,
               "background-color": TEAM2_COLOR,
-              color: "white",
-              display: "flex",
-              "align-items": "center",
-              "justify-content": "center",
-              "font-size": "14px",
-              "font-weight": "bold",
               transition: momentumTransition,
             }}
+            class="flex items-center justify-center text-sm font-bold text-white"
           >
             {momentum().team2Pct}%
           </div>
@@ -82,25 +65,15 @@ const MatchAnalytics: Component<MatchAnalyticsProps> = (props) => {
       {/* Run of Play */}
       <div
         aria-label="Run of play"
-        style={{
-          display: "flex",
-          gap: "6px",
-          "align-items": "center",
-          "margin-bottom": "12px",
-          "flex-wrap": "wrap",
-        }}
+        class="flex gap-1.5 items-center mb-3 flex-wrap"
       >
         <For each={runOfPlay()}>
           {(event) => (
             <span
               style={{
-                "font-size": "14px",
-                "min-width": "14px",
-                "min-height": "14px",
-                "line-height": "14px",
-                "text-align": "center",
                 color: event.team === 1 ? TEAM1_COLOR : TEAM2_COLOR,
               }}
+              class="text-sm min-w-3.5 min-h-3.5 leading-3.5 text-center"
               aria-label={event.team === 1 ? props.team1Name : props.team2Name}
             >
               {event.team === 1 ? '●' : '■'}
@@ -114,13 +87,10 @@ const MatchAnalytics: Component<MatchAnalyticsProps> = (props) => {
         {(s) => (
           <div
             style={{
-              padding: "8px 12px",
-              "border-radius": "4px",
               "background-color": s().team === 1 ? '#DBEAFE' : '#FEF3C7',
               color: s().team === 1 ? TEAM1_COLOR : TEAM2_COLOR,
-              "font-weight": "bold",
-              "margin-bottom": "12px",
             }}
+            class="px-3 py-2 rounded font-bold mb-3"
           >
             {s().team === 1 ? props.team1Name : props.team2Name} on a {s().length}-0 run
           </div>
@@ -128,13 +98,13 @@ const MatchAnalytics: Component<MatchAnalyticsProps> = (props) => {
       </Show>
 
       {/* Point Distribution Chart */}
-      <div style={{ "margin-bottom": "12px" }}>
+      <div class="mb-3">
         <svg
           aria-hidden="true"
-          width="200"
-          height="60"
+          width="100%"
+          height="120"
           viewBox="0 0 200 60"
-          style={{ display: "block" }}
+          class="block"
         >
           <rect
             x="0"

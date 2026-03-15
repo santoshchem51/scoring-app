@@ -28,4 +28,39 @@ describe('TournamentPhaseIndicator', () => {
     expect(screen.getByText('Completed')).toBeTruthy();
     expect(screen.queryByText(/matches in progress/)).toBeNull();
   });
+
+  it('shows round info when currentRound and totalRounds provided', () => {
+    render(() => (
+      <TournamentPhaseIndicator
+        status="pool-play"
+        liveMatchCount={8}
+        currentRound={3}
+        totalRounds={4}
+      />
+    ));
+    expect(screen.getByText(/Round 3 of 4/)).toBeTruthy();
+    expect(screen.getByText(/8 matches in progress/)).toBeTruthy();
+  });
+
+  it('omits round info when currentRound is undefined', () => {
+    render(() => (
+      <TournamentPhaseIndicator
+        status="pool-play"
+        liveMatchCount={5}
+      />
+    ));
+    expect(screen.queryByText(/Round/)).toBeNull();
+    expect(screen.getByText(/5 matches in progress/)).toBeTruthy();
+  });
+
+  it('omits round info when totalRounds is undefined', () => {
+    render(() => (
+      <TournamentPhaseIndicator
+        status="pool-play"
+        liveMatchCount={2}
+        currentRound={1}
+      />
+    ));
+    expect(screen.queryByText(/Round/)).toBeNull();
+  });
 });
