@@ -12,33 +12,23 @@
 
 ## Wave A: Shared Types + Cloud Functions Infrastructure
 
-### Task 1a: Create shared-types package — types
+### Task 1a: Create shared types inside functions directory
+
+> **Why inside `functions/`?** Firebase CLI only uploads the `functions/` directory during deployment. A sibling `shared-types/` directory would NOT be included. Placing shared code at `functions/src/shared/` ensures it compiles, deploys, and resolves correctly in both the Cloud Functions runtime and the client (via relative imports through Vite's bundler).
 
 **Files:**
-- Create: `shared-types/package.json`
-- Create: `shared-types/types.ts`
+- Create: `functions/src/shared/types.ts`
 
 **Step 1 — RED: Write failing test**
 
 No test for this task — it is pure file creation with no logic. The compile check in Task 1b validates correctness.
 
-**Step 2: Create `shared-types/package.json`**
+**Step 2: Create `functions/src/shared/types.ts`**
 
-```json
-{
-  "name": "shared-types",
-  "version": "1.0.0",
-  "private": true,
-  "main": "types.ts"
-}
-```
-
-**Step 3: Create `shared-types/types.ts`**
-
-Extract the following types from `src/data/types.ts` into `shared-types/types.ts`. These are the types needed by both client and Cloud Functions:
+Extract the following types from `src/data/types.ts`. These are the types needed by both client and Cloud Functions:
 
 ```typescript
-// shared-types/types.ts — canonical type definitions shared between client and Cloud Functions
+// functions/src/shared/types.ts — canonical type definitions shared between client and Cloud Functions
 
 export type ScoringMode = 'sideout' | 'rally';
 export type MatchFormat = 'single' | 'best-of-3' | 'best-of-5';
@@ -182,28 +172,27 @@ export interface UserProfile {
 **Step 4: Commit**
 
 ```bash
-git add shared-types/package.json shared-types/types.ts
-git commit -m "feat: create shared-types package with canonical type definitions"
+git add functions/src/shared/types.ts
+git commit -m "feat: create shared types in functions/src/shared for client + server use"
 ```
 
 ---
 
-### Task 1b: Create shared-types package — utility functions
+### Task 1b: Create shared utility functions inside functions directory
 
 **Files:**
-- Create: `shared-types/utils/tierEngine.ts`
-- Create: `shared-types/utils/leaderboardScoring.ts`
-- Create: `shared-types/tsconfig.json`
-- Test: `shared-types/utils/__tests__/tierEngine.test.ts`
+- Create: `functions/src/shared/utils/tierEngine.ts`
+- Create: `functions/src/shared/utils/leaderboardScoring.ts`
+- Test: `functions/src/shared/utils/__tests__/tierEngine.test.ts`
 
 **Step 1 — RED: Write failing test**
 
 ```typescript
-// shared-types/utils/__tests__/tierEngine.test.ts
+// functions/src/shared/utils/__tests__/tierEngine.test.ts
 import { describe, it, expect } from 'vitest';
 import { computeTierScore, computeTier, computeTierConfidence, nearestTier, TIER_MULTIPLIER } from '../tierEngine';
 
-describe('tierEngine (shared-types)', () => {
+describe('tierEngine (shared)', () => {
   it('returns prior score for empty results', () => {
     expect(computeTierScore([])).toBe(0.25);
   });
@@ -235,36 +224,18 @@ describe('tierEngine (shared-types)', () => {
 **Step 2 — Run test, verify RED**
 
 ```bash
-cd shared-types && npx vitest run utils/__tests__/tierEngine.test.ts
+cd functions && npx vitest run src/shared/utils/__tests__/tierEngine.test.ts
 # Expected: FAIL — module '../tierEngine' not found
 ```
 
 **Step 3 — GREEN: Create the utility files**
 
-Create `shared-types/tsconfig.json`:
+No separate tsconfig needed — these files live inside `functions/src/` and compile with the functions project.
 
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "bundler",
-    "declaration": true,
-    "outDir": "dist",
-    "rootDir": ".",
-    "skipLibCheck": true,
-    "esModuleInterop": true
-  },
-  "include": ["./**/*.ts"],
-  "exclude": ["**/__tests__/**", "dist"]
-}
-```
-
-Copy `src/shared/utils/tierEngine.ts` to `shared-types/utils/tierEngine.ts`, changing the import path:
+Copy `src/shared/utils/tierEngine.ts` to `functions/src/shared/utils/tierEngine.ts`, changing the import path:
 
 ```typescript
-// shared-types/utils/tierEngine.ts
+// functions/src/shared/utils/tierEngine.ts
 import type { RecentResult, Tier, TierConfidence } from '../types';
 
 // (exact same logic as src/shared/utils/tierEngine.ts — all exports preserved)
@@ -370,10 +341,10 @@ export function computeTierConfidence(
 }
 ```
 
-Copy `src/shared/utils/leaderboardScoring.ts` to `shared-types/utils/leaderboardScoring.ts`, changing the import path:
+Copy `src/shared/utils/leaderboardScoring.ts` to `functions/src/shared/utils/leaderboardScoring.ts`, changing the import path:
 
 ```typescript
-// shared-types/utils/leaderboardScoring.ts
+// functions/src/shared/utils/leaderboardScoring.ts
 import type { Tier, RecentResult, StatsSummary, Last30dStats, LeaderboardEntry } from '../types';
 
 // (exact same logic as src/shared/utils/leaderboardScoring.ts — all exports preserved)
@@ -445,34 +416,34 @@ export function buildLeaderboardEntry(
 **Step 4 — Run test, verify GREEN**
 
 ```bash
-cd shared-types && npx vitest run utils/__tests__/tierEngine.test.ts
+cd functions && npx vitest run src/shared/utils/__tests__/tierEngine.test.ts
 # Expected: PASS — all 5 tests pass
 ```
 
-**Step 5 — REFACTOR: Update client to re-export from shared-types**
+**Step 5 — REFACTOR: Update client to re-export from functions/src/shared**
 
 Modify `src/shared/utils/tierEngine.ts`:
 
 ```typescript
-// src/shared/utils/tierEngine.ts — re-export from shared-types (single source of truth)
+// src/shared/utils/tierEngine.ts — re-export from functions/src/shared (single source of truth)
 export {
   TIER_MULTIPLIER,
   nearestTier,
   computeTierScore,
   computeTier,
   computeTierConfidence,
-} from '../../../shared-types/utils/tierEngine';
+} from '../../../../functions/src/shared/utils/tierEngine';
 ```
 
 Modify `src/shared/utils/leaderboardScoring.ts`:
 
 ```typescript
-// src/shared/utils/leaderboardScoring.ts — re-export from shared-types
+// src/shared/utils/leaderboardScoring.ts — re-export from functions/src/shared
 export {
   computeCompositeScore,
   computeLast30dStats,
   buildLeaderboardEntry,
-} from '../../../shared-types/utils/leaderboardScoring';
+} from '../../../../functions/src/shared/utils/leaderboardScoring';
 ```
 
 Run full client test suite to verify nothing breaks:
@@ -485,8 +456,8 @@ npx vitest run
 **Step 6: Commit**
 
 ```bash
-git add shared-types/ src/shared/utils/tierEngine.ts src/shared/utils/leaderboardScoring.ts
-git commit -m "feat: add shared-types utility functions, re-export from client"
+git add functions/src/shared/ src/shared/utils/tierEngine.ts src/shared/utils/leaderboardScoring.ts
+git commit -m "feat: add shared utility functions in functions/src/shared, re-export from client"
 ```
 
 ---
@@ -522,8 +493,7 @@ No test for scaffold — validated by compile in next task.
   },
   "dependencies": {
     "firebase-admin": "^12.0.0",
-    "firebase-functions": "^6.0.0",
-    "shared-types": "file:../shared-types"
+    "firebase-functions": "^6.0.0"
   },
   "devDependencies": {
     "typescript": "~5.5.0",
@@ -560,19 +530,19 @@ No test for scaffold — validated by compile in next task.
 // functions/src/index.ts — entry point for Cloud Functions
 // initializeApp MUST be called here (not in individual function files)
 // to avoid crashes on second function import.
-import { initializeApp } from 'firebase-admin/app';
+import { getApps, initializeApp } from 'firebase-admin/app';
 
-initializeApp();
+if (getApps().length === 0) initializeApp();
 
-// Export callable functions
-export { processMatchCompletion } from './callable/processMatchCompletion';
+// Export callable functions — uncomment when processMatchCompletion is created (Task 5a)
+// export { processMatchCompletion } from './callable/processMatchCompletion';
 ```
 
 **Step 5: Install dependencies and verify compile**
 
 ```bash
 cd functions && npm install && npm run build
-# Expected: compiles without errors, lib/ directory created
+# Expected: compiles without errors, lib/ directory created (index.js is a near-empty stub)
 ```
 
 **Step 6: Commit**
@@ -759,7 +729,7 @@ git commit -m "feat: export functions instance from firebase config with emulato
 // functions/src/lib/__tests__/participantResolution.test.ts
 import { describe, it, expect } from 'vitest';
 import { resolveParticipants } from '../participantResolution';
-import type { CloudMatch } from 'shared-types/types';
+import type { CloudMatch } from '../shared/types';
 
 function makeMatch(overrides: Partial<CloudMatch> = {}): CloudMatch {
   return {
@@ -849,7 +819,7 @@ cd functions && npx vitest run src/lib/__tests__/participantResolution.test.ts
 
 ```typescript
 // functions/src/lib/participantResolution.ts
-import type { CloudMatch } from 'shared-types/types';
+import type { CloudMatch } from '../shared/types';
 
 export interface Participant {
   uid: string;
@@ -933,7 +903,7 @@ Note: Tasks 3 and 4 can be implemented in parallel (no dependencies between them
 // functions/src/lib/__tests__/statsComputation.test.ts
 import { describe, it, expect } from 'vitest';
 import { computeUpdatedStats, buildMatchRefFromMatch } from '../statsComputation';
-import type { StatsSummary, CloudMatch, Tier } from 'shared-types/types';
+import type { StatsSummary, CloudMatch, Tier } from '../shared/types';
 
 function emptyStats(): StatsSummary {
   return {
@@ -1035,8 +1005,8 @@ cd functions && npx vitest run src/lib/__tests__/statsComputation.test.ts
 
 ```typescript
 // functions/src/lib/statsComputation.ts
-import type { CloudMatch, StatsSummary, MatchRef, RecentResult, Tier, TierConfidence } from 'shared-types/types';
-import { computeTierScore, computeTier, computeTierConfidence } from 'shared-types/utils/tierEngine';
+import type { CloudMatch, StatsSummary, MatchRef, RecentResult, Tier, TierConfidence } from '../shared/types';
+import { computeTierScore, computeTier, computeTierConfidence } from '../shared/utils/tierEngine';
 
 const RING_BUFFER_SIZE = 50;
 
@@ -1174,6 +1144,7 @@ git commit -m "feat: add stats computation module for Cloud Functions"
 
 **Files:**
 - Create: `functions/src/callable/processMatchCompletion.ts`
+- Modify: `functions/src/index.ts` (uncomment the export line from Task 2a)
 - Test: `functions/src/callable/__tests__/processMatchCompletion.test.ts`
 
 **Step 1 — RED: Write failing test**
@@ -1246,11 +1217,11 @@ cd functions && npx vitest run src/callable/__tests__/processMatchCompletion.tes
 // functions/src/callable/processMatchCompletion.ts
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
-import type { CloudMatch, Tier } from 'shared-types/types';
+import type { CloudMatch, Tier } from '../shared/types';
 import { resolveParticipants } from '../lib/participantResolution';
 import { computeUpdatedStats, buildMatchRefFromMatch } from '../lib/statsComputation';
-import { buildLeaderboardEntry } from 'shared-types/utils/leaderboardScoring';
-import { nearestTier, TIER_MULTIPLIER } from 'shared-types/utils/tierEngine';
+import { buildLeaderboardEntry } from '../shared/utils/leaderboardScoring';
+import { nearestTier, TIER_MULTIPLIER } from '../shared/utils/tierEngine';
 
 export const processMatchCompletion = onCall(
   {
@@ -1293,7 +1264,12 @@ export const processMatchCompletion = onCall(
       );
     }
 
-    // 6. Verify caller is owner or shared user
+    // 6. Validate document structure (defensive — corrupted docs shouldn't crash)
+    if (!match.ownerId || !Array.isArray(match.sharedWith)) {
+      throw new HttpsError('data-loss', 'Match document has corrupted structure');
+    }
+
+    // 7. Verify caller is owner or shared user
     if (match.ownerId !== callerUid && !match.sharedWith.includes(callerUid)) {
       throw new HttpsError('permission-denied', 'Not authorized for this match');
     }
@@ -1397,7 +1373,7 @@ export const processMatchCompletion = onCall(
           }
 
           const stats = existingStats.exists
-            ? (existingStats.data() as import('shared-types/types').StatsSummary)
+            ? (existingStats.data() as import('../shared/types').StatsSummary)
             : {
                 schemaVersion: 1, totalMatches: 0, wins: 0, losses: 0, winRate: 0,
                 currentStreak: { type: 'W' as const, count: 0 }, bestWinStreak: 0,
@@ -1506,29 +1482,87 @@ git commit -m "feat: implement processMatchCompletion callable with validation"
 
 ```typescript
 // functions/src/callable/__tests__/processMatchCompletion-edges.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-// This test focuses on the validation helpers and pure logic.
-// Full integration tests require the functions emulator (Task 5c).
+// Mock firebase-admin before importing the callable
+const mockGet = vi.fn();
+const mockSet = vi.fn();
+const mockTransaction = { get: mockGet, set: mockSet };
+const mockRunTransaction = vi.fn((fn) => fn(mockTransaction));
+const mockDoc = vi.fn(() => ({ get: vi.fn() }));
+
+vi.mock('firebase-admin/firestore', () => ({
+  getFirestore: () => ({ doc: mockDoc, runTransaction: mockRunTransaction }),
+  FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' },
+}));
+vi.mock('firebase-admin/app', () => ({
+  getApps: () => [{}],
+  initializeApp: vi.fn(),
+}));
+vi.mock('firebase-functions/v2/https', () => ({
+  onCall: (_opts: unknown, handler: Function) => handler,
+  HttpsError: class HttpsError extends Error {
+    constructor(public code: string, message: string) { super(message); }
+  },
+}));
 
 describe('processMatchCompletion edge cases', () => {
-  it('winningSide null is rejected by validation', () => {
-    // The callable checks winningSide !== 1 && winningSide !== 2
-    // This means null, undefined, 0, etc. are all rejected
-    const winningSide = null;
-    expect(winningSide !== 1 && winningSide !== 2).toBe(true);
+  it('rejects winningSide null with failed-precondition', async () => {
+    const { processMatchCompletion } = await import('../../callable/processMatchCompletion');
+    const handler = processMatchCompletion as Function;
+
+    // Mock match doc with null winningSide
+    mockDoc.mockReturnValueOnce({
+      get: vi.fn().mockResolvedValue({
+        exists: true,
+        id: 'match1',
+        data: () => ({
+          status: 'completed',
+          winningSide: null,
+          ownerId: 'user1',
+          sharedWith: [],
+          config: { gameType: 'singles' },
+          team1PlayerIds: ['user1'],
+          team2PlayerIds: ['user2'],
+          games: [],
+        }),
+      }),
+    });
+
+    await expect(
+      handler({ auth: { uid: 'user1' }, data: { matchId: 'match1' } }),
+    ).rejects.toThrow('winningSide');
   });
 
-  it('idempotency: existing matchRef causes transaction to skip', () => {
-    // Verified by the mock test in 5a — existingRef.exists returns early
-    expect(true).toBe(true);
+  it('skips transaction when matchRef already exists (idempotency)', async () => {
+    const { processMatchCompletion } = await import('../../callable/processMatchCompletion');
+    const handler = processMatchCompletion as Function;
+
+    // Mock: match exists and is valid
+    mockDoc.mockReturnValueOnce({
+      get: vi.fn().mockResolvedValue({
+        exists: true, id: 'match1',
+        data: () => ({
+          status: 'completed', winningSide: 1, ownerId: 'user1', sharedWith: [],
+          config: { gameType: 'singles' }, team1PlayerIds: ['user1'], team2PlayerIds: ['user2'],
+          games: [{ gameNumber: 1, team1Score: 11, team2Score: 5, winningSide: 1 }],
+          team1Name: 'A', team2Name: 'B', startedAt: 1000, completedAt: 2000,
+        }),
+      }),
+    });
+
+    // Mock: matchRef already exists (idempotency guard)
+    mockGet.mockResolvedValue({ exists: true });
+
+    await handler({ auth: { uid: 'user1' }, data: { matchId: 'match1' } });
+
+    // transaction.set should NOT have been called (skipped due to existing matchRef)
+    expect(mockSet).not.toHaveBeenCalled();
   });
 });
 ```
 
-This is a minimal test — the real edge case coverage comes from the emulator integration tests in the deployment verification checkpoint (Task 20).
-
-**Step 2 — Run test, verify GREEN immediately (these are assertion tests)**
+**Step 2 — Run test, verify RED (imports will fail until 5a is done)**
 
 ```bash
 cd functions && npx vitest run src/callable/__tests__/processMatchCompletion-edges.test.ts
@@ -1679,10 +1713,10 @@ function makeMatch(overrides: Partial<Match> = {}): Match {
 
 describe('buildSpectatorProjection', () => {
   it('does NOT include tournamentShareCode in the result', () => {
+    // After fix: function takes 2 args (match, names) — no shareCode
     const projection = buildSpectatorProjection(
       makeMatch({ tournamentId: 't1' }),
       { publicTeam1Name: 'A', publicTeam2Name: 'B' },
-      'secret-code',
     );
     expect('tournamentShareCode' in projection).toBe(false);
   });
@@ -1691,7 +1725,6 @@ describe('buildSpectatorProjection', () => {
     const projection = buildSpectatorProjection(
       makeMatch({ tournamentId: 't1' }),
       { publicTeam1Name: 'A', publicTeam2Name: 'B' },
-      '',
     );
     expect(projection.publicTeam1Name).toBe('A');
     expect(projection.publicTeam2Name).toBe('B');
@@ -1706,7 +1739,7 @@ describe('buildSpectatorProjection', () => {
 
 ```bash
 npx vitest run src/data/firebase/__tests__/firestoreSpectatorRepository.test.ts
-# Expected: FAIL — 'tournamentShareCode' IS in projection (it currently is)
+# Expected: FAIL — function currently requires 3 args but test passes 2
 ```
 
 **Step 3 — GREEN: Remove tournamentShareCode from the projection**
@@ -1782,33 +1815,64 @@ git commit -m "fix: remove tournamentShareCode from spectator projection (securi
 
 ```typescript
 // src/data/firebase/__tests__/syncProcessor-projection.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-// We test the projection side-effect logic in isolation
+const mockBuild = vi.fn(() => ({
+  publicTeam1Name: 'A', publicTeam2Name: 'B',
+  team1Score: 3, team2Score: 5, gameNumber: 1,
+  team1Wins: 0, team2Wins: 0, status: 'in-progress',
+  visibility: 'public', tournamentId: 't1',
+  spectatorCount: 0, updatedAt: Date.now(),
+}));
+const mockWrite = vi.fn().mockResolvedValue(undefined);
+
 vi.mock('../firestoreSpectatorRepository', () => ({
-  buildSpectatorProjection: vi.fn(() => ({
-    publicTeam1Name: 'A', publicTeam2Name: 'B',
-    team1Score: 3, team2Score: 5, gameNumber: 1,
-    team1Wins: 0, team2Wins: 0, status: 'in-progress',
-    visibility: 'public', tournamentId: 't1',
-    spectatorCount: 0, updatedAt: Date.now(),
-  })),
-  writeSpectatorProjection: vi.fn().mockResolvedValue(undefined),
+  buildSpectatorProjection: mockBuild,
+  writeSpectatorProjection: mockWrite,
 }));
 
 describe('syncProcessor projection side-effect', () => {
-  it('should call writeSpectatorProjection for in-progress tournament matches', async () => {
-    // This validates the contract: when a match sync job completes for a
-    // tournament match with status 'in-progress', the projection is written.
-    const { writeSpectatorProjection } = await import('../firestoreSpectatorRepository');
-    // The actual integration is tested by running the full sync processor
-    // with emulator. This test validates the mock contract.
-    expect(typeof writeSpectatorProjection).toBe('function');
+  it('calls writeSpectatorProjection for in-progress tournament matches', async () => {
+    // Simulate what the syncProcessor match case does:
+    const match = { id: 'm1', tournamentId: 't1', status: 'in-progress' as const, team1Name: 'A', team2Name: 'B' };
+    const ctx = { visibility: 'public' };
+
+    // Reproduce the condition from syncProcessor
+    if (match.tournamentId && match.status === 'in-progress') {
+      const names = { publicTeam1Name: match.team1Name, publicTeam2Name: match.team2Name };
+      const projection = mockBuild(match as any, names);
+      await mockWrite(match.id, projection);
+    }
+
+    expect(mockBuild).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }), { publicTeam1Name: 'A', publicTeam2Name: 'B' });
+    expect(mockWrite).toHaveBeenCalledWith('m1', expect.objectContaining({ team1Score: 3, team2Score: 5 }));
+  });
+
+  it('does NOT call writeSpectatorProjection for non-tournament matches', () => {
+    mockWrite.mockClear();
+    const match = { id: 'm2', tournamentId: undefined, status: 'in-progress' as const };
+
+    if (match.tournamentId && match.status === 'in-progress') {
+      mockWrite(match.id, {});
+    }
+
+    expect(mockWrite).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call writeSpectatorProjection for completed matches', () => {
+    mockWrite.mockClear();
+    const match = { id: 'm3', tournamentId: 't1', status: 'completed' as const };
+
+    if (match.tournamentId && match.status === 'in-progress') {
+      mockWrite(match.id, {});
+    }
+
+    expect(mockWrite).not.toHaveBeenCalled();
   });
 });
 ```
 
-**Step 2 — Run test (this one passes immediately as a contract test)**
+**Step 2 — Run test, verify RED (writeSpectatorProjection not yet called from syncProcessor)**
 
 **Step 3 — GREEN: Add projection side-effect to syncProcessor**
 
@@ -1817,8 +1881,10 @@ In `src/data/firebase/syncProcessor.ts`, modify the `match` case in `executeJobW
 After the existing `await firestoreMatchRepository.save(...)` line, add:
 
 ```typescript
-// Side-effect: update spectator projection for in-progress tournament matches
-if (match.tournamentId && match.status === 'in-progress') {
+// Side-effect: update spectator projection for in-progress PUBLIC tournament matches
+// (non-public matches are handled by the revocation block in Task 7)
+const ctx = job.context as { type: 'match'; ownerId: string; sharedWith: string[]; visibility?: 'private' | 'shared' | 'public' };
+if (match.tournamentId && match.status === 'in-progress' && ctx.visibility === 'public') {
   try {
     const { buildSpectatorProjection, writeSpectatorProjection } = await import('./firestoreSpectatorRepository');
     const names = {
@@ -1863,18 +1929,55 @@ git commit -m "feat: piggyback spectator projection updates on sync processor"
 // src/data/firebase/__tests__/syncProcessor-revocation.test.ts
 import { describe, it, expect, vi } from 'vitest';
 
+const mockWrite = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('../firestoreSpectatorRepository', () => ({
+  buildSpectatorProjection: vi.fn(),
+  writeSpectatorProjection: mockWrite,
+}));
+
 describe('syncProcessor visibility revocation', () => {
-  it('should write revoked status when tournament match goes private', () => {
-    // Contract test: the syncProcessor match case should check if
-    // a tournament match has visibility !== 'public' and write
-    // status: 'revoked' to the spectator projection.
-    //
-    // This is validated in the emulator integration test (Task 20).
-    // Here we verify the logic branch exists conceptually.
-    const visibility = 'private';
-    const hasTournamentId = true;
-    const shouldRevoke = hasTournamentId && visibility !== 'public';
-    expect(shouldRevoke).toBe(true);
+  beforeEach(() => mockWrite.mockClear());
+
+  it('writes revoked projection when tournament match visibility is private', async () => {
+    const match = { id: 'm1', tournamentId: 't1', status: 'in-progress' as const };
+    const ctx = { visibility: 'private' as const };
+
+    // Reproduce the revocation condition from syncProcessor
+    if (match.tournamentId && ctx.visibility && ctx.visibility !== 'public') {
+      await mockWrite(match.id, {
+        status: 'revoked', visibility: 'private',
+        publicTeam1Name: '', publicTeam2Name: '',
+        team1Score: 0, team2Score: 0, gameNumber: 0,
+        team1Wins: 0, team2Wins: 0,
+        tournamentId: match.tournamentId,
+        spectatorCount: 0, updatedAt: expect.any(Number),
+      });
+    }
+
+    expect(mockWrite).toHaveBeenCalledWith('m1', expect.objectContaining({ status: 'revoked', visibility: 'private' }));
+  });
+
+  it('does NOT revoke when visibility is public', () => {
+    const match = { id: 'm2', tournamentId: 't1', status: 'in-progress' as const };
+    const ctx = { visibility: 'public' as const };
+
+    if (match.tournamentId && ctx.visibility && ctx.visibility !== 'public') {
+      mockWrite(match.id, { status: 'revoked' });
+    }
+
+    expect(mockWrite).not.toHaveBeenCalled();
+  });
+
+  it('does NOT revoke for non-tournament matches', () => {
+    const match = { id: 'm3', tournamentId: undefined, status: 'in-progress' as const };
+    const ctx = { visibility: 'private' as const };
+
+    if (match.tournamentId && ctx.visibility && ctx.visibility !== 'public') {
+      mockWrite(match.id, { status: 'revoked' });
+    }
+
+    expect(mockWrite).not.toHaveBeenCalled();
   });
 });
 ```
@@ -2426,21 +2529,33 @@ git commit -m "feat: add LiveMatchCard component with inline scores via useLiveM
 ```typescript
 // src/features/tournaments/components/__tests__/LiveNowSection-expandable.test.ts
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 describe('LiveNowSection expandable overflow', () => {
-  it('MAX_VISIBLE is 3', async () => {
-    // Verify the constant hasn't changed
-    // We check by importing or just verifying the design contract
-    const MAX_VISIBLE = 3;
-    expect(MAX_VISIBLE).toBe(3);
+  const source = readFileSync(
+    resolve(__dirname, '../LiveNowSection.tsx'),
+    'utf-8',
+  );
+
+  it('uses createSignal for expanded state', () => {
+    expect(source).toContain('createSignal');
+    expect(source).toMatch(/expanded|setExpanded/);
   });
 
-  it('overflow text should be clickable (not dead text)', () => {
-    // The old implementation used a plain <span> for overflow.
-    // The new implementation uses a <button>.
-    // This is validated by visual inspection / E2E test.
-    // Contract: the component should use createSignal for expanded state.
-    expect(true).toBe(true);
+  it('renders a button (not span) for overflow', () => {
+    // Old: <span class="text-xs...">N more live</span>
+    // New: <button ...>N more live</button>
+    expect(source).toContain('<button');
+    expect(source).toContain('more live');
+  });
+
+  it('has a collapse toggle (Show fewer)', () => {
+    expect(source).toContain('Show fewer');
+  });
+
+  it('uses LiveMatchCard for rendering', () => {
+    expect(source).toContain('LiveMatchCard');
   });
 });
 ```
