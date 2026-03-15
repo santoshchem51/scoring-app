@@ -41,4 +41,6 @@ ui-debug.log
 playwright-report/
 test-results/
 screenshots/
+e2e-screenshots/
+design-protos/
 .worktrees/
