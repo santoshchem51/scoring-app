@@ -86,12 +86,12 @@ describe('extractLiveScore', () => {
 
 describe('extractGameCount', () => {
   it('returns 0-0 for undefined match', () => {
-    expect(extractGameCount(undefined)).toEqual({ team1: 0, team2: 0 });
+    expect(extractGameCount(undefined)).toEqual({ team1Wins: 0, team2Wins: 0 });
   });
 
   it('returns 0-0 for match with no games', () => {
     const m = makeMatch({ games: [] });
-    expect(extractGameCount(m)).toEqual({ team1: 0, team2: 0 });
+    expect(extractGameCount(m)).toEqual({ team1Wins: 0, team2Wins: 0 });
   });
 
   it('counts wins correctly', () => {
@@ -102,6 +102,6 @@ describe('extractGameCount', () => {
         makeGame({ gameNumber: 3, team1Score: 11, team2Score: 6, winningSide: 1 }),
       ],
     });
-    expect(extractGameCount(m)).toEqual({ team1: 2, team2: 1 });
+    expect(extractGameCount(m)).toEqual({ team1Wins: 2, team2Wins: 1 });
   });
 });

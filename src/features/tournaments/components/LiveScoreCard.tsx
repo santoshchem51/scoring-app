@@ -34,7 +34,7 @@ const LiveScoreCard: Component<Props> = (props) => {
                 </Show>
                 <Show when={m().config.matchFormat !== 'single'}>
                   <span class="text-xs text-on-surface-muted ml-auto">
-                    Games: {gameCount().team1}-{gameCount().team2}
+                    Games: {gameCount().team1Wins}-{gameCount().team2Wins}
                   </span>
                 </Show>
               </div>

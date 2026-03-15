@@ -6,12 +6,12 @@ export interface LiveScore {
 }
 
 export interface GameCount {
-  team1: number;
-  team2: number;
+  team1Wins: number;
+  team2Wins: number;
 }
 
 const ZERO_SCORE: LiveScore = { team1Score: 0, team2Score: 0 };
-const ZERO_COUNT: GameCount = { team1: 0, team2: 0 };
+const ZERO_COUNT: GameCount = { team1Wins: 0, team2Wins: 0 };
 
 export function extractLiveScore(match: Match | undefined | null): LiveScore {
   if (!match) return ZERO_SCORE;
@@ -42,5 +42,5 @@ export function extractGameCount(match: Match | undefined | null): GameCount {
     if (g.winningSide === 1) t1++;
     else if (g.winningSide === 2) t2++;
   }
-  return { team1: t1, team2: t2 };
+  return { team1Wins: t1, team2Wins: t2 };
 }

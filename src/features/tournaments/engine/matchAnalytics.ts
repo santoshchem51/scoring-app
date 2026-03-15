@@ -35,12 +35,12 @@ export function calculateMomentum(
 
   const recent = points.slice(-window);
   const team1Count = recent.filter((e) => e.team === 1).length;
-  const team2Count = recent.length - team1Count;
   const total = recent.length;
 
+  const team1Pct = Math.round((team1Count / total) * 100);
   return {
-    team1Pct: Math.round((team1Count / total) * 100),
-    team2Pct: Math.round((team2Count / total) * 100),
+    team1Pct,
+    team2Pct: 100 - team1Pct,
   };
 }
 
@@ -75,10 +75,12 @@ export function detectStreaks(events: ScoreEvent[]): StreakResult | null {
  * Only POINT_SCORED events are counted.
  */
 export function getPointDistribution(events: ScoreEvent[]): PointDistribution {
-  const points = events.filter(isPoint);
-
-  return {
-    team1: points.filter((e) => e.team === 1).length,
-    team2: points.filter((e) => e.team === 2).length,
-  };
+  let team1 = 0;
+  let team2 = 0;
+  for (const e of events) {
+    if (!isPoint(e)) continue;
+    if (e.team === 1) team1++;
+    else if (e.team === 2) team2++;
+  }
+  return { team1, team2 };
 }
