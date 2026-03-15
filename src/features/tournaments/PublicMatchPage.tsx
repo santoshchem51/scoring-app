@@ -99,6 +99,13 @@ const PublicMatchPage: Component = () => {
             </A>
           </div>
         }>
+          {/* Error: match revoked */}
+          <Show when={spectator.projection()?.status !== 'revoked'} fallback={
+            <div class="text-center p-8 text-on-surface-muted">
+              <p class="text-lg font-semibold">Match No Longer Public</p>
+              <p class="text-sm mt-2">The organizer has made this match private.</p>
+            </div>
+          }>
           {/* Error: match-tournament mismatch */}
           <Show when={!mismatch()} fallback={
             <div class="flex-1 flex flex-col items-center justify-center gap-4 p-4">
@@ -157,6 +164,7 @@ const PublicMatchPage: Component = () => {
             </div>
 
             <SpectatorFooter />
+          </Show>
           </Show>
         </Show>
       </Show>

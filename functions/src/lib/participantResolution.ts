@@ -31,6 +31,20 @@ export function resolveParticipants(
       const result: 'win' | 'loss' = match.winningSide === playerTeam ? 'win' : 'loss';
       participants.push({ uid: reg.userId, playerTeam, result });
     }
+  } else {
+    // Casual match: use player IDs directly from the match
+    for (const uid of match.team1PlayerIds) {
+      if (uid) {
+        const result: 'win' | 'loss' = match.winningSide === 1 ? 'win' : 'loss';
+        participants.push({ uid, playerTeam: 1, result });
+      }
+    }
+    for (const uid of match.team2PlayerIds) {
+      if (uid) {
+        const result: 'win' | 'loss' = match.winningSide === 2 ? 'win' : 'loss';
+        participants.push({ uid, playerTeam: 2, result });
+      }
+    }
   }
 
   const seen = new Set<string>();

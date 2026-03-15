@@ -61,6 +61,20 @@ describe('resolveParticipants', () => {
     expect(result.filter(p => p.result === 'loss')).toHaveLength(2);
   });
 
+  it('resolves casual (non-tournament) match participants from player IDs', () => {
+    const match = makeMatch({
+      team1PlayerIds: ['uid1'],
+      team2PlayerIds: ['uid2'],
+      winningSide: 1,
+      tournamentId: undefined,
+    });
+    const result = resolveParticipants(match, []);
+    expect(result).toEqual([
+      { uid: 'uid1', playerTeam: 1, result: 'win' },
+      { uid: 'uid2', playerTeam: 2, result: 'loss' },
+    ]);
+  });
+
   it('deduplicates UIDs (first occurrence wins)', () => {
     const match = makeMatch({
       tournamentId: 't1',

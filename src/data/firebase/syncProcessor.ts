@@ -139,7 +139,7 @@ async function executeJobWork(job: SyncJob, uid: string): Promise<void> {
             status: 'revoked', visibility: 'private',
             tournamentId: match.tournamentId ?? '',
             spectatorCount: 0, updatedAt: Date.now(),
-          } as any);
+          });
         } catch (err) {
           console.warn('[syncProcessor] Revocation failed (non-fatal):', err);
         }

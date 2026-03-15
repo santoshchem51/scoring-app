@@ -1,7 +1,7 @@
 // functions/src/callable/processMatchCompletion.ts
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getFirestore } from 'firebase-admin/firestore';
-import type { CloudMatch, Tier } from '../shared/types';
+import type { CloudMatch, Tier, StatsSummary } from '../shared/types';
 import { resolveParticipants } from '../lib/participantResolution';
 import { computeUpdatedStats, buildMatchRefFromMatch } from '../lib/statsComputation';
 import { buildLeaderboardEntry } from '../shared/utils/leaderboardScoring';
@@ -23,6 +23,9 @@ export const processMatchCompletion = onCall(
     const { matchId } = request.data;
     if (!matchId || typeof matchId !== 'string') {
       throw new HttpsError('invalid-argument', 'matchId must be a non-empty string');
+    }
+    if (matchId.includes('/') || matchId.includes('..') || matchId.length > 128) {
+      throw new HttpsError('invalid-argument', 'matchId contains invalid characters');
     }
 
     const db = getFirestore();
@@ -139,7 +142,7 @@ export const processMatchCompletion = onCall(
           }
         }
 
-        await db.runTransaction(async (transaction) => {
+        const computedTier = await db.runTransaction(async (transaction) => {
           const matchRefDoc = db.doc(`users/${participant.uid}/matchRefs/${matchId}`);
           const statsDoc = db.doc(`users/${participant.uid}/stats/summary`);
           const leaderboardDoc = db.doc(`leaderboard/${participant.uid}`);
@@ -153,11 +156,11 @@ export const processMatchCompletion = onCall(
 
           // Idempotency: skip if already processed
           if (existingRef.exists) {
-            return;
+            return null;
           }
 
           const stats = existingStats.exists
-            ? (existingStats.data() as import('../shared/types').StatsSummary)
+            ? (existingStats.data() as StatsSummary)
             : {
                 schemaVersion: 1, totalMatches: 0, wins: 0, losses: 0, winRate: 0,
                 currentStreak: { type: 'W' as const, count: 0 }, bestWinStreak: 0,
@@ -206,16 +209,20 @@ export const processMatchCompletion = onCall(
             }
             transaction.set(leaderboardDoc, leaderboardEntry);
           }
+
+          return updatedStats.tier;
         });
 
         // Write public tier (outside transaction, non-critical)
-        const profile = profileMap.get(participant.uid);
-        await db.doc(`users/${participant.uid}/public/tier`).set(
-          { tier: tierMap[participant.uid] ?? 'beginner', displayName: profile?.displayName },
-          { merge: true },
-        ).catch((err: unknown) => {
-          console.warn('Failed to write public tier for', participant.uid, err);
-        });
+        if (computedTier !== null) {
+          const profile = profileMap.get(participant.uid);
+          await db.doc(`users/${participant.uid}/public/tier`).set(
+            { tier: computedTier, displayName: profile?.displayName },
+            { merge: true },
+          ).catch((err: unknown) => {
+            console.warn('Failed to write public tier for', participant.uid, err);
+          });
+        }
 
         results.push({ uid: participant.uid, status: 'processed' });
       } catch (err) {

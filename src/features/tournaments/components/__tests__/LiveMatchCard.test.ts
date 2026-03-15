@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 // Mock useLiveMatch
 vi.mock('../../hooks/useLiveMatch', () => ({
@@ -14,8 +16,16 @@ vi.mock('../../hooks/useLiveMatch', () => ({
 }));
 
 describe('LiveMatchCard', () => {
-  it('exports a component', async () => {
+  it('exports a component that imports useLiveMatch and extractLiveScore', async () => {
     const mod = await import('../LiveMatchCard');
     expect(typeof mod.default).toBe('function');
+
+    // Verify source imports the expected dependencies
+    const source = readFileSync(
+      resolve(__dirname, '../LiveMatchCard.tsx'),
+      'utf-8',
+    );
+    expect(source).toContain("import { useLiveMatch }");
+    expect(source).toContain("extractLiveScore");
   });
 });

@@ -16,7 +16,7 @@ vi.mock('../../../../data/firebase/config', () => ({
 }));
 
 describe('useTournamentLiveMatches', () => {
-  it('exports a hook function', async () => {
+  it('exports a hook function that returns matches and loading', async () => {
     const mod = await import('../useTournamentLiveMatches');
     expect(typeof mod.useTournamentLiveMatches).toBe('function');
   });
