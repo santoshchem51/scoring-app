@@ -12,6 +12,7 @@ const DiscoverPage = lazy(() => import('../features/tournaments/DiscoverPage'));
 const TournamentCreatePage = lazy(() => import('../features/tournaments/TournamentCreatePage'));
 const TournamentDashboardPage = lazy(() => import('../features/tournaments/TournamentDashboardPage'));
 const PublicTournamentPage = lazy(() => import('../features/tournaments/PublicTournamentPage'));
+const PublicMatchPage = lazy(() => import('../features/tournaments/PublicMatchPage'));
 const LandingPage = lazy(() => import('../features/landing/LandingPage'));
 const ProfilePage = lazy(() => import('../features/profile/ProfilePage'));
 const BuddiesPage = lazy(() => import('../features/buddies/BuddiesPage'));
@@ -51,6 +52,7 @@ export default function AppRouter() {
         </Route>
       </Route>
       <Route path="/t/:code" component={PublicTournamentPage} />
+      <Route path="/t/:code/match/:matchId" component={PublicMatchPage} />
       <Route path="/buddies" component={RequireAuth}>
         <Route path="/" component={BuddiesPage} />
         <Route path="/new" component={CreateGroupPage} />
