@@ -43,8 +43,8 @@ const Logo: Component<LogoProps> = (props) => {
         <LogoIcon class={iconSize()} />
       </Show>
       <span>
-        <span class="text-primary">Pickle</span>
-        <span class="text-score">Score</span>
+        <span class="text-on-surface">Pickle</span>
+        <span class="text-primary">Score</span>
       </span>
     </span>
   );

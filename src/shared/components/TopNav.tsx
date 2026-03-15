@@ -97,7 +97,7 @@ const TopNav: Component<TopNavProps> = (props) => {
 
   return (
     <header
-      class={`px-4 py-2.5 ${isLanding() ? '' : 'bg-surface-light border-b border-surface-lighter'}`}
+      class={`px-4 py-2.5 ${isLanding() ? '' : 'glass-panel border-b border-glass-border'}`}
     >
       <div class="max-w-5xl mx-auto flex items-center justify-between">
         {/* Left: Logo + title or wordmark */}
@@ -224,7 +224,7 @@ const TopNav: Component<TopNavProps> = (props) => {
                   role="menu"
                   aria-label="Account options"
                   onKeyDown={handleMenuKeyDown}
-                  class="absolute right-0 top-full mt-2 w-56 bg-surface-light rounded-xl shadow-lg border border-surface-lighter z-50 overflow-hidden"
+                  class="absolute right-0 top-full mt-2 w-56 rounded-xl shadow-lg border border-glass-border z-50 overflow-hidden" style={{ background: 'var(--color-surface-overlay)' }}
                 >
                   <Show
                     when={user()}
