@@ -36,6 +36,7 @@ export function useTournamentLiveMatches(tournamentId: () => string | undefined)
       collection(firestore, 'matches'),
       where('tournamentId', '==', tid),
       where('status', '==', 'in-progress'),
+      where('visibility', '==', 'public'),
     );
 
     unsubscribe = onSnapshot(
