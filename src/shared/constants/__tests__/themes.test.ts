@@ -29,6 +29,7 @@ const REQUIRED_VARS = [
   '--color-court-line',
   '--color-court-line-strong',
   '--color-surface-overlay',
+  '--color-focus-ring-inner',
 ];
 
 describe('THEMES config', () => {

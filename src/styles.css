@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 @font-face {
   font-family: 'Oswald';
   font-style: normal;
@@ -30,8 +32,6 @@
   src: url('/fonts/Oswald-Medium.woff2') format('woff2');
 }
 
-@import "tailwindcss";
-
 @theme {
   --color-primary: #22c55e;
   --color-primary-dark: #16a34a;
@@ -42,7 +42,7 @@
   --color-on-surface: #f1f5f9;
   --color-on-surface-muted: #a0aec0;
   --color-score: #facc15;
-  --color-error: #dc2626;
+  --color-error: #ef4444;
   --color-success: #22c55e;
   --color-warning: #eab308;
   --color-info: #3b82f6;
@@ -60,6 +60,8 @@
   --color-court-line-strong: rgba(34, 197, 94, 0.25);
   /* Surface overlay for non-glass cards/dialogs/controls */
   --color-surface-overlay: rgba(15, 17, 24, 0.88);
+  /* Focus ring inner color (adapts for outdoor mode) */
+  --color-focus-ring-inner: #FFFFFF;
 }
 
 /* Native app feel */
@@ -80,11 +82,11 @@ input, textarea {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Dual-ring focus: white inner outline + primary outer */
+/* Dual-ring focus: inner outline + primary outer */
 button:focus-visible,
 a:focus-visible,
 select:focus-visible {
-  outline: 2px solid #FFFFFF;
+  outline: 2px solid var(--color-focus-ring-inner);
   outline-offset: 2px;
   box-shadow: 0 0 0 5px var(--color-primary);
 }
@@ -202,7 +204,7 @@ textarea:focus-visible {
     background: var(--color-court-line);
   }
 
-  /* Glass panel -- top bar, bottom nav, score panels */
+  /* Glass panel -- top bar, bottom nav, score container */
   .glass-panel {
     background: var(--color-glass-surface);
     border: 1px solid var(--color-glass-border);
@@ -210,18 +212,21 @@ textarea:focus-visible {
     -webkit-backdrop-filter: blur(20px);
   }
 
-  /* Score panel -- wraps each team's score area */
+  /*
+   * Score panel -- wraps each team's score area.
+   * No backdrop-filter here; the parent score container gets .glass-panel
+   * to stay within the 3-element backdrop-filter budget.
+   * --team-color and --team-color-rgb are set by component JS via hexToRgb().
+   */
   .score-panel {
     background: var(--color-glass-surface);
     border: 1px solid var(--color-glass-border);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     transition: border-color 0.4s ease, box-shadow 0.4s ease;
   }
 
   .score-panel.serving {
-    border-color: var(--team-color);
-    box-shadow: 0 0 15px rgba(var(--team-color-rgb), 0.3);
+    border-color: var(--team-color, var(--color-primary));
+    box-shadow: 0 0 15px rgba(var(--team-color-rgb, 34, 197, 94), 0.3);
   }
 
   .score-panel.game-point {
@@ -240,7 +245,7 @@ textarea:focus-visible {
     position: absolute;
     width: 16px;
     height: 16px;
-    border-color: rgba(var(--team-color-rgb), 0.2);
+    border-color: rgba(var(--team-color-rgb, 34, 197, 94), 0.2);
     border-style: solid;
     pointer-events: none;
   }
@@ -341,7 +346,7 @@ html.outdoor .text-7xl {
   background-clip: text;
 }
 
-/* Subtle gradient text (green only) */
+/* Subtle gradient text */
 .text-gradient-subtle {
   background: linear-gradient(135deg, var(--color-primary), var(--color-on-surface));
   -webkit-background-clip: text;
@@ -406,6 +411,16 @@ body::after {
 /* Disable noise in outdoor mode (light theme) */
 html.outdoor body::after {
   display: none;
+}
+
+/* Windows High Contrast Mode support */
+@media (forced-colors: active) {
+  .text-gradient,
+  .text-gradient-subtle,
+  .text-gradient-animated {
+    background: none;
+    -webkit-text-fill-color: unset;
+  }
 }
 
 /* Performance: layer promotion for continuous animations */

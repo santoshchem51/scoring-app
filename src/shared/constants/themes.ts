@@ -20,7 +20,7 @@ const CLASSIC_COLORS: Record<string, string> = {
   '--color-on-surface': '#f1f5f9',
   '--color-on-surface-muted': '#a0aec0',
   '--color-score': '#facc15',
-  '--color-error': '#dc2626',
+  '--color-error': '#ef4444',
   '--color-success': '#22c55e',
   '--color-warning': '#eab308',
   '--color-info': '#3b82f6',
@@ -34,6 +34,7 @@ const CLASSIC_COLORS: Record<string, string> = {
   '--color-court-line': 'rgba(34, 197, 94, 0.15)',
   '--color-court-line-strong': 'rgba(34, 197, 94, 0.25)',
   '--color-surface-overlay': 'rgba(15, 17, 24, 0.88)',
+  '--color-focus-ring-inner': '#FFFFFF',
 };
 
 const CLASSIC_OUTDOOR: Record<string, string> = {
@@ -46,14 +47,14 @@ const CLASSIC_OUTDOOR: Record<string, string> = {
   '--color-surface-deep': '#f8fafc',
   '--color-on-surface': '#0f172a',
   '--color-on-surface-muted': '#475569',
-  '--color-score': '#ca8a04',
+  '--color-score': '#7a5200',
   '--color-error': '#dc2626',
   '--color-success': '#15803d',
   '--color-warning': '#a16207',
   '--color-info': '#2563eb',
   '--color-primary-glow': 'rgba(21, 128, 61, 0.1)',
   '--color-accent-glow': 'rgba(249, 115, 22, 0.1)',
-  '--color-score-glow': 'rgba(202, 138, 4, 0.15)',
+  '--color-score-glow': 'rgba(122, 82, 0, 0.15)',
   '--color-border': 'rgba(0, 0, 0, 0.08)',
   '--color-glass-surface': 'rgba(255, 255, 255, 0.95)',
   '--color-glass-border': 'rgba(0, 0, 0, 0.12)',
@@ -61,6 +62,7 @@ const CLASSIC_OUTDOOR: Record<string, string> = {
   '--color-court-line': 'rgba(21, 128, 61, 0.2)',
   '--color-court-line-strong': 'rgba(21, 128, 61, 0.35)',
   '--color-surface-overlay': 'rgba(241, 245, 249, 0.92)',
+  '--color-focus-ring-inner': '#0f172a',
 };
 
 const CVG_COLORS: Record<string, string> = {
@@ -74,7 +76,7 @@ const CVG_COLORS: Record<string, string> = {
   '--color-on-surface': '#F5E6C8',
   '--color-on-surface-muted': '#9A8E84',
   '--color-score': '#F5E6C8',
-  '--color-error': '#DC2626',
+  '--color-error': '#EF4444',
   '--color-success': '#4ECDC4',
   '--color-warning': '#E8A820',
   '--color-info': '#5B9BD5',
@@ -88,6 +90,7 @@ const CVG_COLORS: Record<string, string> = {
   '--color-court-line': 'rgba(212, 168, 83, 0.15)',
   '--color-court-line-strong': 'rgba(212, 168, 83, 0.25)',
   '--color-surface-overlay': 'rgba(10, 9, 8, 0.88)',
+  '--color-focus-ring-inner': '#FFFFFF',
 };
 
 const CVG_OUTDOOR: Record<string, string> = {
@@ -115,6 +118,7 @@ const CVG_OUTDOOR: Record<string, string> = {
   '--color-court-line': 'rgba(122, 92, 16, 0.2)',
   '--color-court-line-strong': 'rgba(122, 92, 16, 0.35)',
   '--color-surface-overlay': 'rgba(245, 240, 232, 0.92)',
+  '--color-focus-ring-inner': '#0f172a',
 };
 
 const EMBER_COLORS: Record<string, string> = {
@@ -128,7 +132,7 @@ const EMBER_COLORS: Record<string, string> = {
   '--color-on-surface': '#F0EDE8',
   '--color-on-surface-muted': '#9A8E84',
   '--color-score': '#F0EDE8',
-  '--color-error': '#DC2626',
+  '--color-error': '#EF4444',
   '--color-success': '#2DA8A8',
   '--color-warning': '#E8A820',
   '--color-info': '#5B9BD5',
@@ -142,6 +146,7 @@ const EMBER_COLORS: Record<string, string> = {
   '--color-court-line': 'rgba(232, 93, 38, 0.15)',
   '--color-court-line-strong': 'rgba(232, 93, 38, 0.25)',
   '--color-surface-overlay': 'rgba(8, 6, 5, 0.88)',
+  '--color-focus-ring-inner': '#FFFFFF',
 };
 
 const EMBER_OUTDOOR: Record<string, string> = {
@@ -169,6 +174,7 @@ const EMBER_OUTDOOR: Record<string, string> = {
   '--color-court-line': 'rgba(161, 61, 16, 0.2)',
   '--color-court-line-strong': 'rgba(161, 61, 16, 0.35)',
   '--color-surface-overlay': 'rgba(245, 240, 236, 0.92)',
+  '--color-focus-ring-inner': '#0f172a',
 };
 
 export const THEMES: Record<Theme, ThemeConfig> = {
