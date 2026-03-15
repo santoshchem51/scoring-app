@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { Match } from '../../../data/types';
 import { Share2 } from 'lucide-solid';
@@ -22,7 +22,24 @@ const MatchCard: Component<Props> = (props) => {
   };
 
   return (
-    <article class="bg-surface-light rounded-xl p-4 space-y-2 hover-lift transition-all duration-200" aria-label={`${m().team1Name} vs ${m().team2Name}`}>
+    <article
+      class="rounded-xl p-4 space-y-2 hover-lift border border-glass-border relative overflow-hidden"
+      style={{ "background": "var(--color-surface-light)", "transition": "transform 0.2s ease, box-shadow 0.2s ease" }}
+      aria-label={`${m().team1Name} vs ${m().team2Name}`}
+    >
+      {/* Win/Loss accent strip */}
+      <Show when={m().winningSide}>
+        <div
+          class="absolute left-0 top-0 bottom-0 w-1"
+          aria-hidden="true"
+          style={{
+            "background": m().winningSide === 1
+              ? "var(--color-primary)"
+              : "var(--color-accent)",
+          }}
+        />
+      </Show>
+
       <div class="flex items-center justify-between">
         <span class="text-xs text-on-surface-muted">{date()} {time()}</span>
         <div class="flex items-center gap-2">
@@ -45,6 +62,12 @@ const MatchCard: Component<Props> = (props) => {
         <div class="flex-1">
           <span class={`font-semibold ${m().winningSide === 1 ? 'text-primary' : 'text-on-surface'}`}>
             {m().team1Name}
+            <Show when={m().winningSide === 1}>
+              <span class="ml-1.5 text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">W</span>
+            </Show>
+            <Show when={m().winningSide === 2}>
+              <span class="ml-1.5 text-xs font-bold text-on-surface-muted bg-surface-lighter px-1.5 py-0.5 rounded">L</span>
+            </Show>
           </span>
         </div>
         <div class="px-4 text-2xl font-black text-score tabular-nums">
@@ -56,6 +79,12 @@ const MatchCard: Component<Props> = (props) => {
         <div class="flex-1">
           <span class={`font-semibold ${m().winningSide === 2 ? 'text-primary' : 'text-on-surface'}`}>
             {m().team2Name}
+            <Show when={m().winningSide === 2}>
+              <span class="ml-1.5 text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">W</span>
+            </Show>
+            <Show when={m().winningSide === 1}>
+              <span class="ml-1.5 text-xs font-bold text-on-surface-muted bg-surface-lighter px-1.5 py-0.5 rounded">L</span>
+            </Show>
           </span>
         </div>
         <div class="px-4 text-2xl font-black text-score tabular-nums">

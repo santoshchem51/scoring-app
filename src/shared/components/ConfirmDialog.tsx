@@ -88,7 +88,8 @@ const ConfirmDialog: Component<ConfirmDialogProps> = (props) => {
           aria-modal="true"
           aria-labelledby={titleId}
           aria-describedby={messageId}
-          class="relative z-10 w-full md:max-w-sm bg-surface-light rounded-t-2xl md:rounded-2xl p-6 space-y-4"
+          class="relative z-10 w-full md:max-w-sm rounded-t-2xl md:rounded-2xl p-6 space-y-4 border border-glass-border"
+          style={{ "background": "var(--color-surface-overlay)" }}
         >
           <h2 id={titleId} class="text-lg font-bold text-on-surface">
             {props.title}
