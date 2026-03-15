@@ -1,3 +1,4 @@
+import { Show } from 'solid-js';
 import type { Component } from 'solid-js';
 
 interface Props {
@@ -13,16 +14,20 @@ const OptionCard: Component<Props> = (props) => {
       type="button"
       onClick={props.onClick}
       aria-pressed={props.selected}
-      class={`w-full p-4 rounded-xl text-left transition-all duration-200 active:scale-[0.97] hover-lift ${
+      class={`w-full p-4 rounded-xl text-left active:scale-[0.97] hover-lift ${
         props.selected
-          ? 'bg-primary/20 border-2 border-primary text-on-surface'
-          : 'bg-surface-light border-2 border-surface-lighter text-on-surface-muted hover:border-on-surface-muted'
+          ? 'border-2 border-primary text-on-surface'
+          : 'border-2 border-surface-lighter text-on-surface-muted hover:border-on-surface-muted'
       }`}
+      style={{
+        "background": props.selected ? 'var(--color-glass-surface)' : 'var(--color-surface-light)',
+        "transition": "transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease",
+      }}
     >
       <div class="font-semibold">{props.label}</div>
-      {props.description && (
+      <Show when={props.description}>
         <div class="text-sm text-on-surface-muted mt-0.5">{props.description}</div>
-      )}
+      </Show>
     </button>
   );
 };

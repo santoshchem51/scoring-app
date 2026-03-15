@@ -3,6 +3,7 @@ import type { Component } from 'solid-js';
 import type { GameType, ScoringMode } from '../../../data/types';
 import { useScoreAnimation } from '../hooks/useScoreAnimation';
 import { useSwipeGesture } from '../../../shared/hooks/useSwipeGesture';
+import { hexToRgb } from '../../../shared/utils/colorUtils';
 
 interface Props {
   team1Name: string;
@@ -54,7 +55,7 @@ const Scoreboard: Component<Props> = (props) => {
   const t2Color = () => props.team2Color ?? '#f97316';
 
   return (
-    <div class="grid grid-cols-2 gap-4 px-4" role="region" aria-label="Scoreboard">
+    <div class="grid grid-cols-[1fr_auto_1fr] gap-0 px-4" role="region" aria-label="Scoreboard">
       {/* Screen reader live announcement */}
       <div class="sr-only" aria-live="polite" aria-atomic="true">
         {props.team1Name} {props.team1Score}, {props.team2Name} {props.team2Score}
@@ -63,26 +64,22 @@ const Scoreboard: Component<Props> = (props) => {
       {/* Team 1 */}
       <div
         ref={team1PanelRef}
-        class="flex flex-col items-center py-6 rounded-2xl transition-all"
+        class="score-panel score-panel-brackets flex flex-col items-center py-6 rounded-2xl"
         classList={{
-          'bg-surface-light': !isServing(1) && !team1GamePoint(),
+          'serving': isServing(1),
+          'game-point': team1GamePoint() && !isServing(1),
         }}
         style={{
           "touch-action": "pan-y",
-          ...(isServing(1) ? {
-            "background-color": `${t1Color()}20`,
-            border: `2px solid ${t1Color()}`,
-            "box-shadow": `0 0 20px 4px ${t1Color()}30`,
-          } : team1GamePoint() ? {
-            "background-color": `${t1Color()}15`,
-            border: `2px solid ${t1Color()}`,
-          } : {
-            border: '2px solid transparent',
-          }),
-        }}
-        aria-label={`${props.team1Name}: ${props.team1Score}${isServing(1) ? ', serving' : ''}`}
+          "--team-color": t1Color(),
+          "--team-color-rgb": hexToRgb(t1Color()),
+        } as import('solid-js').JSX.CSSProperties}
+        aria-label={`${props.team1Name}: ${props.team1Score}${isServing(1) ? ', serving' : ''}${team1GamePoint() ? ', game point' : ''}`}
       >
-        <span class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2">
+        <span
+          class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2 uppercase tracking-wider"
+          style={{ "font-family": "var(--font-score)", "font-weight": "400" }}
+        >
           {props.team1Name}
         </span>
         <span
@@ -93,38 +90,49 @@ const Scoreboard: Component<Props> = (props) => {
           {props.team1Score}
         </span>
         <Show when={isServing(1)}>
-          <span class="mt-2 text-xs font-bold uppercase tracking-wider" style={{ color: t1Color() }}>
+          <span
+            class="mt-2 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
+            style={{ color: t1Color(), "border-color": t1Color() }}
+          >
             {showServerNumber() ? `Server ${props.serverNumber}` : 'Serving'}
           </span>
         </Show>
         <Show when={team1GamePoint()}>
-          <span class="mt-1 text-xs font-bold uppercase tracking-wider animate-pulse" style={{ color: t1Color() }}>Game Point</span>
+          <span
+            class="mt-1 text-sm font-bold uppercase tracking-wider game-point-pulse"
+            style={{ color: t1Color(), "animation": "gamePointPulse 1.5s ease-in-out infinite" }}
+          >
+            Game Point
+          </span>
         </Show>
+      </div>
+
+      {/* Net divider */}
+      <div class="flex flex-col items-center justify-center py-4" aria-hidden="true">
+        <div class="net-line flex-1" />
+        <div class="net-diamond my-1" />
+        <div class="net-line flex-1" />
       </div>
 
       {/* Team 2 */}
       <div
         ref={team2PanelRef}
-        class="flex flex-col items-center py-6 rounded-2xl transition-all"
+        class="score-panel score-panel-brackets flex flex-col items-center py-6 rounded-2xl"
         classList={{
-          'bg-surface-light': !isServing(2) && !team2GamePoint(),
+          'serving': isServing(2),
+          'game-point': team2GamePoint() && !isServing(2),
         }}
         style={{
           "touch-action": "pan-y",
-          ...(isServing(2) ? {
-            "background-color": `${t2Color()}20`,
-            border: `2px solid ${t2Color()}`,
-            "box-shadow": `0 0 20px 4px ${t2Color()}30`,
-          } : team2GamePoint() ? {
-            "background-color": `${t2Color()}15`,
-            border: `2px solid ${t2Color()}`,
-          } : {
-            border: '2px solid transparent',
-          }),
-        }}
-        aria-label={`${props.team2Name}: ${props.team2Score}${isServing(2) ? ', serving' : ''}`}
+          "--team-color": t2Color(),
+          "--team-color-rgb": hexToRgb(t2Color()),
+        } as import('solid-js').JSX.CSSProperties}
+        aria-label={`${props.team2Name}: ${props.team2Score}${isServing(2) ? ', serving' : ''}${team2GamePoint() ? ', game point' : ''}`}
       >
-        <span class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2">
+        <span
+          class="text-sm font-semibold text-on-surface-muted mb-2 truncate max-w-full px-2 uppercase tracking-wider"
+          style={{ "font-family": "var(--font-score)", "font-weight": "400" }}
+        >
           {props.team2Name}
         </span>
         <span
@@ -135,12 +143,20 @@ const Scoreboard: Component<Props> = (props) => {
           {props.team2Score}
         </span>
         <Show when={isServing(2)}>
-          <span class="mt-2 text-xs font-bold uppercase tracking-wider" style={{ color: t2Color() }}>
+          <span
+            class="mt-2 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
+            style={{ color: t2Color(), "border-color": t2Color() }}
+          >
             {showServerNumber() ? `Server ${props.serverNumber}` : 'Serving'}
           </span>
         </Show>
         <Show when={team2GamePoint()}>
-          <span class="mt-1 text-xs font-bold uppercase tracking-wider animate-pulse" style={{ color: t2Color() }}>Game Point</span>
+          <span
+            class="mt-1 text-sm font-bold uppercase tracking-wider game-point-pulse"
+            style={{ color: t2Color(), "animation": "gamePointPulse 1.5s ease-in-out infinite" }}
+          >
+            Game Point
+          </span>
         </Show>
       </div>
     </div>

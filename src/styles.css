@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 @font-face {
   font-family: 'Oswald';
   font-style: normal;
@@ -6,7 +8,29 @@
   src: url('/fonts/Oswald-Bold.woff2') format('woff2');
 }
 
-@import "tailwindcss";
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/Oswald-Light.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Oswald-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Oswald-Medium.woff2') format('woff2');
+}
 
 @theme {
   --color-primary: #22c55e;
@@ -18,7 +42,7 @@
   --color-on-surface: #f1f5f9;
   --color-on-surface-muted: #a0aec0;
   --color-score: #facc15;
-  --color-error: #dc2626;
+  --color-error: #ef4444;
   --color-success: #22c55e;
   --color-warning: #eab308;
   --color-info: #3b82f6;
@@ -28,6 +52,16 @@
   --color-score-glow: rgba(250, 204, 21, 0.2);
   --color-border: rgba(255, 255, 255, 0.08);
   --font-score: 'Oswald', system-ui, sans-serif;
+  /* Glass + court-line tokens (Classic defaults) */
+  --color-glass-surface: rgba(34, 197, 94, 0.02);
+  --color-glass-border: rgba(34, 197, 94, 0.08);
+  --color-glass-border-hover: rgba(34, 197, 94, 0.15);
+  --color-court-line: rgba(34, 197, 94, 0.15);
+  --color-court-line-strong: rgba(34, 197, 94, 0.25);
+  /* Surface overlay for non-glass cards/dialogs/controls */
+  --color-surface-overlay: rgba(15, 17, 24, 0.88);
+  /* Focus ring inner color (adapts for outdoor mode) */
+  --color-focus-ring-inner: #FFFFFF;
 }
 
 /* Native app feel */
@@ -48,12 +82,13 @@ input, textarea {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Focus styles for keyboard navigation */
+/* Dual-ring focus: inner outline + primary outer */
 button:focus-visible,
 a:focus-visible,
 select:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-focus-ring-inner);
   outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--color-primary);
 }
 
 input:focus-visible,
@@ -90,9 +125,22 @@ textarea:focus-visible {
   50% { box-shadow: 0 0 20px 8px var(--color-primary-glow); }
 }
 
-@keyframes nav-pill-in {
-  0% { transform: scaleX(0); opacity: 0; }
-  100% { transform: scaleX(1); opacity: 1; }
+@keyframes scoreUp {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes scanLine {
+  0% { transform: translateY(-100%); opacity: 0; }
+  5% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(calc(var(--scan-container-height, 400px))); opacity: 0; }
+}
+
+@keyframes gamePointPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 @keyframes skeleton-shimmer {
@@ -133,21 +181,123 @@ textarea:focus-visible {
 .page-exit { opacity: 1; transform: translateY(0); }
 .page-exit-to { opacity: 0; transform: translateY(-8px); }
 
-/* Outdoor/High-Contrast Mode */
-html.outdoor {
-  --color-primary: #15803d;
-  --color-primary-dark: #166534;
-  --color-surface: #ffffff;
-  --color-surface-light: #f1f5f9;
-  --color-surface-lighter: #e2e8f0;
-  --color-surface-deep: #f8fafc;
-  --color-on-surface: #0f172a;
-  --color-on-surface-muted: #475569;
-  --color-score: #ca8a04;
-  --color-primary-glow: rgba(21, 128, 61, 0.1);
-  --color-accent-glow: rgba(249, 115, 22, 0.1);
-  --color-score-glow: rgba(202, 138, 4, 0.15);
-  --color-border: rgba(0, 0, 0, 0.08);
+/* Court-line motif system */
+@layer components {
+  /* Horizontal court line (section dividers) */
+  .court-line {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-court-line-strong) 20%, var(--color-court-line-strong) 80%, transparent);
+  }
+
+  /* Net divider (between score panels) */
+  .net-line {
+    width: 1px;
+    background: linear-gradient(180deg, transparent, var(--color-court-line) 30%, var(--color-court-line) 70%, transparent);
+  }
+
+  /* Diamond center point */
+  .net-diamond {
+    width: 10px;
+    height: 10px;
+    transform: rotate(45deg);
+    border: 1.5px solid var(--color-court-line-strong);
+    background: var(--color-court-line);
+  }
+
+  /* Glass panel -- top bar, bottom nav, score container */
+  .glass-panel {
+    background: var(--color-glass-surface);
+    border: 1px solid var(--color-glass-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /*
+   * Score panel -- wraps each team's score area.
+   * No backdrop-filter here; the parent score container gets .glass-panel
+   * to stay within the 3-element backdrop-filter budget.
+   * --team-color and --team-color-rgb are set by component JS via hexToRgb().
+   */
+  .score-panel {
+    background: var(--color-glass-surface);
+    border: 1px solid var(--color-glass-border);
+    transition: border-color 0.4s ease, box-shadow 0.4s ease;
+  }
+
+  .score-panel.serving {
+    border-color: var(--team-color, var(--color-primary));
+    box-shadow: 0 0 15px rgba(var(--team-color-rgb, 34, 197, 94), 0.3);
+  }
+
+  .score-panel.game-point {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 20px var(--color-accent-glow);
+  }
+
+  /* Court corner brackets on score panels */
+  .score-panel-brackets {
+    position: relative;
+  }
+
+  .score-panel-brackets::before,
+  .score-panel-brackets::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-color: rgba(var(--team-color-rgb, 34, 197, 94), 0.2);
+    border-style: solid;
+    pointer-events: none;
+  }
+
+  .score-panel-brackets::before {
+    top: 6px;
+    left: 6px;
+    border-width: 2px 0 0 2px;
+  }
+
+  .score-panel-brackets::after {
+    bottom: 6px;
+    right: 6px;
+    border-width: 0 2px 2px 0;
+  }
+}
+
+/* Ambient background cross-fade for scoring page */
+.ambient-bg {
+  position: relative;
+}
+
+.ambient-bg::before,
+.ambient-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transition: opacity 1.2s ease;
+  will-change: opacity;
+  pointer-events: none;
+}
+
+.ambient-bg::before {
+  background: radial-gradient(ellipse at 30% 20%, rgba(var(--team1-color-rgb, 78, 205, 196), 0.06) 0%, transparent 70%);
+}
+
+.ambient-bg::after {
+  background: radial-gradient(ellipse at 70% 20%, rgba(var(--team2-color-rgb, 232, 114, 90), 0.06) 0%, transparent 70%);
+  opacity: 0;
+}
+
+.ambient-bg.serving-team-1::before { opacity: 1; }
+.ambient-bg.serving-team-1::after { opacity: 0; }
+.ambient-bg.serving-team-2::before { opacity: 0; }
+.ambient-bg.serving-team-2::after { opacity: 1; }
+
+/* Outdoor/High-Contrast Mode -- structural overrides */
+html.outdoor .glass-panel,
+html.outdoor .score-panel {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 html.outdoor .skeleton {
@@ -178,10 +328,10 @@ html.outdoor .text-7xl {
 /* Premium glow effects (desktop hover only) */
 @media (hover: hover) and (pointer: fine) {
   .hover-glow-primary:hover {
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 20px var(--color-primary-glow);
   }
   .hover-glow-accent:hover {
-    box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+    box-shadow: 0 0 20px var(--color-accent-glow);
   }
   .hover-lift:hover {
     transform: translateY(-2px);
@@ -191,15 +341,15 @@ html.outdoor .text-7xl {
 
 /* Gradient text utility */
 .text-gradient {
-  background: linear-gradient(135deg, #22c55e, #facc15, #f97316);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-on-surface), var(--color-accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Subtle gradient text (green only) */
+/* Subtle gradient text */
 .text-gradient-subtle {
-  background: linear-gradient(135deg, #22c55e, #4ade80);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-on-surface));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -213,7 +363,7 @@ html.outdoor .text-7xl {
 }
 
 .text-gradient-animated {
-  background: linear-gradient(135deg, #22c55e, #4ade80, #facc15, #22c55e);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-on-surface), var(--color-accent), var(--color-primary));
   background-size: 300% 300%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -223,8 +373,8 @@ html.outdoor .text-7xl {
 
 /* Persistent CTA glow pulse */
 @keyframes cta-glow-pulse {
-  0%, 100% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.2), 0 0 30px rgba(34, 197, 94, 0.1); }
-  50% { box-shadow: 0 0 25px rgba(34, 197, 94, 0.4), 0 0 50px rgba(34, 197, 94, 0.15); }
+  0%, 100% { box-shadow: 0 0 15px var(--color-primary-glow), 0 0 30px rgba(0, 0, 0, 0.1); }
+  50% { box-shadow: 0 0 25px var(--color-primary-glow), 0 0 50px rgba(0, 0, 0, 0.15); }
 }
 
 .cta-glow-active {
@@ -242,7 +392,7 @@ html.outdoor .text-7xl {
 }
 
 .steps-connector line {
-  stroke: rgba(34, 197, 94, 0.3);
+  stroke: var(--color-court-line-strong);
   stroke-width: 2;
 }
 
@@ -255,11 +405,30 @@ body::after {
   z-index: 9999;
   opacity: 0.03;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+  background-repeat: repeat;
 }
 
 /* Disable noise in outdoor mode (light theme) */
 html.outdoor body::after {
   display: none;
+}
+
+/* Windows High Contrast Mode support */
+@media (forced-colors: active) {
+  .text-gradient,
+  .text-gradient-subtle,
+  .text-gradient-animated {
+    background: none;
+    -webkit-text-fill-color: unset;
+  }
+}
+
+/* Performance: layer promotion for continuous animations */
+.game-point-pulse,
+.live-pulse {
+  will-change: opacity;
+  contain: layout style;
 }
 
 /* Staggered entrance animation */
@@ -277,8 +446,54 @@ html.outdoor body::after {
 .stagger-in > *:nth-child(8) { animation-delay: 350ms; }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Disable all continuous and decorative animations */
+  .game-point-pulse,
+  .live-pulse {
+    animation: none !important;
+  }
+
+  /* Disable scoreUp bump */
+  .score-bump {
+    animation: none !important;
+  }
+
+  /* Disable scan line on hero */
+  .scan-line {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  /* Disable ambient cross-fade transitions */
+  .ambient-bg::before,
+  .ambient-bg::after {
+    transition: none !important;
+  }
+
+  /* Disable score-flash */
+  .score-flash {
+    animation: none !important;
+  }
+
+  /* Keep Game Point label visible at 14px minimum without animation */
+  .game-point-pulse {
+    opacity: 1 !important;
+    font-size: 14px;
+  }
+
+  /* Disable stagger-in and fade-in */
   .stagger-in > * {
-    opacity: 1;
-    animation: none;
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  /* Disable gradient shimmer */
+  .text-gradient-animated {
+    animation: none !important;
+  }
+
+  /* Disable CTA glow pulse */
+  .cta-glow-active {
+    animation: none !important;
   }
 }

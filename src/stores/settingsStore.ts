@@ -1,6 +1,7 @@
 import { createSignal } from 'solid-js';
 
 export type ScoringUIMode = 'simple' | 'detailed';
+export type Theme = 'court-vision-gold' | 'classic' | 'ember';
 
 interface Settings {
   defaultScoringMode: 'sideout' | 'rally';
@@ -19,6 +20,7 @@ interface Settings {
   notifyTournament: boolean;
   notifyAchievement: boolean;
   notifyStats: boolean;
+  theme: Theme;
 }
 
 const SETTINGS_KEY = 'pickle-score-settings';
@@ -40,6 +42,7 @@ const DEFAULTS: Settings = {
   notifyTournament: true,
   notifyAchievement: true,
   notifyStats: true,
+  theme: 'court-vision-gold',
 };
 
 function loadSettings(): Settings {

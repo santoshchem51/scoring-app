@@ -27,32 +27,32 @@ const BottomNav: Component = () => {
     }`;
 
   return (
-    <nav aria-label="Main navigation" class="fixed bottom-0 left-0 right-0 bg-surface-light border-t border-surface-lighter safe-bottom">
-      <div class="max-w-lg mx-auto md:max-w-3xl flex justify-around py-1">
+    <nav aria-label="Main navigation" class="fixed bottom-0 left-0 right-0 safe-bottom px-4 pb-2">
+      <div class="max-w-lg mx-auto md:max-w-3xl flex justify-around py-1 glass-panel rounded-2xl">
         <A href="/new" class={linkClass('/new')} aria-current={isActive('/new') ? 'page' : undefined} aria-label="New Game">
           <Show when={isActive('/new')}>
-            <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
+            <div class="absolute bottom-0 left-2 right-2 court-line" aria-hidden="true" />
           </Show>
           <Plus size={24} class="relative" />
           <span class="relative">New</span>
         </A>
         <A href="/history" class={linkClass('/history')} aria-current={isActive('/history') ? 'page' : undefined} aria-label="Match History">
           <Show when={isActive('/history')}>
-            <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
+            <div class="absolute bottom-0 left-2 right-2 court-line" aria-hidden="true" />
           </Show>
           <Clock size={24} class="relative" />
           <span class="relative">History</span>
         </A>
         <A href="/players" class={linkClass('/players')} aria-current={isActive('/players') ? 'page' : undefined} aria-label="Players">
           <Show when={isActive('/players')}>
-            <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
+            <div class="absolute bottom-0 left-2 right-2 court-line" aria-hidden="true" />
           </Show>
           <Users size={24} class="relative" />
           <span class="relative">Players</span>
         </A>
         <A href="/tournaments" class={linkClass('/tournaments')} aria-current={isActive('/tournaments') ? 'page' : undefined} aria-label="Tournaments">
           <Show when={isActive('/tournaments')}>
-            <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
+            <div class="absolute bottom-0 left-2 right-2 court-line" aria-hidden="true" />
           </Show>
           <Sparkles size={24} class="relative" />
           <Show when={(invitationCount() ?? 0) > 0}>
@@ -68,7 +68,7 @@ const BottomNav: Component = () => {
         <Show when={user()}>
           <A href="/buddies" class={linkClass('/buddies')} aria-current={isActive('/buddies') ? 'page' : undefined} aria-label="Buddies">
             <Show when={isActive('/buddies')}>
-              <div class="absolute inset-x-1 top-0.5 bottom-0.5 bg-primary/10 rounded-xl" style={{ animation: 'nav-pill-in 200ms ease-out' }} />
+              <div class="absolute bottom-0 left-2 right-2 court-line" aria-hidden="true" />
             </Show>
             <Heart size={24} class="relative" />
             <Show when={buddyUnreadCount() > 0}>
