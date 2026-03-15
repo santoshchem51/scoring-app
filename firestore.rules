@@ -51,9 +51,11 @@ service cloud.firestore {
         && request.resource.data.team2Name.size() > 0
         && request.resource.data.sharedWith is list;
 
-      // Owner update — ownerId is immutable
+      // Owner update — ownerId is immutable, server-managed fields protected
       allow update: if request.auth != null && request.auth.uid == resource.data.ownerId
-        && request.resource.data.ownerId == resource.data.ownerId;
+        && request.resource.data.ownerId == resource.data.ownerId
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['spectatorCount', 'tournamentShareCode', 'publicTeam1Name', 'publicTeam2Name']);
 
       // Owner delete
       allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
@@ -63,7 +65,9 @@ service cloud.firestore {
 
       // Shared user update only (NOT create/delete) — ownerId is immutable
       allow update: if request.auth != null && request.auth.uid in resource.data.sharedWith
-        && request.resource.data.ownerId == resource.data.ownerId;
+        && request.resource.data.ownerId == resource.data.ownerId
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['spectatorCount', 'tournamentShareCode', 'publicTeam1Name', 'publicTeam2Name']);
 
       // Public read (no auth required)
       allow read: if resource.data.visibility == 'public';
@@ -96,6 +100,14 @@ service cloud.firestore {
           && request.resource.data.matchId == resource.data.matchId;
 
         allow delete: if isMatchOwnerOrShared();
+      }
+
+      // ── Spectator Projection (/matches/{matchId}/public/{docId}) ──
+      match /public/{docId} {
+        // Anyone can read spectator projections (sanitized data only)
+        allow read: if true;
+        // Only Cloud Functions (admin SDK) can write — admin bypasses rules
+        allow write: if false;
       }
     }
 
