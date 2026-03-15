@@ -4,7 +4,6 @@ import { auth } from './config';
 import { matchRepository } from '../repositories/matchRepository';
 import { firestoreMatchRepository } from './firestoreMatchRepository';
 import { firestoreTournamentRepository } from './firestoreTournamentRepository';
-import { firestorePlayerStatsRepository } from './firestorePlayerStatsRepository';
 import {
   claimNextJobs,
   completeJob,
@@ -131,14 +130,8 @@ async function executeJobWork(job: SyncJob, uid: string): Promise<void> {
     }
 
     case 'playerStats': {
-      const match = await matchRepository.getById(job.entityId);
-      if (!match) {
-        const err = new Error(`Match ${job.entityId} not found locally for playerStats`);
-        (err as any).code = 'not-found';
-        throw err;
-      }
-      const ctx = job.context as { type: 'playerStats'; scorerUid: string };
-      await firestorePlayerStatsRepository.processMatchCompletion(match, ctx.scorerUid);
+      const { callProcessMatchCompletion } = await import('./callProcessMatchCompletion');
+      await callProcessMatchCompletion(job.entityId);
       break;
     }
 
