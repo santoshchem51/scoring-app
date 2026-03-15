@@ -17,6 +17,9 @@ const TEAM1_COLOR = '#2563EB';
 const TEAM2_COLOR = '#D97706';
 
 const MatchAnalytics: Component<MatchAnalyticsProps> = (props) => {
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const momentumTransition = prefersReducedMotion ? 'none' : 'flex-basis 300ms';
+
   const momentum = createMemo(() => calculateMomentum(props.events));
   const streak = createMemo(() => detectStreaks(props.events));
   const distribution = createMemo(() => getPointDistribution(props.events));
@@ -53,7 +56,7 @@ const MatchAnalytics: Component<MatchAnalyticsProps> = (props) => {
               "justify-content": "center",
               "font-size": "14px",
               "font-weight": "bold",
-              transition: "flex-basis 300ms",
+              transition: momentumTransition,
             }}
           >
             {momentum().team1Pct}%
@@ -68,7 +71,7 @@ const MatchAnalytics: Component<MatchAnalyticsProps> = (props) => {
               "justify-content": "center",
               "font-size": "14px",
               "font-weight": "bold",
-              transition: "flex-basis 300ms",
+              transition: momentumTransition,
             }}
           >
             {momentum().team2Pct}%

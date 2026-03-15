@@ -153,6 +153,20 @@ const SpectatorScoreboard: Component<SpectatorScoreboardProps> = (props) => {
             {props.contextLine}
           </div>
         </Show>
+
+        {/* Screen reader score announcer */}
+        <div
+          aria-live="polite"
+          aria-atomic="true"
+          style={{
+            position: 'absolute', width: '1px', height: '1px', padding: '0',
+            margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)',
+            'white-space': 'nowrap', border: '0'
+          }}
+        >
+          {props.team1Name} {props.team1Score}, {props.team2Name} {props.team2Score}.
+          {props.status === 'in-progress' ? ` ${props.isServing === 1 ? props.team1Name : props.team2Name} serving.` : ` ${props.status === 'completed' ? 'Final.' : ''}`}
+        </div>
       </div>
     </Show>
   );

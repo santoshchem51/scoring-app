@@ -125,7 +125,13 @@ const PublicMatchPage: Component = () => {
             </div>
 
             {/* Tab content */}
-            <div class="flex-1 overflow-y-auto px-4 pb-4" style={{ 'min-height': '0' }}>
+            <div
+              role="tabpanel"
+              id={`panel-${activeTab()}`}
+              aria-labelledby={`tab-${activeTab()}`}
+              class="flex-1 overflow-y-auto px-4 pb-4"
+              style={{ 'min-height': '0' }}
+            >
               <Show when={activeTab() === 'play-by-play'} fallback={
                 <MatchAnalytics
                   events={eventStream.events()}

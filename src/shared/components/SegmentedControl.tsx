@@ -59,7 +59,9 @@ export const SegmentedControl: Component<SegmentedControlProps> = (props) => {
         {(segment) => (
           <button
             role="tab"
+            id={`tab-${segment.id}`}
             aria-selected={segment.id === props.activeId}
+            aria-controls={`panel-${segment.id}`}
             tabindex={segment.id === props.activeId ? 0 : -1}
             class={`px-3 py-1.5 text-sm rounded-lg transition-colors cursor-pointer ${
               segment.id === props.activeId
