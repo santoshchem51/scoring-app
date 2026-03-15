@@ -86,6 +86,6 @@ describe('buildMatchRefFromMatch', () => {
     expect(ref.playerTeam).toBe(1);
     expect(ref.ownerId).toBe('owner-1');
     expect(ref.scores).toBe('11-5');
-    expect(ref.gameScores).toEqual([[11, 5]]);
+    expect(ref.gameScores).toEqual([{ t1: 11, t2: 5 }]);
   });
 });
