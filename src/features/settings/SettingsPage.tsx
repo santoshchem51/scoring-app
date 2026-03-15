@@ -1,10 +1,12 @@
-import { createSignal, onMount, Show } from 'solid-js';
+import { createSignal, For, onMount, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import PageLayout from '../../shared/components/PageLayout';
 import OptionCard from '../../shared/components/OptionCard';
 import Logo from '../../shared/components/Logo';
 import InstallPromptBanner from '../../shared/pwa/InstallPromptBanner';
 import { settings, setSettings } from '../../stores/settingsStore';
+import type { Theme } from '../../stores/settingsStore';
+import { THEMES } from '../../shared/constants/themes';
 import { syncStatus, pendingCount, failedCount } from '../../data/firebase/useSyncStatus';
 import { wakeProcessor } from '../../data/firebase/syncProcessor';
 import { useAuth } from '../../shared/hooks/useAuth';
@@ -41,6 +43,55 @@ const SettingsPage: Component = () => {
         <div class="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0">
           {/* Left column */}
           <div class="space-y-6">
+            {/* Theme */}
+            <fieldset>
+              <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+                Theme
+              </legend>
+              <div class="grid grid-cols-1 gap-3">
+                <For each={(['court-vision-gold', 'classic', 'ember'] as Theme[])}>
+                  {(key) => {
+                    const theme = THEMES[key];
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setSettings({ theme: key })}
+                        aria-pressed={settings().theme === key}
+                        class={`w-full p-4 rounded-xl text-left active:scale-[0.97] ${
+                          settings().theme === key
+                            ? 'border-2 border-primary'
+                            : 'bg-surface-light border-2 border-surface-lighter text-on-surface-muted hover:border-on-surface-muted'
+                        }`}
+                        style={{
+                          "transition": "transform 0.2s ease, border-color 0.2s ease",
+                          ...(settings().theme === key ? { background: `rgba(${key === 'court-vision-gold' ? '212,168,83' : key === 'ember' ? '232,93,38' : '34,197,94'}, 0.1)` } : {}),
+                        }}
+                      >
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <div class="font-semibold text-on-surface">{theme.label}</div>
+                            <div class="text-sm text-on-surface-muted mt-0.5">{theme.description}</div>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            {/* Color swatch preview */}
+                            <div class="flex gap-1">
+                              <div class="w-4 h-4 rounded-full" style={{ background: theme.colors['--color-primary'] }} />
+                              <div class="w-4 h-4 rounded-full" style={{ background: theme.teamDefaults.team1 }} />
+                              <div class="w-4 h-4 rounded-full" style={{ background: theme.teamDefaults.team2 }} />
+                            </div>
+                            {/* Selected indicator (non-color, WCAG 1.4.1) */}
+                            <Show when={settings().theme === key}>
+                              <span class="text-xs font-bold text-primary uppercase tracking-wider">Selected</span>
+                            </Show>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  }}
+                </For>
+              </div>
+            </fieldset>
+
             {/* Display Mode */}
             <fieldset>
               <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
