@@ -115,6 +115,19 @@ async function executeJobWork(job: SyncJob, uid: string): Promise<void> {
       }
       const ctx = job.context as { type: 'match'; ownerId: string; sharedWith: string[]; visibility?: 'private' | 'shared' | 'public' };
       await firestoreMatchRepository.save(match, uid, ctx.sharedWith, ctx.visibility);
+
+      // Side-effect: update spectator projection for in-progress PUBLIC tournament matches
+      if (match.tournamentId && match.status === 'in-progress' && ctx.visibility === 'public') {
+        try {
+          const { buildSpectatorProjection, writeSpectatorProjection } = await import('./firestoreSpectatorRepository');
+          const names = { publicTeam1Name: match.team1Name, publicTeam2Name: match.team2Name };
+          const projection = buildSpectatorProjection(match, names);
+          await writeSpectatorProjection(match.id, projection);
+        } catch (err) {
+          console.warn('[syncProcessor] Projection update failed (non-fatal):', err);
+        }
+      }
+
       break;
     }
 
