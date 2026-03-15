@@ -338,7 +338,9 @@ service cloud.firestore {
       // ── Registrations (/tournaments/{tid}/registrations/{regId}) ──
       match /registrations/{regId} {
         allow read: if request.auth != null;
-        allow read: if isTournamentPublic();
+        // REMOVED: allow read: if isTournamentPublic();
+        // Unauthenticated spectators get team names from the teams subcollection,
+        // not from registrations (which contain sensitive data: real names, skill ratings, payment status).
 
         // Player self-registration: mode-aware
         allow create: if request.auth != null

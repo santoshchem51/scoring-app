@@ -224,3 +224,45 @@ describe('Field deny-list on match updates', () => {
     );
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// REGISTRATION PRIVACY — unauthenticated users cannot read registrations
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('Registration privacy (no unauthenticated access)', () => {
+  const tournamentId = 'pub-tournament';
+  const regPath = `tournaments/${tournamentId}/registrations/player-1`;
+
+  beforeEach(async () => {
+    await getTestEnv().withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      // Public tournament
+      await setDoc(doc(db, 'tournaments', tournamentId), {
+        organizerId: 'organizer-1', name: 'Test', status: 'registration',
+        visibility: 'public', format: 'round-robin', date: Date.now(),
+        location: 'Courts', config: { gameType: 'singles', scoringMode: 'rally', matchFormat: 'single', pointsToWin: 11 },
+        staff: {}, staffUids: [], maxPlayers: 16, minPlayers: 4,
+        accessMode: 'open', listed: true, shareCode: 'TEST1234',
+        registrationCounts: { confirmed: 0, pending: 0 }, createdAt: Date.now(),
+      });
+      // Registration with sensitive data
+      await setDoc(doc(db, regPath), {
+        userId: 'player-1', tournamentId, playerName: 'Jane Smith',
+        skillRating: 4.5, status: 'confirmed', teamId: null,
+        paymentStatus: 'unpaid', paymentNote: '', lateEntry: false,
+        partnerId: null, partnerName: null, profileComplete: true,
+        registeredAt: Date.now(), declineReason: null, statusUpdatedAt: null,
+      });
+    });
+  });
+
+  it('denies unauthenticated read of registrations for public tournament', async () => {
+    const db = unauthedContext().firestore();
+    await assertFails(getDoc(doc(db, regPath)));
+  });
+
+  it('allows authenticated user to read registrations', async () => {
+    const db = authedContext('some-authed-user').firestore();
+    await assertSucceeds(getDoc(doc(db, regPath)));
+  });
+});
