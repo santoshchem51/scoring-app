@@ -1,5 +1,6 @@
-import { createResource, createMemo, Show, For } from 'solid-js';
+import { createResource, createMemo, createSignal, createEffect, onCleanup, Show, For } from 'solid-js';
 import type { Component } from 'solid-js';
+import type { LiveNowMatch } from './components/LiveNowSection';
 import { useParams } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
@@ -79,6 +80,53 @@ const PublicTournamentPage: Component = () => {
     return matches;
   });
 
+  // Track recently completed matches for 5-minute retention
+  const RETENTION_MS = 5 * 60 * 1000;
+  const [retainedMatches, setRetainedMatches] = createSignal<Map<string, { match: LiveNowMatch; completedAt: number }>>(new Map());
+
+  let prevMatches = new Map<string, LiveNowMatch>();
+
+  createEffect(() => {
+    const current = inProgressMatches();
+    const currentMap = new Map(current.map(m => [m.matchId, m]));
+
+    // Find matches that were in previous but not in current
+    for (const [id, match] of prevMatches) {
+      if (!currentMap.has(id)) {
+        setRetainedMatches(prev => {
+          const next = new Map(prev);
+          next.set(id, { match: { ...match, status: 'completed' as const }, completedAt: Date.now() });
+          return next;
+        });
+      }
+    }
+
+    prevMatches = currentMap;
+  });
+
+  // Prune stale retained matches every 30s
+  const pruneInterval = setInterval(() => {
+    const now = Date.now();
+    setRetainedMatches(prev => {
+      const next = new Map(prev);
+      for (const [id, entry] of next) {
+        if (now - entry.completedAt > RETENTION_MS) {
+          next.delete(id);
+        }
+      }
+      return next;
+    });
+  }, 30_000);
+
+  onCleanup(() => clearInterval(pruneInterval));
+
+  // Merge live + retained for LiveNowSection
+  const allVisibleMatches = createMemo(() => {
+    const live = inProgressMatches();
+    const retained = Array.from(retainedMatches().values()).map(r => r.match);
+    return [...live, ...retained];
+  });
+
   const upcomingMatches = createMemo(() => {
     const names = teamNames();
     const upcoming = live.pools().flatMap((pool) =>
@@ -139,7 +187,7 @@ const PublicTournamentPage: Component = () => {
 
                 {/* Live Now Section */}
                 <LiveNowSection
-                  matches={inProgressMatches()}
+                  matches={allVisibleMatches()}
                   tournamentCode={params.code}
                   upcomingMatches={upcomingMatches()}
                 />
