@@ -9,6 +9,7 @@ import SpectatorScoreboard from './components/SpectatorScoreboard';
 import PlayByPlayFeed from './components/PlayByPlayFeed';
 import MatchAnalytics from './components/MatchAnalytics';
 import { SegmentedControl } from '../../shared/components/SegmentedControl';
+import SpectatorFooter from '../../shared/components/SpectatorFooter';
 
 const TABS = [
   { id: 'play-by-play', label: 'Play-by-Play' },
@@ -146,6 +147,8 @@ const PublicMatchPage: Component = () => {
                 />
               </Show>
             </div>
+
+            <SpectatorFooter />
           </Show>
         </Show>
       </Show>

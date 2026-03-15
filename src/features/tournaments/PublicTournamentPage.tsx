@@ -13,6 +13,7 @@ import TournamentPhaseIndicator from './components/TournamentPhaseIndicator';
 import { statusLabels, statusColors, formatLabels } from './constants';
 import { InteractiveBackground } from '../../shared/canvas';
 import { getInProgressMatches } from './engine/matchFiltering';
+import SpectatorFooter from '../../shared/components/SpectatorFooter';
 
 const PublicTournamentPage: Component = () => {
   const params = useParams();
@@ -267,6 +268,8 @@ const PublicTournamentPage: Component = () => {
                     />
                   </div>
                 </Show>
+
+                <SpectatorFooter />
               </>
             )}
           </Show>

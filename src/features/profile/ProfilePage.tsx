@@ -1,4 +1,4 @@
-import { Show, createMemo } from 'solid-js';
+import { Show, createMemo, createSignal, createEffect } from 'solid-js';
 import type { Component } from 'solid-js';
 import { BarChart3 } from 'lucide-solid';
 import { useAuth } from '../../shared/hooks/useAuth';
@@ -12,6 +12,7 @@ import PageLayout from '../../shared/components/PageLayout';
 import { SyncErrorBanner } from '../../shared/components/SyncErrorBanner';
 import TrophyCase from '../achievements/components/TrophyCase';
 import { useAchievements } from '../achievements/hooks/useAchievements';
+import { firestoreUserRepository } from '../../data/firebase/firestoreUserRepository';
 
 const ProfileSkeleton: Component = () => (
   <div class="space-y-4" role="status" aria-label="Loading profile">
@@ -37,13 +38,32 @@ const ProfileSkeleton: Component = () => (
 
 const ProfilePage: Component = () => {
   const { user } = useAuth();
-  const { data, allMatches, hasMore, loadMore, loadingMore } = useProfileData(() => user()?.uid);
+  const { data, allMatches, hasMore, loadMore, loadingMore, refetch } = useProfileData(() => user()?.uid);
   const { unlocked } = useAchievements(() => user()?.uid);
 
   const hasStats = createMemo(() => {
     const stats = data()?.stats;
     return !!stats && stats.totalMatches > 0;
   });
+
+  // Profile visibility toggle
+  const [visibilitySaving, setVisibilitySaving] = createSignal(false);
+  const isPublic = createMemo(() => data()?.profile?.profileVisibility === 'public');
+
+  const toggleVisibility = async () => {
+    const uid = user()?.uid;
+    if (!uid || visibilitySaving()) return;
+    const newVisibility = isPublic() ? 'private' : 'public';
+    setVisibilitySaving(true);
+    try {
+      await firestoreUserRepository.updateProfileVisibility(uid, newVisibility);
+      await refetch();
+    } catch (err) {
+      console.warn('Failed to update profile visibility:', err);
+    } finally {
+      setVisibilitySaving(false);
+    }
+  };
 
   return (
     <PageLayout title="My Profile">
@@ -64,6 +84,35 @@ const ProfilePage: Component = () => {
             />
           )}
         </Show>
+
+        {/* Profile Visibility Toggle */}
+        <div class="bg-surface-light rounded-xl p-4 mt-4">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-on-surface">Public Profile</p>
+              <p class="text-xs text-on-surface-muted mt-1">
+                When public, your display name and match scores (including play-by-play timing) will be visible to anyone viewing a public tournament scoreboard.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isPublic()}
+              aria-label="Toggle profile visibility"
+              disabled={visibilitySaving()}
+              onClick={toggleVisibility}
+              class={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+                isPublic() ? 'bg-primary' : 'bg-on-surface-muted/30'
+              } ${visibilitySaving() ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              <span
+                class={`inline-block h-4 w-4 rounded-full bg-surface transition-transform ${
+                  isPublic() ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
 
         {/* Stats + Matches or Empty State */}
         <Show
