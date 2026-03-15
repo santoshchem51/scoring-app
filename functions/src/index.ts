@@ -6,4 +6,4 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 if (getApps().length === 0) initializeApp();
 
 // Export callable functions — uncomment when processMatchCompletion is created (Task 5a)
-// export { processMatchCompletion } from './callable/processMatchCompletion';
+export { processMatchCompletion } from './callable/processMatchCompletion';
