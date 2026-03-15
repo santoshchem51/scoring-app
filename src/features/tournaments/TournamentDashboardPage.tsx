@@ -33,6 +33,8 @@ import type { ScoreEditData } from './components/ScoreEditModal';
 import { checkBracketRescoreSafety } from './engine/rescoring';
 import { advanceBracketWinner } from './engine/bracketAdvancement';
 import { cloudSync } from '../../data/firebase/cloudSync';
+import { getSanitizedTeamNames } from './engine/privacySanitization';
+import { buildSpectatorProjection, writeSpectatorProjection } from '../../data/firebase/firestoreSpectatorRepository';
 import ShareTournamentModal from './components/ShareTournamentModal';
 import { useTournamentLive } from './hooks/useTournamentLive';
 import { detectViewerRole } from './engine/roleDetection';
@@ -583,6 +585,20 @@ const TournamentDashboardPage: Component = () => {
       await matchRepository.save(match);
       // Sync match to Firestore for real-time LiveScoreCard
       cloudSync.syncMatchToCloud(match, [], 'public');
+      // Write spectator projection with sanitized names (fire-and-forget)
+      if (t.visibility === 'public') {
+        getSanitizedTeamNames(
+          match.team1PlayerIds, match.team2PlayerIds,
+          match.team1Name, match.team2Name,
+        ).then((names) => {
+          const projection = buildSpectatorProjection(match, names, t.shareCode ?? '');
+          writeSpectatorProjection(match.id, projection).catch((err) => {
+            console.warn('Failed to write spectator projection:', err);
+          });
+        }).catch((err) => {
+          console.warn('Failed to sanitize team names:', err);
+        });
+      }
       // Set matchId on bracket slot so BracketView shows LiveScoreCard
       if (extra.bracketSlotId) {
         await firestoreBracketRepository.updateMatchId(t.id, extra.bracketSlotId, match.id);

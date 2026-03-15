@@ -106,8 +106,13 @@ service cloud.firestore {
       match /public/{docId} {
         // Anyone can read spectator projections (sanitized data only)
         allow read: if true;
-        // Only Cloud Functions (admin SDK) can write — admin bypasses rules
-        allow write: if false;
+        // Match owner or shared users can write the spectator projection
+        // Only the 'spectator' doc is allowed — arbitrary doc names are rejected
+        allow create, update: if request.auth != null
+          && docId == 'spectator'
+          && (request.auth.uid == get(/databases/$(database)/documents/matches/$(matchId)).data.ownerId
+              || request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.sharedWith);
+        allow delete: if false;
       }
     }
 

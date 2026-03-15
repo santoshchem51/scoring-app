@@ -67,7 +67,7 @@ describe('Spectator projection (/matches/{matchId}/public/{docId})', () => {
   it('denies unauthenticated create', async () => {
     const db = unauthedContext().firestore();
     await assertFails(
-      setDoc(doc(db, `matches/${matchId}/public/new-doc`), spectatorData),
+      setDoc(doc(db, `matches/${matchId}/public/spectator`), spectatorData),
     );
   });
 
@@ -86,8 +86,66 @@ describe('Spectator projection (/matches/{matchId}/public/{docId})', () => {
   it('denies authenticated non-owner create', async () => {
     const db = authedContext('random-user').firestore();
     await assertFails(
-      setDoc(doc(db, `matches/${matchId}/public/new-doc`), spectatorData),
+      setDoc(doc(db, `matches/${matchId}/public/spectator`), spectatorData),
     );
+  });
+
+  it('allows owner to create spectator subdoc', async () => {
+    // Clear the seeded spectator doc so we can test create
+    await getTestEnv().withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await deleteDoc(doc(db, spectatorDoc));
+    });
+    const db = authedContext(ownerId).firestore();
+    await assertSucceeds(
+      setDoc(doc(db, spectatorDoc), spectatorData),
+    );
+  });
+
+  it('allows owner to update spectator subdoc', async () => {
+    const db = authedContext(ownerId).firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, spectatorDoc), { team1Score: 10 }),
+    );
+  });
+
+  it('allows shared user to create spectator subdoc', async () => {
+    const sharedUser = 'shared-user-1';
+    // Re-seed match with sharedWith
+    await getTestEnv().withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, `matches/${matchId}`), makeCloudMatch(ownerId, {
+        visibility: 'public',
+        sharedWith: [sharedUser],
+      }));
+      // Delete spectator doc to test create
+      await deleteDoc(doc(db, spectatorDoc));
+    });
+    const db = authedContext(sharedUser).firestore();
+    await assertSucceeds(
+      setDoc(doc(db, spectatorDoc), spectatorData),
+    );
+  });
+
+  it('allows shared user to update spectator subdoc', async () => {
+    const sharedUser = 'shared-user-1';
+    // Re-seed match with sharedWith
+    await getTestEnv().withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, `matches/${matchId}`), makeCloudMatch(ownerId, {
+        visibility: 'public',
+        sharedWith: [sharedUser],
+      }));
+    });
+    const db = authedContext(sharedUser).firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, spectatorDoc), { team1Score: 10 }),
+    );
+  });
+
+  it('denies delete even for owner', async () => {
+    const db = authedContext(ownerId).firestore();
+    await assertFails(deleteDoc(doc(db, spectatorDoc)));
   });
 
   it('denies arbitrary doc under /public/ (evil doc)', async () => {
