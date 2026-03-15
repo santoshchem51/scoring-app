@@ -6,6 +6,30 @@
   src: url('/fonts/Oswald-Bold.woff2') format('woff2');
 }
 
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/Oswald-Light.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Oswald-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Oswald-Medium.woff2') format('woff2');
+}
+
 @import "tailwindcss";
 
 @theme {
@@ -28,6 +52,14 @@
   --color-score-glow: rgba(250, 204, 21, 0.2);
   --color-border: rgba(255, 255, 255, 0.08);
   --font-score: 'Oswald', system-ui, sans-serif;
+  /* Glass + court-line tokens (Classic defaults) */
+  --color-glass-surface: rgba(34, 197, 94, 0.02);
+  --color-glass-border: rgba(34, 197, 94, 0.08);
+  --color-glass-border-hover: rgba(34, 197, 94, 0.15);
+  --color-court-line: rgba(34, 197, 94, 0.15);
+  --color-court-line-strong: rgba(34, 197, 94, 0.25);
+  /* Surface overlay for non-glass cards/dialogs/controls */
+  --color-surface-overlay: rgba(15, 17, 24, 0.88);
 }
 
 /* Native app feel */
