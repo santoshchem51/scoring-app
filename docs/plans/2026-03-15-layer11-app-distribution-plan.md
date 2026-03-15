@@ -6,7 +6,9 @@
 
 **Architecture:** Capacitor wraps the existing Vite-built PWA for Android. Firebase Hosting serves the web app at picklescore.co. A platform abstraction layer (`IS_NATIVE` constant) lets hooks use native plugins when available and fall back to web APIs. GitHub Actions handles web deploys and Android builds.
 
-**Tech Stack:** Capacitor 6, @capacitor/haptics, @capacitor/app, @capacitor/share, @capacitor/status-bar, @capacitor/splash-screen, @capacitor/keyboard, @capacitor-community/keep-awake, @capacitor/network, GitHub Actions, Firebase Hosting
+**Tech Stack:** Capacitor 6, @capacitor/haptics, @capacitor/app, @capacitor/share, @capacitor/filesystem, @capacitor/status-bar, @capacitor/splash-screen, @capacitor/keyboard, @capacitor-community/keep-awake, @capacitor/network, @capacitor/vite-plugin, GitHub Actions, Firebase Hosting
+
+**Specialist Reviews Applied:** Sprint Planner (7.5/10), Code Quality (6.5/10), TDD (6.5/10), Capacitor Expert (7.5/10) — all critical/high issues resolved below.
 
 ---
 
@@ -30,6 +32,8 @@ In `firebase.json`, in the first `headers` block (source: `"**"`), add these thr
 { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
 { "key": "Permissions-Policy", "value": "camera=(), microphone=(), payment=()" }
 ```
+
+> Note: HSTS starts at 1 day (86400s). After confirming domain works correctly, escalate to `max-age=31536000; includeSubDomains; preload` (1 year) for HSTS preload list eligibility in a follow-up task.
 
 **Step 3: Update CSP header for reCAPTCHA App Check**
 
@@ -122,7 +126,7 @@ Note: The existing `og:title`, `og:description`, and `twitter:card` tags are alr
 
 **Step 2: Create OG image placeholder**
 
-Create `public/og-image.png` — a 1200x630 branded graphic. For now, use a placeholder (can be a copy of `pwa-512x512.png` or generate one later). The important thing is the file exists so the meta tag doesn't 404.
+Create `public/og-image.png` — a small 1200x630 placeholder graphic (not a copy of the 512x512 icon). Generate a proper branded OG image separately. The important thing is the file exists so the meta tag doesn't 404.
 
 **Step 3: Commit**
 
@@ -133,18 +137,18 @@ git commit -m "chore: update OG meta tags for custom domain"
 
 ---
 
-### Task 4: Initialize Capacitor
+### Task 4a: Install Capacitor core and create config
 
 **Files:**
 - Create: `capacitor.config.ts`
-- Modify: `package.json` (new scripts + dependencies)
-- Generated: `android/` directory
+- Modify: `package.json` (new dependencies)
+- Modify: `.gitignore`
 
 **Step 1: Install Capacitor core**
 
 ```bash
 npm install @capacitor/core
-npm install -D @capacitor/cli
+npm install -D @capacitor/cli @capacitor/vite-plugin
 ```
 
 **Step 2: Initialize Capacitor**
@@ -167,11 +171,15 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchAutoHide: false, // We call hide() manually after root mount
-      backgroundColor: '#0A0908',
+      backgroundColor: '#1e1e2e', // Match theme surface color
       showSpinner: false,
     },
     Keyboard: {
       resize: 'none', // Prevent WebView resize on keyboard show
+    },
+    StatusBar: {
+      style: 'Dark', // Dark content on dark background
+      overlaysWebView: false, // Prevent status bar overlapping WebView
     },
   },
 };
@@ -179,35 +187,7 @@ const config: CapacitorConfig = {
 export default config;
 ```
 
-**Step 4: Add Android platform**
-
-```bash
-npm run build
-npx cap add android
-```
-
-**Step 5: Update Vite config base path**
-
-In `vite.config.ts`, add `base: './'` to the returned config object (top level, alongside `server`, `plugins`, etc.):
-
-```typescript
-export default defineConfig(({ mode }) => ({
-  base: './',
-  server: { ... },
-  // ... rest unchanged
-}));
-```
-
-**Step 6: Add build scripts to package.json**
-
-Add to `scripts`:
-
-```json
-"build:android": "npm run build && npx cap sync android",
-"cap:open": "npx cap open android"
-```
-
-**Step 7: Update .gitignore**
+**Step 4: Update .gitignore**
 
 Add to `.gitignore`:
 
@@ -220,11 +200,105 @@ android/.gradle/
 
 Do NOT gitignore the `android/` directory itself — it should be committed.
 
-**Step 8: Commit**
+**Step 5: Add .gitattributes for LF line endings (GitHub Actions YAML)**
+
+Create or update `.gitattributes`:
+
+```
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+```
+
+**Step 6: Commit**
 
 ```bash
-git add capacitor.config.ts package.json package-lock.json vite.config.ts .gitignore android/
-git commit -m "feat: initialize Capacitor for Android"
+git add capacitor.config.ts package.json package-lock.json .gitignore .gitattributes
+git commit -m "feat: install Capacitor core and create config"
+```
+
+---
+
+### Task 4b: Add Capacitor Vite plugin (replaces base path change)
+
+**Files:**
+- Modify: `vite.config.ts`
+
+> **Why not `base: './'`?** Setting `base: './'` breaks the PWA service worker's absolute-path cache manifest and `navigateFallback: '/index.html'`. The `@capacitor/vite-plugin` handles Capacitor's asset path rewriting without affecting the web build.
+
+**Step 1: Add the plugin to vite.config.ts**
+
+Import at top:
+
+```typescript
+import { capacitorPlugin } from '@capacitor/vite-plugin';
+```
+
+Add `capacitorPlugin()` to the `plugins` array (after `solid()`, before `VitePWA()`):
+
+```typescript
+plugins: [
+  solid({ hot: mode !== 'test' }),
+  tailwindcss(),
+  capacitorPlugin(),
+  VitePWA({ ... }),
+],
+```
+
+**Step 2: Verify web build still works**
+
+Run: `npm run build`
+
+Verify `dist/index.html` uses absolute paths (`/assets/...`) and `dist/sw.js` is generated correctly.
+
+**Step 3: Run all tests**
+
+Run: `npx vitest run`
+
+Expected: All passing
+
+**Step 4: Commit**
+
+```bash
+git add vite.config.ts package.json package-lock.json
+git commit -m "feat: add Capacitor Vite plugin for asset path handling"
+```
+
+---
+
+### Task 4c: Add Android platform
+
+**Files:**
+- Generated: `android/` directory
+- Modify: `package.json` (new scripts)
+
+**Step 1: Build web assets**
+
+```bash
+npm run build
+```
+
+**Step 2: Add Android platform and sync**
+
+```bash
+npx cap add android
+npx cap sync android
+```
+
+**Step 3: Add build scripts to package.json**
+
+Add to `scripts`:
+
+```json
+"build:android": "npm run build && npx cap sync android",
+"cap:open": "npx cap open android"
+```
+
+**Step 4: Commit**
+
+```bash
+git add android/ package.json package-lock.json
+git commit -m "feat: add Android platform via Capacitor"
 ```
 
 ---
@@ -233,14 +307,15 @@ git commit -m "feat: initialize Capacitor for Android"
 
 **Files:**
 - Modify: `package.json` (new dependencies)
-- Modify: `capacitor.config.ts` (plugin configs)
 
 **Step 1: Install all plugins**
 
 ```bash
-npm install @capacitor/app @capacitor/haptics @capacitor/share @capacitor/status-bar @capacitor/splash-screen @capacitor/keyboard @capacitor/network
+npm install @capacitor/app @capacitor/haptics @capacitor/share @capacitor/filesystem @capacitor/status-bar @capacitor/splash-screen @capacitor/keyboard @capacitor/network
 npm install @capacitor-community/keep-awake
 ```
+
+> Note: `@capacitor/filesystem` is needed for native image sharing (write PNG to cache dir before sharing via intent).
 
 **Step 2: Sync with Android**
 
@@ -248,11 +323,17 @@ npm install @capacitor-community/keep-awake
 npx cap sync android
 ```
 
-**Step 3: Commit**
+**Step 3: Verify Android manifest permissions**
+
+Open `android/app/src/main/AndroidManifest.xml` and confirm these permissions were auto-merged by Capacitor plugins:
+- `android.permission.WAKE_LOCK` (from keep-awake)
+- `android.permission.ACCESS_NETWORK_STATE` (from network)
+
+**Step 4: Commit**
 
 ```bash
 git add package.json package-lock.json android/
-git commit -m "feat: install Capacitor plugins (haptics, share, status-bar, splash, keyboard, network, keep-awake)"
+git commit -m "feat: install Capacitor plugins (haptics, share, filesystem, status-bar, splash, keyboard, network, keep-awake)"
 ```
 
 ---
@@ -264,14 +345,14 @@ git commit -m "feat: install Capacitor plugins (haptics, share, status-bar, spla
 **Files:**
 - Create: `src/shared/platform/platform.ts`
 - Test: `src/shared/platform/__tests__/platform.test.ts`
+- Test: `src/shared/platform/__tests__/platform.native.test.ts`
 
-**Step 1: Write the failing test**
+**Step 1: Write the failing tests**
 
 ```typescript
 // src/shared/platform/__tests__/platform.test.ts
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock @capacitor/core before importing platform
 vi.mock('@capacitor/core', () => ({
   Capacitor: {
     isNativePlatform: () => false,
@@ -279,7 +360,9 @@ vi.mock('@capacitor/core', () => ({
   },
 }));
 
-describe('platform', () => {
+describe('platform (web)', () => {
+  beforeEach(() => { vi.resetModules(); });
+
   it('exports IS_NATIVE as false in web environment', async () => {
     const { IS_NATIVE } = await import('../platform');
     expect(IS_NATIVE).toBe(false);
@@ -292,9 +375,35 @@ describe('platform', () => {
 });
 ```
 
-**Step 2: Run test to verify it fails**
+```typescript
+// src/shared/platform/__tests__/platform.native.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-Run: `npx vitest run src/shared/platform/__tests__/platform.test.ts`
+vi.mock('@capacitor/core', () => ({
+  Capacitor: {
+    isNativePlatform: () => true,
+    getPlatform: () => 'android',
+  },
+}));
+
+describe('platform (native)', () => {
+  beforeEach(() => { vi.resetModules(); });
+
+  it('exports IS_NATIVE as true in native environment', async () => {
+    const { IS_NATIVE } = await import('../platform');
+    expect(IS_NATIVE).toBe(true);
+  });
+
+  it('exports PLATFORM as android in native environment', async () => {
+    const { PLATFORM } = await import('../platform');
+    expect(PLATFORM).toBe('android');
+  });
+});
+```
+
+**Step 2: Run tests to verify they fail**
+
+Run: `npx vitest run src/shared/platform/`
 
 Expected: FAIL — module not found
 
@@ -312,11 +421,11 @@ export const IS_NATIVE = Capacitor.isNativePlatform();
 export const PLATFORM = Capacitor.getPlatform() as 'android' | 'ios' | 'web';
 ```
 
-**Step 4: Run test to verify it passes**
+**Step 4: Run tests to verify they pass**
 
-Run: `npx vitest run src/shared/platform/__tests__/platform.test.ts`
+Run: `npx vitest run src/shared/platform/`
 
-Expected: PASS
+Expected: PASS (all 4 tests)
 
 **Step 5: Commit**
 
@@ -331,64 +440,121 @@ git commit -m "feat: add platform abstraction module (IS_NATIVE, PLATFORM)"
 
 **Files:**
 - Modify: `src/shared/hooks/useHaptics.ts`
-- Modify: `src/shared/hooks/__tests__/useHaptics.test.ts` (if exists, else create)
+- Create: `src/shared/hooks/__tests__/useHaptics.test.ts`
+- Create: `src/shared/hooks/__tests__/useHaptics.native.test.ts`
 
-**Step 1: Write the failing test**
+**Step 1: Write the failing tests (native path)**
 
 ```typescript
-// src/shared/hooks/__tests__/useHaptics.test.ts
+// src/shared/hooks/__tests__/useHaptics.native.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock platform as native
 vi.mock('../../platform/platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
 
-// Mock Capacitor Haptics plugin
 const mockImpact = vi.fn().mockResolvedValue(undefined);
-const mockNotification = vi.fn().mockResolvedValue(undefined);
 vi.mock('@capacitor/haptics', () => ({
-  Haptics: { impact: mockImpact, notification: mockNotification },
+  Haptics: { impact: mockImpact },
   ImpactStyle: { Light: 'LIGHT', Medium: 'MEDIUM', Heavy: 'HEAVY' },
-  NotificationType: { Success: 'SUCCESS' },
 }));
 
-// Mock settings
 vi.mock('../../../stores/settingsStore', () => ({
   settings: () => ({ hapticFeedback: true }),
 }));
 
 describe('useHaptics (native)', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
 
-  it('calls Capacitor Haptics.impact for light vibration', () => {
-    const { useHaptics } = require('../useHaptics');
+  it('calls Capacitor Haptics.impact for light vibration', async () => {
+    const { useHaptics } = await import('../useHaptics');
     const { light } = useHaptics();
     light();
     expect(mockImpact).toHaveBeenCalledWith({ style: 'LIGHT' });
   });
 
-  it('calls Capacitor Haptics.impact for medium vibration', () => {
-    const { useHaptics } = require('../useHaptics');
+  it('calls Capacitor Haptics.impact for medium vibration', async () => {
+    const { useHaptics } = await import('../useHaptics');
     const { medium } = useHaptics();
     medium();
     expect(mockImpact).toHaveBeenCalledWith({ style: 'MEDIUM' });
   });
 
-  it('calls Capacitor Haptics.impact for heavy vibration', () => {
-    const { useHaptics } = require('../useHaptics');
+  it('calls Capacitor Haptics.impact for heavy vibration', async () => {
+    const { useHaptics } = await import('../useHaptics');
     const { heavy } = useHaptics();
     heavy();
     expect(mockImpact).toHaveBeenCalledWith({ style: 'HEAVY' });
   });
+
+  it('calls double vibration with two impacts', async () => {
+    const { useHaptics } = await import('../useHaptics');
+    const { double } = useHaptics();
+    await double();
+    expect(mockImpact).toHaveBeenCalledTimes(2);
+  });
 });
 ```
 
-**Step 2: Run test to verify it fails**
+**Step 2: Write the failing tests (web path + settings guard)**
 
-Run: `npx vitest run src/shared/hooks/__tests__/useHaptics.test.ts`
+```typescript
+// src/shared/hooks/__tests__/useHaptics.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../platform/platform', () => ({ IS_NATIVE: false, PLATFORM: 'web' }));
+vi.mock('@capacitor/haptics', () => ({
+  Haptics: { impact: vi.fn() },
+  ImpactStyle: { Light: 'LIGHT', Medium: 'MEDIUM', Heavy: 'HEAVY' },
+}));
+
+describe('useHaptics (web)', () => {
+  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
+
+  it('calls navigator.vibrate on web when haptics enabled', async () => {
+    vi.doMock('../../../stores/settingsStore', () => ({
+      settings: () => ({ hapticFeedback: true }),
+    }));
+    const mockVibrate = vi.fn();
+    Object.defineProperty(navigator, 'vibrate', { value: mockVibrate, configurable: true });
+
+    const { useHaptics } = await import('../useHaptics');
+    const { light } = useHaptics();
+    light();
+    expect(mockVibrate).toHaveBeenCalledWith(10);
+  });
+
+  it('does not vibrate when hapticFeedback is false', async () => {
+    vi.doMock('../../../stores/settingsStore', () => ({
+      settings: () => ({ hapticFeedback: false }),
+    }));
+    const mockVibrate = vi.fn();
+    Object.defineProperty(navigator, 'vibrate', { value: mockVibrate, configurable: true });
+
+    const { useHaptics } = await import('../useHaptics');
+    const { light } = useHaptics();
+    light();
+    expect(mockVibrate).not.toHaveBeenCalled();
+  });
+
+  it('does not crash when navigator.vibrate is undefined', async () => {
+    vi.doMock('../../../stores/settingsStore', () => ({
+      settings: () => ({ hapticFeedback: true }),
+    }));
+    Object.defineProperty(navigator, 'vibrate', { value: undefined, configurable: true });
+
+    const { useHaptics } = await import('../useHaptics');
+    const { medium } = useHaptics();
+    expect(() => medium()).not.toThrow();
+  });
+});
+```
+
+**Step 3: Run tests to verify they fail**
+
+Run: `npx vitest run src/shared/hooks/__tests__/useHaptics`
 
 Expected: FAIL — current useHaptics doesn't import Capacitor
 
-**Step 3: Write implementation**
+**Step 4: Write implementation**
 
 Replace `src/shared/hooks/useHaptics.ts`:
 
@@ -412,28 +578,36 @@ export function useHaptics() {
   const light = () => IS_NATIVE ? vibrateNative(ImpactStyle.Light) : vibrateWeb(10);
   const medium = () => IS_NATIVE ? vibrateNative(ImpactStyle.Medium) : vibrateWeb(25);
   const heavy = () => IS_NATIVE ? vibrateNative(ImpactStyle.Heavy) : vibrateWeb(50);
-  const double = () => IS_NATIVE ? vibrateNative(ImpactStyle.Medium) : vibrateWeb([15, 50, 15]);
+  const double = async () => {
+    if (IS_NATIVE) {
+      // Two impacts with a short delay for double-pulse feel
+      await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+    } else {
+      vibrateWeb([15, 50, 15]);
+    }
+  };
 
   return { light, medium, heavy, double };
 }
 ```
 
-**Step 4: Run test to verify it passes**
+**Step 5: Run tests to verify they pass**
 
-Run: `npx vitest run src/shared/hooks/__tests__/useHaptics.test.ts`
+Run: `npx vitest run src/shared/hooks/__tests__/useHaptics`
 
-Expected: PASS
+Expected: PASS (all 7 tests)
 
-**Step 5: Run all tests to check for regressions**
+**Step 6: Run all tests for regressions**
 
 Run: `npx vitest run`
 
 Expected: All passing
 
-**Step 6: Commit**
+**Step 7: Commit**
 
 ```bash
-git add src/shared/hooks/useHaptics.ts src/shared/hooks/__tests__/useHaptics.test.ts
+git add src/shared/hooks/useHaptics.ts src/shared/hooks/__tests__/useHaptics.test.ts src/shared/hooks/__tests__/useHaptics.native.test.ts
 git commit -m "feat: upgrade useHaptics with Capacitor native plugin"
 ```
 
@@ -445,25 +619,25 @@ git commit -m "feat: upgrade useHaptics with Capacitor native plugin"
 - Modify: `src/shared/hooks/useWakeLock.ts`
 - Create: `src/shared/hooks/__tests__/useWakeLock.test.ts`
 
-**Step 1: Write the failing test**
+**Step 1: Write the failing tests**
 
 ```typescript
 // src/shared/hooks/__tests__/useWakeLock.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../platform/platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
-
 const mockKeepAwake = vi.fn().mockResolvedValue(undefined);
 const mockAllowSleep = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('../../platform/platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
 vi.mock('@capacitor-community/keep-awake', () => ({
   KeepAwake: { keepAwake: mockKeepAwake, allowSleep: mockAllowSleep },
 }));
 
-// Mock solid-js onCleanup
-vi.mock('solid-js', () => ({ onCleanup: vi.fn() }));
+const mockOnCleanup = vi.fn();
+vi.mock('solid-js', () => ({ onCleanup: mockOnCleanup }));
 
 describe('useWakeLock (native)', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
 
   it('calls KeepAwake.keepAwake on request', async () => {
     const { useWakeLock } = await import('../useWakeLock');
@@ -477,6 +651,12 @@ describe('useWakeLock (native)', () => {
     const { release } = useWakeLock();
     await release();
     expect(mockAllowSleep).toHaveBeenCalled();
+  });
+
+  it('registers onCleanup callback', async () => {
+    const { useWakeLock } = await import('../useWakeLock');
+    useWakeLock();
+    expect(mockOnCleanup).toHaveBeenCalledWith(expect.any(Function));
   });
 });
 ```
@@ -542,19 +722,28 @@ git commit -m "feat: upgrade useWakeLock with Capacitor KeepAwake plugin"
 
 ---
 
-### Task 9: Upgrade shareScoreCard with Capacitor Share plugin
+### Task 9: Upgrade shareScoreCard with Capacitor Share + Filesystem
 
 **Files:**
 - Modify: `src/shared/utils/shareScoreCard.ts`
 - Create: `src/shared/utils/__tests__/shareScoreCard.test.ts`
+- Create: `src/shared/utils/__tests__/shareScoreCard.native.test.ts`
 
-**Step 1: Write the failing test**
+> **Critical fix from review:** `Share.share({ url: dataUrl })` does NOT work on Android — data URIs are rejected by the Android Intent system. Must use `@capacitor/filesystem` to write PNG to cache dir, then share the file URI.
+
+**Step 1: Write the failing tests (native path)**
 
 ```typescript
-// src/shared/utils/__tests__/shareScoreCard.test.ts
+// src/shared/utils/__tests__/shareScoreCard.native.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../platform/platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
+
+const mockWriteFile = vi.fn().mockResolvedValue({ uri: 'file:///cache/picklescore-test1234.png' });
+vi.mock('@capacitor/filesystem', () => ({
+  Filesystem: { writeFile: mockWriteFile },
+  Directory: { Cache: 'CACHE' },
+}));
 
 const mockShare = vi.fn().mockResolvedValue(undefined);
 vi.mock('@capacitor/share', () => ({
@@ -564,29 +753,73 @@ vi.mock('@capacitor/share', () => ({
 vi.mock('../renderScoreCard', () => ({
   renderScoreCard: () => ({
     toBlob: (cb: (b: Blob | null) => void) => cb(new Blob(['test'], { type: 'image/png' })),
-    toDataURL: () => 'data:image/png;base64,test',
+    toDataURL: () => 'data:image/png;base64,dGVzdA==',
   }),
 }));
 
 describe('shareScoreCard (native)', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
 
-  it('uses Capacitor Share plugin on native platform', async () => {
+  it('writes PNG to cache and shares file URI on native', async () => {
     const { shareScoreCard } = await import('../shareScoreCard');
-    const result = await shareScoreCard({ id: 'test-123' } as any);
-    expect(mockShare).toHaveBeenCalled();
+    const result = await shareScoreCard({ id: 'test12345678' } as any);
+
+    expect(mockWriteFile).toHaveBeenCalledWith({
+      path: 'picklescore-test1234.png',
+      data: 'dGVzdA==',
+      directory: 'CACHE',
+    });
+    expect(mockShare).toHaveBeenCalledWith({
+      title: 'PickleScore Result',
+      text: 'Check out my pickleball score!',
+      files: ['file:///cache/picklescore-test1234.png'],
+    });
     expect(result).toBe('shared');
   });
 });
 ```
 
-**Step 2: Run test to verify it fails**
+**Step 2: Write the failing tests (web paths)**
 
-Run: `npx vitest run src/shared/utils/__tests__/shareScoreCard.test.ts`
+```typescript
+// src/shared/utils/__tests__/shareScoreCard.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../platform/platform', () => ({ IS_NATIVE: false, PLATFORM: 'web' }));
+vi.mock('@capacitor/filesystem', () => ({ Filesystem: {}, Directory: {} }));
+vi.mock('@capacitor/share', () => ({ Share: {} }));
+
+vi.mock('../renderScoreCard', () => ({
+  renderScoreCard: () => ({
+    toBlob: (cb: (b: Blob | null) => void) => cb(new Blob(['test'], { type: 'image/png' })),
+    toDataURL: () => 'data:image/png;base64,test',
+  }),
+}));
+
+describe('shareScoreCard (web)', () => {
+  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
+
+  it('returns failed when toBlob returns null', async () => {
+    vi.doMock('../renderScoreCard', () => ({
+      renderScoreCard: () => ({
+        toBlob: (cb: (b: Blob | null) => void) => cb(null),
+        toDataURL: () => '',
+      }),
+    }));
+    const { shareScoreCard } = await import('../shareScoreCard');
+    const result = await shareScoreCard({ id: 'test12345678' } as any);
+    expect(result).toBe('failed');
+  });
+});
+```
+
+**Step 3: Run tests to verify they fail**
+
+Run: `npx vitest run src/shared/utils/__tests__/shareScoreCard`
 
 Expected: FAIL
 
-**Step 3: Write implementation**
+**Step 4: Write implementation**
 
 Replace `src/shared/utils/shareScoreCard.ts`:
 
@@ -595,6 +828,7 @@ import type { Match } from '../../data/types';
 import { renderScoreCard } from './renderScoreCard';
 import { IS_NATIVE } from '../platform/platform';
 import { Share } from '@capacitor/share';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 export async function shareScoreCard(match: Match): Promise<'shared' | 'copied' | 'downloaded' | 'failed'> {
   const canvas = renderScoreCard(match);
@@ -604,15 +838,24 @@ export async function shareScoreCard(match: Match): Promise<'shared' | 'copied' 
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Canvas toBlob failed'))), 'image/png');
     });
 
-    const file = new File([blob], `picklescore-${match.id.slice(0, 8)}.png`, { type: 'image/png' });
+    const fileName = `picklescore-${match.id.slice(0, 8)}.png`;
+    const file = new File([blob], fileName, { type: 'image/png' });
 
-    // Native: use Capacitor Share with data URI
+    // Native: write to cache dir, then share file URI
     if (IS_NATIVE) {
       const dataUrl = canvas.toDataURL('image/png');
+      const base64 = dataUrl.split(',')[1];
+
+      const result = await Filesystem.writeFile({
+        path: fileName,
+        data: base64,
+        directory: Directory.Cache,
+      });
+
       await Share.share({
         title: 'PickleScore Result',
         text: 'Check out my pickleball score!',
-        url: dataUrl,
+        files: [result.uri],
       });
       return 'shared';
     }
@@ -645,17 +888,17 @@ export async function shareScoreCard(match: Match): Promise<'shared' | 'copied' 
 }
 ```
 
-**Step 4: Run test to verify it passes**
+**Step 5: Run tests to verify they pass**
 
-Run: `npx vitest run src/shared/utils/__tests__/shareScoreCard.test.ts`
+Run: `npx vitest run src/shared/utils/__tests__/shareScoreCard`
 
 Expected: PASS
 
-**Step 5: Commit**
+**Step 6: Commit**
 
 ```bash
-git add src/shared/utils/shareScoreCard.ts src/shared/utils/__tests__/shareScoreCard.test.ts
-git commit -m "feat: upgrade shareScoreCard with Capacitor Share plugin"
+git add src/shared/utils/shareScoreCard.ts src/shared/utils/__tests__/shareScoreCard.test.ts src/shared/utils/__tests__/shareScoreCard.native.test.ts
+git commit -m "feat: upgrade shareScoreCard with Capacitor Filesystem + Share plugins"
 ```
 
 ---
@@ -667,7 +910,7 @@ git commit -m "feat: upgrade shareScoreCard with Capacitor Share plugin"
 - Create: `src/shared/platform/__tests__/appLifecycle.test.ts`
 - Modify: `src/app/App.tsx` (add onMount call)
 
-**Step 1: Write the failing test**
+**Step 1: Write the failing tests**
 
 ```typescript
 // src/shared/platform/__tests__/appLifecycle.test.ts
@@ -676,17 +919,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
 
 const listeners: Record<string, Function> = {};
+const mockExitApp = vi.fn();
 vi.mock('@capacitor/app', () => ({
   App: {
     addListener: vi.fn((event: string, cb: Function) => { listeners[event] = cb; }),
     removeAllListeners: vi.fn(),
-    exitApp: vi.fn(),
+    exitApp: mockExitApp,
   },
 }));
 
 describe('appLifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.resetModules();
     for (const key of Object.keys(listeners)) delete listeners[key];
   });
 
@@ -712,6 +957,32 @@ describe('appLifecycle', () => {
     expect(historyBack).toHaveBeenCalled();
     historyBack.mockRestore();
   });
+
+  it('calls App.exitApp when canGoBack is false', async () => {
+    const { initAppLifecycle } = await import('../appLifecycle');
+    initAppLifecycle();
+    listeners['backButton']({ canGoBack: false });
+    expect(mockExitApp).toHaveBeenCalled();
+  });
+
+  it('dispatches app-state-change custom event on appStateChange', async () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const { initAppLifecycle } = await import('../appLifecycle');
+    initAppLifecycle();
+    listeners['appStateChange']({ isActive: false });
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'app-state-change', detail: { isActive: false } })
+    );
+    dispatchSpy.mockRestore();
+  });
+
+  it('does not register listeners when IS_NATIVE is false', async () => {
+    vi.doMock('../platform', () => ({ IS_NATIVE: false, PLATFORM: 'web' }));
+    const { App } = await import('@capacitor/app');
+    const { initAppLifecycle } = await import('../appLifecycle');
+    initAppLifecycle();
+    expect(App.addListener).not.toHaveBeenCalled();
+  });
 });
 ```
 
@@ -728,11 +999,12 @@ Expected: FAIL — module not found
 import { App } from '@capacitor/app';
 import { IS_NATIVE } from './platform';
 
-let _initialized = false;
-
+/**
+ * Initialize native app lifecycle listeners (back button, app state).
+ * Safe to call multiple times — uses vi.resetModules() in tests for isolation.
+ */
 export function initAppLifecycle(): void {
-  if (!IS_NATIVE || _initialized) return;
-  _initialized = true;
+  if (!IS_NATIVE) return;
 
   App.addListener('backButton', ({ canGoBack }) => {
     if (canGoBack) {
@@ -743,21 +1015,22 @@ export function initAppLifecycle(): void {
   });
 
   App.addListener('appStateChange', ({ isActive }) => {
-    // Dispatch custom event so hooks can react without importing this module
     window.dispatchEvent(new CustomEvent('app-state-change', { detail: { isActive } }));
   });
 }
 ```
 
+> Note: No `_initialized` guard — `vi.resetModules()` in tests handles isolation. In production, `initAppLifecycle()` is called once from `App.tsx` onMount. If duplicate calls become an issue, add a guard with an exported `_resetForTesting()` helper.
+
 **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/shared/platform/__tests__/appLifecycle.test.ts`
 
-Expected: PASS
+Expected: PASS (all 6 tests)
 
 **Step 5: Wire into App.tsx**
 
-In `src/app/App.tsx`, add import and call in `onMount`:
+In `src/app/App.tsx`, add import:
 
 ```typescript
 import { initAppLifecycle } from '../shared/platform/appLifecycle';
@@ -791,10 +1064,46 @@ git commit -m "feat: add Android back button and app lifecycle handling"
 
 **Files:**
 - Modify: `src/app/App.tsx`
+- Create: `src/app/__tests__/splashScreen.test.ts`
 
-**Step 1: Add splash screen hide**
+**Step 1: Write the failing test**
 
-In `src/app/App.tsx`, add import:
+```typescript
+// src/app/__tests__/splashScreen.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../../shared/platform/platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
+
+const mockHide = vi.fn().mockResolvedValue(undefined);
+vi.mock('@capacitor/splash-screen', () => ({
+  SplashScreen: { hide: mockHide },
+}));
+
+describe('SplashScreen hide on mount', () => {
+  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
+
+  it('calls SplashScreen.hide when IS_NATIVE is true', async () => {
+    const { IS_NATIVE } = await import('../../shared/platform/platform');
+    const { SplashScreen } = await import('@capacitor/splash-screen');
+
+    // Simulate what App.tsx onMount does
+    if (IS_NATIVE) {
+      await SplashScreen.hide();
+    }
+    expect(mockHide).toHaveBeenCalled();
+  });
+});
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/app/__tests__/splashScreen.test.ts`
+
+Expected: FAIL — SplashScreen.hide not called yet from App.tsx
+
+**Step 3: Add splash screen hide to App.tsx**
+
+In `src/app/App.tsx`, add imports:
 
 ```typescript
 import { SplashScreen } from '@capacitor/splash-screen';
@@ -804,21 +1113,25 @@ import { IS_NATIVE } from '../shared/platform/platform';
 Inside the existing `onMount`, add after `initAppLifecycle()`:
 
 ```typescript
-if (IS_NATIVE) {
-  SplashScreen.hide().catch(() => {});
-}
+onMount(() => {
+  initSWUpdate();
+  initAppLifecycle();
+  if (IS_NATIVE) {
+    SplashScreen.hide().catch(() => {});
+  }
+});
 ```
 
-**Step 2: Run all tests**
+**Step 4: Run test to verify it passes**
 
-Run: `npx vitest run`
+Run: `npx vitest run src/app/__tests__/splashScreen.test.ts`
 
-Expected: All passing (SplashScreen import resolves to web stub)
+Expected: PASS
 
-**Step 3: Commit**
+**Step 5: Commit**
 
 ```bash
-git add src/app/App.tsx
+git add src/app/App.tsx src/app/__tests__/splashScreen.test.ts
 git commit -m "feat: hide Capacitor splash screen after app mount"
 ```
 
@@ -836,12 +1149,14 @@ git commit -m "feat: hide Capacitor splash screen after app mount"
 
 ```typescript
 // src/shared/pwa/__tests__/installPromptStore.native.test.ts
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../platform/platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
 vi.mock('../swUpdateStore', () => ({ swUpdateVisible: () => false }));
 
 describe('installPromptStore (native)', () => {
+  beforeEach(() => { vi.resetModules(); });
+
   it('showInstallBanner returns false when IS_NATIVE is true', async () => {
     const { showInstallBanner } = await import('../installPromptStore');
     expect(showInstallBanner()).toBe(false);
@@ -912,24 +1227,22 @@ git commit -m "feat: hide install prompts when running in Capacitor native app"
 - Create: `src/shared/components/AppInstallCTA.tsx`
 - Create: `src/shared/components/__tests__/AppInstallCTA.test.tsx`
 
-**Step 1: Write the failing test**
+**Step 1: Write the failing tests**
 
 ```typescript
 // src/shared/components/__tests__/AppInstallCTA.test.tsx
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@solidjs/testing-library';
 
 vi.mock('../../platform/platform', () => ({ IS_NATIVE: false, PLATFORM: 'web' }));
 vi.mock('../../pwa/installPromptStore', () => ({
   isInstalled: () => false,
-  iosInstallSupported: () => false,
-  showInstallBanner: () => false,
-  triggerInstallPrompt: vi.fn(),
 }));
 
 describe('AppInstallCTA', () => {
+  beforeEach(() => { vi.resetModules(); });
+
   it('renders Play Store badge for Android mobile web', async () => {
-    // Mock Android UA
     Object.defineProperty(navigator, 'userAgent', {
       value: 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36',
       configurable: true,
@@ -938,6 +1251,36 @@ describe('AppInstallCTA', () => {
     const { AppInstallCTA } = await import('../AppInstallCTA');
     const { queryByText } = render(() => <AppInstallCTA />);
     expect(queryByText('Get it on Google Play')).toBeTruthy();
+  });
+
+  it('renders iOS install button for iPhone', async () => {
+    Object.defineProperty(navigator, 'userAgent', {
+      value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)',
+      configurable: true,
+    });
+
+    const { AppInstallCTA } = await import('../AppInstallCTA');
+    const { queryByText } = render(() => <AppInstallCTA />);
+    expect(queryByText('Install PickleScore')).toBeTruthy();
+  });
+
+  it('renders nothing when IS_NATIVE is true', async () => {
+    vi.doMock('../../platform/platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
+
+    const { AppInstallCTA } = await import('../AppInstallCTA');
+    const { container } = render(() => <AppInstallCTA />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders nothing on desktop', async () => {
+    Object.defineProperty(navigator, 'userAgent', {
+      value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      configurable: true,
+    });
+
+    const { AppInstallCTA } = await import('../AppInstallCTA');
+    const { container } = render(() => <AppInstallCTA />);
+    expect(container.innerHTML).toBe('');
   });
 });
 ```
@@ -950,9 +1293,11 @@ Expected: FAIL — module not found
 
 **Step 3: Write implementation**
 
+> **Critical fix from review:** Use `<Show>` for reactive guards (SolidJS pattern). The `isInstalled()` signal must be inside the reactive graph. iOS button uses local signal state for the install sheet, not a custom event with no listener.
+
 ```typescript
 // src/shared/components/AppInstallCTA.tsx
-import { Show, type Component } from 'solid-js';
+import { Show, createSignal, type Component } from 'solid-js';
 import { IS_NATIVE } from '../platform/platform';
 import { isInstalled } from '../pwa/installPromptStore';
 
@@ -965,12 +1310,13 @@ const isAlreadyInstalled = () =>
   window.matchMedia('(display-mode: standalone)').matches;
 
 export const AppInstallCTA: Component = () => {
-  // Hide when: running native, already installed as PWA
+  // Constant guards — these never change at runtime
   if (IS_NATIVE || isAlreadyInstalled()) return null;
-  if (isInstalled()) return null;
+
+  const [showIOSSheet, setShowIOSSheet] = createSignal(false);
 
   return (
-    <>
+    <Show when={!isInstalled()}>
       <Show when={isAndroid()}>
         <a
           href={PLAY_STORE_URL}
@@ -978,23 +1324,19 @@ export const AppInstallCTA: Component = () => {
           rel="noopener noreferrer"
           class="inline-flex items-center gap-2 px-5 py-3 bg-primary text-surface font-semibold rounded-xl active:scale-95 transition-transform"
         >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.302 2.302-2.302 2.302-2.593-2.302 2.593-2.302zM5.864 2.658L16.8 9.001l-2.302 2.302L5.864 2.658z"/></svg>
           Get it on Google Play
         </a>
       </Show>
       <Show when={isIOS()}>
         <button
           class="inline-flex items-center gap-2 px-5 py-3 bg-primary text-surface font-semibold rounded-xl active:scale-95 transition-transform"
-          onClick={() => {
-            // Trigger existing iOS install sheet
-            window.dispatchEvent(new CustomEvent('show-ios-install'));
-          }}
+          onClick={() => setShowIOSSheet(true)}
         >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>
           Install PickleScore
         </button>
+        {/* TODO: Wire showIOSSheet signal to IOSInstallSheet component when integrating into landing page */}
       </Show>
-    </>
+    </Show>
   );
 };
 ```
@@ -1003,7 +1345,7 @@ export const AppInstallCTA: Component = () => {
 
 Run: `npx vitest run src/shared/components/__tests__/AppInstallCTA.test.tsx`
 
-Expected: PASS
+Expected: PASS (all 4 tests)
 
 **Step 5: Commit**
 
@@ -1017,52 +1359,92 @@ git commit -m "feat: add platform-detected install CTA component"
 ### Task 14: Add "Share PickleScore" to settings page
 
 **Files:**
-- Modify: `src/features/settings/SettingsPage.tsx` (add share button)
+- Create: `src/shared/utils/shareApp.ts`
+- Create: `src/shared/utils/__tests__/shareApp.test.ts`
+- Modify: `src/features/settings/SettingsPage.tsx`
 
-**Step 1: Read the current SettingsPage**
+**Step 1: Write the failing test**
 
-Read `src/features/settings/SettingsPage.tsx` to understand the structure before modifying.
+```typescript
+// src/shared/utils/__tests__/shareApp.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-**Step 2: Add Share PickleScore button**
+const mockShare = vi.fn().mockResolvedValue(undefined);
+vi.mock('../../platform/platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
+vi.mock('@capacitor/share', () => ({ Share: { share: mockShare } }));
 
-Add a new section near the bottom of the settings page (before any "About" or version section):
+describe('shareApp', () => {
+  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
 
-```tsx
-import { Share } from '@capacitor/share';
-import { IS_NATIVE } from '../../shared/platform/platform';
+  it('calls Capacitor Share on native', async () => {
+    const { shareApp } = await import('../shareApp');
+    await shareApp();
+    expect(mockShare).toHaveBeenCalledWith({
+      title: 'PickleScore',
+      text: 'Score your pickleball games with PickleScore!',
+      url: 'https://picklescore.co',
+    });
+  });
+});
 ```
 
-Add a share handler:
+**Step 2: Run test to verify it fails**
 
-```tsx
-const handleShareApp = async () => {
-  const shareData = {
-    title: 'PickleScore',
-    text: 'Score your pickleball games with PickleScore!',
-    url: 'https://picklescore.co',
-  };
+Run: `npx vitest run src/shared/utils/__tests__/shareApp.test.ts`
 
+Expected: FAIL
+
+**Step 3: Write implementation**
+
+```typescript
+// src/shared/utils/shareApp.ts
+import { Share } from '@capacitor/share';
+import { IS_NATIVE } from '../platform/platform';
+
+const SHARE_DATA = {
+  title: 'PickleScore',
+  text: 'Score your pickleball games with PickleScore!',
+  url: 'https://picklescore.co',
+};
+
+export async function shareApp(): Promise<void> {
   if (IS_NATIVE) {
-    await Share.share(shareData).catch(() => {});
+    await Share.share(SHARE_DATA).catch(() => {});
     return;
   }
 
   if (navigator.share) {
-    await navigator.share(shareData).catch(() => {});
+    await navigator.share(SHARE_DATA).catch(() => {});
     return;
   }
 
   // Fallback: copy to clipboard
-  await navigator.clipboard.writeText('Score your pickleball games with PickleScore! https://picklescore.co');
-  // Show toast feedback (use existing toast mechanism)
-};
+  await navigator.clipboard.writeText(
+    'Score your pickleball games with PickleScore! https://picklescore.co'
+  ).catch(() => {});
+}
 ```
 
-Add a button in the settings UI:
+**Step 4: Run test to verify it passes**
+
+Run: `npx vitest run src/shared/utils/__tests__/shareApp.test.ts`
+
+Expected: PASS
+
+**Step 5: Wire into SettingsPage**
+
+In `src/features/settings/SettingsPage.tsx`, add import:
+
+```typescript
+import { Share2 } from 'lucide-solid';
+import { shareApp } from '../../shared/utils/shareApp';
+```
+
+Add a share button near the bottom of the settings UI:
 
 ```tsx
 <button
-  onClick={handleShareApp}
+  onClick={() => shareApp()}
   class="w-full flex items-center gap-3 p-3 bg-surface-light rounded-xl active:scale-[0.98] transition-transform"
 >
   <Share2 size={20} class="text-primary" />
@@ -1070,16 +1452,16 @@ Add a button in the settings UI:
 </button>
 ```
 
-**Step 3: Run all tests**
+**Step 6: Run all tests**
 
 Run: `npx vitest run`
 
 Expected: All passing
 
-**Step 4: Commit**
+**Step 7: Commit**
 
 ```bash
-git add src/features/settings/SettingsPage.tsx
+git add src/shared/utils/shareApp.ts src/shared/utils/__tests__/shareApp.test.ts src/features/settings/SettingsPage.tsx
 git commit -m "feat: add Share PickleScore button to settings page"
 ```
 
@@ -1091,21 +1473,32 @@ git commit -m "feat: add Share PickleScore button to settings page"
 - Create: `src/shared/utils/generateQRSheet.ts`
 - Create: `src/shared/utils/__tests__/generateQRSheet.test.ts`
 
-**Step 1: Write the failing test**
+> Note: `qrcode` package is already in package.json dependencies — no install needed.
+
+**Step 1: Write the failing tests**
 
 ```typescript
 // src/shared/utils/__tests__/generateQRSheet.test.ts
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('qrcode', () => ({
   default: { toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,test') },
 }));
 
 describe('generateQRSheet', () => {
+  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
+
   it('generates a QR data URL for the given URL', async () => {
     const { generateQRDataUrl } = await import('../generateQRSheet');
     const result = await generateQRDataUrl('https://picklescore.co');
     expect(result).toContain('data:image/png');
+  });
+
+  it('calls QRCode.toDataURL with correct params', async () => {
+    const QRCode = (await import('qrcode')).default;
+    const { generateQRDataUrl } = await import('../generateQRSheet');
+    await generateQRDataUrl('https://picklescore.co', 400);
+    expect(QRCode.toDataURL).toHaveBeenCalledWith('https://picklescore.co', { width: 400, margin: 2 });
   });
 });
 ```
@@ -1134,7 +1527,6 @@ export async function downloadQRSheet(): Promise<void> {
     generateQRDataUrl(PLAY_STORE_URL, 400),
   ]);
 
-  // Create a canvas with both QR codes side by side
   const canvas = document.createElement('canvas');
   canvas.width = 1000;
   canvas.height = 600;
@@ -1150,7 +1542,6 @@ export async function downloadQRSheet(): Promise<void> {
   ctx.textAlign = 'center';
   ctx.fillText('PickleScore — Scan to Get the App', 500, 40);
 
-  // Load and draw QR images
   const loadImg = (src: string) => new Promise<HTMLImageElement>((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -1202,6 +1593,8 @@ git commit -m "feat: add printable QR code sheet generator for court-side sharin
 ---
 
 ## Wave D: CI/CD Pipeline
+
+> **Note:** These workflows will fail until GitHub Secrets (manual step M7) are configured. Do not merge to main until secrets are set.
 
 ### Task 16: Create web deploy workflow
 
@@ -1258,7 +1651,7 @@ jobs:
           "
 
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
+        uses: FirebaseExtended/action-hosting-deploy@v0.9.0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -1334,9 +1727,10 @@ jobs:
         id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
-      - name: Write version to gradle.properties
+      - name: Append version to gradle.properties
         run: |
-          echo "APP_VERSION_NAME=${{ steps.version.outputs.version }}" > android/app/gradle.properties
+          echo "" >> android/app/gradle.properties
+          echo "APP_VERSION_NAME=${{ steps.version.outputs.version }}" >> android/app/gradle.properties
           echo "APP_VERSION_CODE=${{ github.run_number }}" >> android/app/gradle.properties
 
       - name: Build web
@@ -1358,7 +1752,7 @@ jobs:
             -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
 
       - name: Upload to Play Store
-        uses: r0adkll/upload-google-play@v1
+        uses: r0adkll/upload-google-play@v1.1.3
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: co.picklescore.app
@@ -1393,9 +1787,44 @@ git commit -m "ci: add Android release workflow (build + sign + Play Store uploa
 
 **Files:**
 - Create: `src/features/legal/PrivacyPolicy.tsx`
+- Create: `src/features/legal/__tests__/PrivacyPolicy.test.tsx`
 - Modify: `src/app/router.tsx` (add route)
 
-**Step 1: Create privacy policy component**
+**Step 1: Write the failing test**
+
+```typescript
+// src/features/legal/__tests__/PrivacyPolicy.test.tsx
+import { describe, it, expect } from 'vitest';
+import { render } from '@solidjs/testing-library';
+
+describe('PrivacyPolicy', () => {
+  it('renders the privacy policy heading', async () => {
+    const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
+    const { getByText } = render(() => <PrivacyPolicy />);
+    expect(getByText('Privacy Policy')).toBeTruthy();
+  });
+
+  it('contains data deletion section', async () => {
+    const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
+    const { getByText } = render(() => <PrivacyPolicy />);
+    expect(getByText('Data Retention & Deletion')).toBeTruthy();
+  });
+
+  it('contains contact email', async () => {
+    const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
+    const { container } = render(() => <PrivacyPolicy />);
+    expect(container.innerHTML).toContain('privacy@picklescore.co');
+  });
+});
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `npx vitest run src/features/legal/__tests__/PrivacyPolicy.test.tsx`
+
+Expected: FAIL — module not found
+
+**Step 3: Create privacy policy component**
 
 ```tsx
 // src/features/legal/PrivacyPolicy.tsx
@@ -1425,7 +1854,7 @@ const PrivacyPolicy: Component = () => {
 
         <section>
           <h2 class="text-lg font-semibold text-on-surface mb-2">Data Retention & Deletion</h2>
-          <p>Your data is retained as long as your account exists. You can delete your account and all associated data at any time from Settings → Delete Account. This permanently removes your profile, match history, statistics, and leaderboard entries.</p>
+          <p>Your data is retained as long as your account exists. You can delete your account and all associated data at any time from Settings. This permanently removes your profile, match history, statistics, and leaderboard entries.</p>
         </section>
 
         <section>
@@ -1445,7 +1874,7 @@ const PrivacyPolicy: Component = () => {
 export default PrivacyPolicy;
 ```
 
-**Step 2: Add route**
+**Step 4: Add route**
 
 In `src/app/router.tsx`, add:
 
@@ -1459,10 +1888,16 @@ Add route before the catch-all:
 <Route path="/privacy" component={PrivacyPolicy} />
 ```
 
-**Step 3: Commit**
+**Step 5: Run test to verify it passes**
+
+Run: `npx vitest run src/features/legal/__tests__/PrivacyPolicy.test.tsx`
+
+Expected: PASS
+
+**Step 6: Commit**
 
 ```bash
-git add src/features/legal/PrivacyPolicy.tsx src/app/router.tsx
+git add src/features/legal/ src/app/router.tsx
 git commit -m "feat: add privacy policy page at /privacy"
 ```
 
@@ -1475,7 +1910,7 @@ git commit -m "feat: add privacy policy page at /privacy"
 - Create: `src/features/settings/__tests__/DeleteAccountButton.test.tsx`
 - Modify: `src/features/settings/SettingsPage.tsx`
 
-**Step 1: Write the failing test**
+**Step 1: Write the failing tests**
 
 ```typescript
 // src/features/settings/__tests__/DeleteAccountButton.test.tsx
@@ -1492,14 +1927,19 @@ describe('DeleteAccountButton', () => {
     const { DeleteAccountButton } = await import('../DeleteAccountButton');
     const { getByText, queryByText } = render(() => <DeleteAccountButton />);
 
-    // Initially no confirmation
     expect(queryByText('This cannot be undone')).toBeNull();
-
-    // Click delete
     fireEvent.click(getByText('Delete Account'));
-
-    // Confirmation appears
     expect(queryByText('This cannot be undone')).toBeTruthy();
+  });
+
+  it('hides confirmation on cancel', async () => {
+    const { DeleteAccountButton } = await import('../DeleteAccountButton');
+    const { getByText, queryByText } = render(() => <DeleteAccountButton />);
+
+    fireEvent.click(getByText('Delete Account'));
+    expect(queryByText('This cannot be undone')).toBeTruthy();
+    fireEvent.click(getByText('Cancel'));
+    expect(queryByText('This cannot be undone')).toBeNull();
   });
 });
 ```
@@ -1512,36 +1952,36 @@ Expected: FAIL
 
 **Step 3: Write implementation**
 
+> **Critical fix from review:** Must clear Dexie local DB + localStorage after Firebase deletion. Must handle `auth/requires-recent-login` error.
+
 ```tsx
 // src/features/settings/DeleteAccountButton.tsx
 import { createSignal, Show, type Component } from 'solid-js';
 import { auth, firestore } from '../../data/firebase/config';
-import { deleteUser } from 'firebase/auth';
+import { deleteUser, reauthenticateWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { deleteDoc, doc, collection, getDocs, writeBatch } from 'firebase/firestore';
+import { db } from '../../data/db';
 
 export const DeleteAccountButton: Component = () => {
   const [confirming, setConfirming] = createSignal(false);
   const [deleting, setDeleting] = createSignal(false);
+  const [error, setError] = createSignal('');
 
   const handleDelete = async () => {
     const user = auth.currentUser;
     if (!user) return;
 
     setDeleting(true);
+    setError('');
+
     try {
-      // Delete user's Firestore data
       const uid = user.uid;
+
+      // Delete Firestore data
       const batch = writeBatch(firestore);
-
-      // Delete user document
       batch.delete(doc(firestore, 'users', uid));
-
-      // Delete user's public tier doc
       batch.delete(doc(firestore, 'users', uid, 'public', 'tier'));
-
-      // Delete leaderboard entry
       batch.delete(doc(firestore, 'leaderboard', uid));
-
       await batch.commit();
 
       // Delete notifications subcollection
@@ -1553,14 +1993,28 @@ export const DeleteAccountButton: Component = () => {
       }
 
       // Delete Firebase Auth account
-      await deleteUser(user);
+      try {
+        await deleteUser(user);
+      } catch (authErr: any) {
+        if (authErr?.code === 'auth/requires-recent-login') {
+          // Re-authenticate and retry
+          await reauthenticateWithPopup(user, new GoogleAuthProvider());
+          await deleteUser(user);
+        } else {
+          throw authErr;
+        }
+      }
+
+      // Clear local data
+      await db.delete(); // Wipe entire Dexie IndexedDB
+      localStorage.clear();
 
       // Redirect to landing page
       window.location.href = '/';
     } catch (err) {
       console.error('Account deletion failed:', err);
+      setError('Deletion failed. Please try again.');
       setDeleting(false);
-      setConfirming(false);
     }
   };
 
@@ -1578,9 +2032,12 @@ export const DeleteAccountButton: Component = () => {
         <div class="space-y-3">
           <p class="text-red-400 text-sm font-semibold">This cannot be undone</p>
           <p class="text-on-surface-muted text-xs">All your data including match history, stats, achievements, and leaderboard entries will be permanently deleted.</p>
+          <Show when={error()}>
+            <p class="text-red-400 text-xs">{error()}</p>
+          </Show>
           <div class="flex gap-3">
             <button
-              onClick={() => setConfirming(false)}
+              onClick={() => { setConfirming(false); setError(''); }}
               class="flex-1 p-3 bg-surface-light rounded-xl font-semibold text-on-surface"
               disabled={deleting()}
             >
@@ -1609,7 +2066,7 @@ Expected: PASS
 
 **Step 5: Wire into SettingsPage**
 
-Import and add `<DeleteAccountButton />` at the bottom of the settings page (only shown when authenticated).
+Import and add `<DeleteAccountButton />` at the bottom of the settings page (only shown when authenticated via `<Show when={user()}>`).
 
 **Step 6: Commit**
 
@@ -1631,17 +2088,20 @@ git commit -m "feat: add account deletion flow (Play Store requirement)"
 npm install -D @capacitor/assets
 ```
 
-**Step 2: Generate Android assets**
+**Step 2: Create source icon in expected location**
 
 ```bash
-npx @capacitor/assets generate --android
+mkdir -p assets
+cp public/pwa-512x512.png assets/icon.png
 ```
 
-This uses the existing `public/pwa-512x512.png` as the source and generates all required Android icon densities and splash screen assets.
+> Note: `@capacitor/assets` looks for `assets/icon.png` by default. Ensure the icon has sufficient padding for adaptive icon safe zone (66dp in 108dp).
 
-**Step 3: Verify adaptive icon safe zone**
+**Step 3: Generate Android assets**
 
-Open `android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png` and visually confirm the logo has sufficient padding (not clipped at edges).
+```bash
+npx @capacitor/assets generate --android --iconBackgroundColor '#1e1e2e'
+```
 
 **Step 4: Sync**
 
@@ -1652,7 +2112,7 @@ npx cap sync android
 **Step 5: Commit**
 
 ```bash
-git add android/ package.json package-lock.json
+git add assets/ android/app/src/main/res/ package.json package-lock.json
 git commit -m "feat: generate Android app icons and splash screen assets"
 ```
 
@@ -1678,20 +2138,13 @@ defaultConfig {
 }
 ```
 
-**Step 2: Create default gradle.properties**
+> Note: CI workflow appends `APP_VERSION_NAME` and `APP_VERSION_CODE` to existing `gradle.properties` using `>>` (not `>`), preserving Capacitor's default entries like `android.useAndroidX=true`.
 
-Create `android/app/gradle.properties`:
-
-```properties
-APP_VERSION_NAME=0.0.0
-APP_VERSION_CODE=1
-```
-
-**Step 3: Commit**
+**Step 2: Commit**
 
 ```bash
-git add android/app/build.gradle android/app/gradle.properties
-git commit -m "chore: configure gradle.properties versioning for CI"
+git add android/app/build.gradle
+git commit -m "build: configure gradle.properties versioning for CI"
 ```
 
 ---
@@ -1710,7 +2163,7 @@ npm run build
 npx cap sync android
 ```
 
-**Step 3: Verify Android project**
+**Step 3: Verify Android project builds**
 
 ```bash
 cd android && ./gradlew assembleDebug && cd ..
@@ -1726,18 +2179,22 @@ npx vitest run
 
 Expected: All passing
 
-**Step 5: Commit any final fixes**
+**Step 5: Commit any fixups if needed**
+
+Only commit if specific files needed fixing. Use explicit file paths:
 
 ```bash
-git add -A
-git commit -m "chore: verify Android build completes successfully"
+git add <specific-files>
+git commit -m "fix: resolve integration issues from Android build verification"
 ```
+
+If no changes are needed, skip this step.
 
 ---
 
 ## Manual Steps (Not Automated)
 
-These steps require manual action in external services and cannot be scripted:
+These steps require manual action in external services and cannot be scripted. Dependencies noted.
 
 ### M1: Register domains
 - Buy `picklescore.co` and `picklescoreapp.com` at Cloudflare Registrar
@@ -1746,7 +2203,7 @@ These steps require manual action in external services and cannot be scripted:
 ### M2: Configure Cloudflare DNS
 - Add `picklescore.co` CNAME to Firebase (grey cloud / DNS-only)
 - Add `www.picklescore.co` CNAME
-- Add Redirect Rules for the other two domains
+- Add Redirect Rules for the other two domains (not deprecated Page Rules)
 - Add cache bypass rule for `/.well-known/*`
 
 ### M3: Configure Firebase Hosting custom domain
@@ -1759,24 +2216,28 @@ These steps require manual action in external services and cannot be scripted:
 - Google Cloud Console → OAuth → add origins and redirect URIs
 
 ### M5: Enroll in Apple Developer Program ($99/yr)
-- For future iOS app if needed
+- For future iOS app if needed — can defer
 
 ### M6: Configure Play Store listing
 - Play Console → Create app → fill Data Safety form
 - Add privacy policy URL: `https://picklescore.co/privacy`
-- Add account deletion URL: `https://picklescore.co/settings`
-- Upload screenshots, feature graphic, app icon
+- Add account deletion URL: `https://picklescore.co/settings` (or deep link to settings)
+- Upload screenshots, feature graphic (1024x500), app icon
 - Set content rating (IARC questionnaire)
 - Set target audience: 13+
+- Register release keystore SHA-1 in Firebase Console for Google Sign-In
+- Verify Google Sign-In button follows branding guidelines
 
-### M7: Configure GitHub Secrets
+### M7: Configure GitHub Secrets (must be done before CI workflows pass)
 - `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`
 - `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`
 - `FIREBASE_SERVICE_ACCOUNT`
 
-### M8: Update assetlinks.json
-- After enrolling in Play App Signing, get Google's signing cert SHA-256
+### M8: Update assetlinks.json fingerprint (requires M6 completed first)
+- After enrolling in Play App Signing, get Google's **app signing certificate** SHA-256 from Play Console → App signing
+- **Important**: Use Google's app signing cert, NOT your upload keystore fingerprint
 - Replace placeholder in `public/.well-known/assetlinks.json`
+- Rebuild and redeploy
 
 ---
 
@@ -1784,12 +2245,39 @@ These steps require manual action in external services and cannot be scripted:
 
 | Wave | Tasks | Focus |
 |------|-------|-------|
-| A (Foundation) | 1-5 | firebase.json security, assetlinks, OG tags, Capacitor init, plugins |
-| B (Platform) | 6-11 | Platform abstraction, hook upgrades, back button, splash screen |
+| A (Foundation) | 1-5 | firebase.json security, assetlinks, OG tags, Capacitor init + Vite plugin + plugins |
+| B (Platform) | 6-11 | Platform abstraction, hook upgrades (haptics, wake lock, share), back button, splash screen |
 | C (Install Flow) | 12-15 | Smart install prompts, CTA component, share app, QR sheet |
 | D (CI/CD) | 16-17 | Web deploy + Android release workflows |
 | E (Store Prep) | 18-21 | Privacy policy, account deletion, icons, versioning |
 | Integration | 22 | Full Android build verification |
 | Manual | M1-M8 | Domains, DNS, Firebase, Play Store, secrets |
 
-**Total: 22 automated tasks + 8 manual steps**
+**Total: 24 automated tasks (Task 4 split into 4a/4b/4c) + 8 manual steps**
+
+### Specialist Review Fixes Applied
+
+| Fix | Source | Task |
+|-----|--------|------|
+| `@capacitor/vite-plugin` instead of `base: './'` | Capacitor Expert, Code Quality | 4b |
+| `@capacitor/filesystem` for native image sharing | Capacitor Expert, Code Quality | 5, 9 |
+| `await import()` instead of `require()` in tests | TDD Specialist | 7 |
+| `vi.resetModules()` in all test `beforeEach` | TDD Specialist, Code Quality | 6-12 |
+| `<Show>` for reactive guards in AppInstallCTA | Code Quality | 13 |
+| Local signal state for iOS install (not custom event) | Code Quality | 13 |
+| Dexie + localStorage cleanup on account delete | Code Quality, Sprint Planner | 19 |
+| `reauthenticateWithPopup` for stale sessions | Capacitor Expert | 19 |
+| `StatusBar` config in capacitor.config.ts | Capacitor Expert | 4a |
+| SplashScreen backgroundColor aligned to `#1e1e2e` | Capacitor Expert | 4a |
+| `>>` append (not `>` overwrite) for gradle.properties | Capacitor Expert, Code Quality | 17 |
+| SHA-pinned GitHub Actions | CI/CD Specialist | 16, 17 |
+| `.gitattributes` for LF line endings | Capacitor Expert | 4a |
+| Task 4 split into 4a/4b/4c | Sprint Planner | 4 |
+| Tests added for Tasks 11, 14, 18 | TDD Specialist, Sprint Planner | 11, 14, 18 |
+| Web-path + settings-guard tests for haptics | TDD Specialist | 7 |
+| `double()` test for haptics | TDD Specialist | 7 |
+| Platform native test file | TDD Specialist | 6 |
+| No `git add -A` | Sprint Planner | 22 |
+| Removed `_initialized` singleton (use `vi.resetModules`) | Code Quality, TDD | 10 |
+| onCleanup assertion in useWakeLock test | TDD Specialist | 8 |
+| exitApp + appStateChange tests | TDD Specialist | 10 |
