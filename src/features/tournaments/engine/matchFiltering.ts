@@ -20,20 +20,28 @@ export interface BracketMatchInfo {
 }
 
 export interface InProgressMatches {
-  poolMatches: PoolMatchInfo[];
+  startedPoolMatches: PoolMatchInfo[];
   bracketMatches: BracketMatchInfo[];
 }
 
+/**
+ * Extracts in-progress matches from pool schedules and bracket slots.
+ *
+ * Note: `startedPoolMatches` includes both in-progress AND completed pool matches
+ * because `PoolScheduleEntry` has no completion marker — any entry with a `matchId`
+ * is considered "started" but may have already finished.
+ * Bracket matches are filtered more precisely (matchId present, winnerId absent).
+ */
 export function getInProgressMatches(
   pools: TournamentPool[],
   bracket: BracketSlot[],
 ): InProgressMatches {
-  const poolMatches: PoolMatchInfo[] = [];
+  const startedPoolMatches: PoolMatchInfo[] = [];
 
   for (const pool of pools) {
     for (const entry of pool.schedule) {
       if (entry.matchId != null) {
-        poolMatches.push({
+        startedPoolMatches.push({
           matchId: entry.matchId,
           team1Id: entry.team1Id,
           team2Id: entry.team2Id,
@@ -61,5 +69,5 @@ export function getInProgressMatches(
     }
   }
 
-  return { poolMatches, bracketMatches };
+  return { startedPoolMatches, bracketMatches };
 }

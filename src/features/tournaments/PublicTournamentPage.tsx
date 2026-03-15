@@ -1,4 +1,4 @@
-import { createResource, createMemo, createSignal, createEffect, onCleanup, Show, For } from 'solid-js';
+import { createResource, createMemo, createSignal, createEffect, on, onCleanup, Show, For } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { LiveNowMatch } from './components/LiveNowSection';
 import { useParams } from '@solidjs/router';
@@ -57,12 +57,12 @@ const PublicTournamentPage: Component = () => {
   });
 
   const inProgressMatches = createMemo(() => {
-    const { poolMatches, bracketMatches } = getInProgressMatches(live.pools(), live.bracket());
+    const { startedPoolMatches, bracketMatches } = getInProgressMatches(live.pools(), live.bracket());
     const names = teamNames();
 
     // Convert to LiveNowMatch format
     const matches = [
-      ...poolMatches.map((m) => ({
+      ...startedPoolMatches.map((m) => ({
         matchId: m.matchId,
         team1Name: names[m.team1Id] ?? m.team1Id,
         team2Name: names[m.team2Id] ?? m.team2Id,
@@ -84,47 +84,51 @@ const PublicTournamentPage: Component = () => {
   const RETENTION_MS = 5 * 60 * 1000;
   const [retainedMatches, setRetainedMatches] = createSignal<Map<string, { match: LiveNowMatch; completedAt: number }>>(new Map());
 
-  let prevMatches = new Map<string, LiveNowMatch>();
-
-  createEffect(() => {
-    const current = inProgressMatches();
-    const currentMap = new Map(current.map(m => [m.matchId, m]));
-
-    // Find matches that were in previous but not in current
-    for (const [id, match] of prevMatches) {
-      if (!currentMap.has(id)) {
-        setRetainedMatches(prev => {
-          const next = new Map(prev);
-          next.set(id, { match: { ...match, status: 'completed' as const }, completedAt: Date.now() });
+  createEffect(on(inProgressMatches, (current, prev) => {
+    if (!prev) return; // first run, no previous value
+    const currentIds = new Set(current.map(m => m.matchId));
+    for (const match of prev) {
+      if (!currentIds.has(match.matchId)) {
+        setRetainedMatches(p => {
+          const next = new Map(p);
+          next.set(match.matchId, { match: { ...match, status: 'completed' as const }, completedAt: Date.now() });
           return next;
         });
       }
     }
-
-    prevMatches = currentMap;
-  });
+  }));
 
   // Prune stale retained matches every 30s
+  let isMounted = true;
+
   const pruneInterval = setInterval(() => {
+    if (!isMounted) return;
     const now = Date.now();
+    const current = retainedMatches();
+    let hasStale = false;
+    for (const [, entry] of current) {
+      if (now - entry.completedAt > RETENTION_MS) { hasStale = true; break; }
+    }
+    if (!hasStale) return;
     setRetainedMatches(prev => {
       const next = new Map(prev);
       for (const [id, entry] of next) {
-        if (now - entry.completedAt > RETENTION_MS) {
-          next.delete(id);
-        }
+        if (now - entry.completedAt > RETENTION_MS) next.delete(id);
       }
       return next;
     });
   }, 30_000);
 
-  onCleanup(() => clearInterval(pruneInterval));
+  onCleanup(() => {
+    isMounted = false;
+    clearInterval(pruneInterval);
+  });
 
   // Merge live + retained for LiveNowSection
   const allVisibleMatches = createMemo(() => {
-    const live = inProgressMatches();
+    const liveMatches = inProgressMatches();
     const retained = Array.from(retainedMatches().values()).map(r => r.match);
-    return [...live, ...retained];
+    return [...liveMatches, ...retained];
   });
 
   const upcomingMatches = createMemo(() => {

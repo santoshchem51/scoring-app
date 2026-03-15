@@ -59,7 +59,7 @@ const LiveNowSection: Component<LiveNowSectionProps> = (props): JSX.Element => {
                 {(match) => (
                   <li>
                     <div
-                      class="block rounded-lg border border-surface-lighter bg-surface-light px-3 py-2"
+                      class="block rounded-lg border border-surface-lighter bg-surface-light px-3 py-2 border-l-4 border-l-surface-lighter"
                     >
                       <div class="flex items-center justify-between">
                         <span class="text-sm text-on-surface truncate">
@@ -103,7 +103,7 @@ const LiveNowSection: Component<LiveNowSectionProps> = (props): JSX.Element => {
                   <a
                     href={`/t/${props.tournamentCode}/match/${match.matchId}`}
                     aria-label={buildAriaLabel(match)}
-                    class="block rounded-lg border border-surface-lighter bg-surface-light px-3 py-2 hover:bg-surface-lighter focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary transition-colors"
+                    class={`block rounded-lg border border-surface-lighter bg-surface-light px-3 py-2 hover:bg-surface-lighter focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary transition-colors border-l-4 ${match.status === 'in-progress' ? 'border-l-amber-500' : 'border-l-green-500'}`}
                   >
                     <div class="flex items-center justify-between" aria-hidden="true">
                       <span class="text-sm text-on-surface truncate">

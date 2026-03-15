@@ -11,7 +11,7 @@ export default function TournamentPhaseIndicator(props: TournamentPhaseIndicator
   const isCompleted = () => props.status === 'completed';
 
   return (
-    <p class="text-sm" style={{ color: '#4B5563' }}>
+    <p class="text-sm text-on-surface-muted">
       <span>{label()}</span>
       <Show when={!isCompleted() && props.liveMatchCount > 0}>
         <span> · {props.liveMatchCount} matches in progress</span>

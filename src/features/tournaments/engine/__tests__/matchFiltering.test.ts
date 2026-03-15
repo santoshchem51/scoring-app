@@ -32,7 +32,7 @@ function makeBracketSlot(overrides: Partial<BracketSlot> = {}): BracketSlot {
 describe('getInProgressMatches', () => {
   it('returns empty results for empty pools and bracket', () => {
     const result = getInProgressMatches([], []);
-    expect(result.poolMatches).toEqual([]);
+    expect(result.startedPoolMatches).toEqual([]);
     expect(result.bracketMatches).toEqual([]);
   });
 
@@ -46,8 +46,8 @@ describe('getInProgressMatches', () => {
 
     const result = getInProgressMatches([pool], []);
 
-    expect(result.poolMatches).toHaveLength(1);
-    expect(result.poolMatches[0]).toEqual({
+    expect(result.startedPoolMatches).toHaveLength(1);
+    expect(result.startedPoolMatches[0]).toEqual({
       matchId: 'm1',
       team1Id: 'ta',
       team2Id: 'tb',
@@ -66,7 +66,7 @@ describe('getInProgressMatches', () => {
     });
 
     const result = getInProgressMatches([pool], []);
-    expect(result.poolMatches).toHaveLength(0);
+    expect(result.startedPoolMatches).toHaveLength(0);
   });
 
   it('finds bracket match with matchId but no winnerId (in-progress)', () => {
@@ -128,8 +128,8 @@ describe('getInProgressMatches', () => {
 
     const result = getInProgressMatches([poolA, poolB], bracketSlots);
 
-    expect(result.poolMatches).toHaveLength(2);
-    expect(result.poolMatches.map((m) => m.matchId)).toEqual(['m1', 'm4']);
+    expect(result.startedPoolMatches).toHaveLength(2);
+    expect(result.startedPoolMatches.map((m) => m.matchId)).toEqual(['m1', 'm4']);
 
     expect(result.bracketMatches).toHaveLength(1);
     expect(result.bracketMatches[0].matchId).toBe('m5');
