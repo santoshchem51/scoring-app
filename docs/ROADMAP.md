@@ -143,17 +143,23 @@
 
 ---
 
-## Up Next (Priority Order)
-
-### P1 — Layer 8: Spectator Experience
+### Layer 8: Spectator Experience
 > Make watching tournaments engaging.
 
-- [ ] Live score updates on public page (partially done via Layer 3 Wave B)
-- [ ] Tournament bracket/pool live view for spectators
-- [ ] Match timeline / play-by-play
-- [ ] Spectator count indicator
+- [x] Live score updates on public page (SpectatorScoreboard with real-time Firestore listeners)
+- [x] Tournament bracket/pool live view for spectators (LiveNowSection on hub, PublicMatchPage at /t/:code/match/:matchId)
+- [x] Match timeline / play-by-play (PlayByPlayFeed with auto-scroll, touch pause, Jump to live)
+- [x] Match analytics (momentum bar, run-of-play, streak detection, point distribution chart)
+- [x] Privacy model (spectator projection subdoc, profileVisibility consent, sanitized names)
+- [x] Security (field deny-list, registration privacy, App Check, RTDB deny-all)
+- [x] Accessibility (aria-live announcer, SegmentedControl with keyboard nav, reduced motion)
+- [ ] Spectator count indicator (deferred — needs Cloud Functions for reliable counting)
 
-### P2 — Layer 12: Monetization & Revenue
+---
+
+## Up Next (Priority Order)
+
+### P1 — Layer 12: Monetization & Revenue
 > Sustainable business model to fund development and hosting.
 
 - [ ] Define pricing tiers (free vs premium features)
@@ -163,7 +169,7 @@
 - [ ] Cost analysis (Firebase usage, hosting, app store fees)
 - [ ] Usage analytics and conversion tracking
 
-### P3 — Layer 11: App Store Distribution
+### P2 — Layer 11: App Store Distribution
 > Get PickleScore into users' hands via app stores.
 
 - [ ] Wrap PWA for Android (TWA / Capacitor / similar)
@@ -173,7 +179,7 @@
 - [ ] App review / approval process
 - [ ] CI/CD pipeline for app store builds
 
-### P4 — Layer 13: Multi-Sport Expansion
+### P3 — Layer 13: Multi-Sport Expansion
 > Extend the scoring engine beyond pickleball to other sports.
 
 - [ ] Abstract scoring engine (pluggable rules per sport)
