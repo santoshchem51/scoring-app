@@ -111,7 +111,12 @@ service cloud.firestore {
         allow create, update: if request.auth != null
           && docId == 'spectator'
           && (request.auth.uid == get(/databases/$(database)/documents/matches/$(matchId)).data.ownerId
-              || request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.sharedWith);
+              || request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.sharedWith)
+          && request.resource.data.keys().hasOnly([
+               'publicTeam1Name', 'publicTeam2Name', 'team1Score', 'team2Score',
+               'gameNumber', 'team1Wins', 'team2Wins', 'status',
+               'tournamentId', 'spectatorCount', 'updatedAt', 'visibility'
+             ]);
         allow delete: if false;
       }
     }
