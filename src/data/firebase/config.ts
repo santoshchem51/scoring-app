@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
@@ -15,6 +16,22 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const firestore = getFirestore(app);
+
+// App Check — protects Firebase services from abuse
+// Uses reCAPTCHA Enterprise in production, debug token in development
+// TODO: When deploying with reCAPTCHA, add https://www.google.com and
+// https://recaptcha.net to script-src and connect-src in firebase.json CSP headers
+if (import.meta.env.DEV) {
+  // Debug token for development/testing — allows App Check to pass without reCAPTCHA
+  (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+}
+
+if (import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
 
 // Connect to emulators in development
 if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS !== 'false') {

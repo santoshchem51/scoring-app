@@ -197,6 +197,7 @@ describe('syncProcessor', () => {
         expect.objectContaining({ id: '1' }),
         'test-user',
         sharedWith,
+        undefined,
       );
 
       const updated = await db.syncQueue.get(job.id);

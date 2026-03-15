@@ -12,13 +12,14 @@ export const cloudSync = {
    * Enqueue a match for cloud sync.
    * Fire-and-forget — enqueue is fast, actual sync happens via the queue processor.
    */
-  syncMatchToCloud(match: Match, sharedWith: string[] = []): void {
+  syncMatchToCloud(match: Match, sharedWith: string[] = [], visibility: 'private' | 'shared' | 'public' = 'private'): void {
     const user = auth.currentUser;
     if (!user) return;
     enqueueJob('match', match.id, {
       type: 'match',
       ownerId: user.uid,
       sharedWith,
+      visibility,
     }).catch((err) => {
       console.warn('Failed to enqueue match sync:', match.id, err);
     });
@@ -141,6 +142,7 @@ export const cloudSync = {
         type: 'match',
         ownerId: user.uid,
         sharedWith: [],
+        visibility: match.tournamentId ? 'public' : 'private',
       });
       enqueued++;
     }

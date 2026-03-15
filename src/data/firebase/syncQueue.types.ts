@@ -1,7 +1,7 @@
 export type SyncJobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'awaitingAuth';
 
 export type SyncJobContext =
-  | { type: 'match'; ownerId: string; sharedWith: string[] }
+  | { type: 'match'; ownerId: string; sharedWith: string[]; visibility?: 'private' | 'shared' | 'public' }
   | { type: 'tournament' }
   | { type: 'playerStats'; scorerUid: string };
 

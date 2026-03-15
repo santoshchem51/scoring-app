@@ -78,6 +78,11 @@ export const firestoreUserRepository = {
     return results.filter((p): p is UserProfile => p !== null);
   },
 
+  async updateProfileVisibility(userId: string, visibility: 'public' | 'private'): Promise<void> {
+    const ref = doc(firestore, 'users', userId);
+    await setDoc(ref, { profileVisibility: visibility, updatedAt: serverTimestamp() }, { merge: true });
+  },
+
   async searchByEmailPrefix(prefix: string, maxResults: number = 5): Promise<UserProfile[]> {
     const lower = prefix.toLowerCase();
     const q = query(

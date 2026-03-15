@@ -1,5 +1,6 @@
-import { createResource, createMemo, Show, For } from 'solid-js';
+import { createResource, createMemo, createSignal, createEffect, on, onCleanup, Show, For } from 'solid-js';
 import type { Component } from 'solid-js';
+import type { LiveNowMatch } from './components/LiveNowSection';
 import { useParams } from '@solidjs/router';
 import PageLayout from '../../shared/components/PageLayout';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';
@@ -7,8 +8,12 @@ import { useTournamentLive } from './hooks/useTournamentLive';
 import PoolTable from './components/PoolTable';
 import BracketView from './components/BracketView';
 import TournamentResults from './components/TournamentResults';
+import LiveNowSection from './components/LiveNowSection';
+import TournamentPhaseIndicator from './components/TournamentPhaseIndicator';
 import { statusLabels, statusColors, formatLabels } from './constants';
 import { InteractiveBackground } from '../../shared/canvas';
+import { getInProgressMatches } from './engine/matchFiltering';
+import SpectatorFooter from '../../shared/components/SpectatorFooter';
 
 const PublicTournamentPage: Component = () => {
   const params = useParams();
@@ -20,7 +25,7 @@ const PublicTournamentPage: Component = () => {
   );
 
   // Step 2: Subscribe to live updates once we have the tournament ID
-  const live = useTournamentLive(() => resolved()?.id);
+  const live = useTournamentLive(() => resolved()?.id, { skipRegistrations: true });
 
   // Use live data if available, fall back to resolved data during initial load
   const tournament = () => live.tournament() ?? resolved();
@@ -50,6 +55,110 @@ const PublicTournamentPage: Component = () => {
     const inPhase = ['bracket', 'completed'].includes(t.status);
     const hasBracketFormat = t.format === 'single-elimination' || t.format === 'pool-bracket';
     return inPhase && hasBracketFormat;
+  });
+
+  const inProgressMatches = createMemo(() => {
+    const { startedPoolMatches, bracketMatches } = getInProgressMatches(live.pools(), live.bracket());
+    const names = teamNames();
+
+    // Convert to LiveNowMatch format
+    const matches = [
+      ...startedPoolMatches.map((m) => ({
+        matchId: m.matchId,
+        team1Name: names[m.team1Id] ?? m.team1Id,
+        team2Name: names[m.team2Id] ?? m.team2Id,
+        court: m.court ?? undefined,
+        status: 'in-progress' as const,
+      })),
+      ...bracketMatches.map((s) => ({
+        matchId: s.matchId,
+        team1Name: names[s.team1Id ?? ''] ?? 'TBD',
+        team2Name: names[s.team2Id ?? ''] ?? 'TBD',
+        court: undefined,
+        status: 'in-progress' as const,
+      })),
+    ];
+    return matches;
+  });
+
+  // Track recently completed matches for 5-minute retention
+  const RETENTION_MS = 5 * 60 * 1000;
+  const [retainedMatches, setRetainedMatches] = createSignal<Map<string, { match: LiveNowMatch; completedAt: number }>>(new Map());
+
+  createEffect(on(inProgressMatches, (current, prev) => {
+    if (!prev) return; // first run, no previous value
+    const currentIds = new Set(current.map(m => m.matchId));
+    for (const match of prev) {
+      if (!currentIds.has(match.matchId)) {
+        setRetainedMatches(p => {
+          const next = new Map(p);
+          next.set(match.matchId, { match: { ...match, status: 'completed' as const }, completedAt: Date.now() });
+          return next;
+        });
+      }
+    }
+  }));
+
+  // Prune stale retained matches every 30s
+  let isMounted = true;
+
+  const pruneInterval = setInterval(() => {
+    if (!isMounted) return;
+    const now = Date.now();
+    const current = retainedMatches();
+    let hasStale = false;
+    for (const [, entry] of current) {
+      if (now - entry.completedAt > RETENTION_MS) { hasStale = true; break; }
+    }
+    if (!hasStale) return;
+    setRetainedMatches(prev => {
+      const next = new Map(prev);
+      for (const [id, entry] of next) {
+        if (now - entry.completedAt > RETENTION_MS) next.delete(id);
+      }
+      return next;
+    });
+  }, 30_000);
+
+  onCleanup(() => {
+    isMounted = false;
+    clearInterval(pruneInterval);
+  });
+
+  // Merge live + retained for LiveNowSection
+  const allVisibleMatches = createMemo(() => {
+    const liveMatches = inProgressMatches();
+    const retained = Array.from(retainedMatches().values()).map(r => r.match);
+    return [...liveMatches, ...retained];
+  });
+
+  const currentRound = createMemo(() => {
+    const pools = live.pools();
+    if (pools.length === 0) return undefined;
+    const rounds = pools.flatMap(p => p.schedule.filter(e => e.matchId != null).map(e => e.round));
+    return rounds.length > 0 ? Math.max(...rounds) : undefined;
+  });
+
+  const totalRounds = createMemo(() => {
+    const pools = live.pools();
+    if (pools.length === 0) return undefined;
+    const rounds = pools.flatMap(p => p.schedule.map(e => e.round));
+    return rounds.length > 0 ? Math.max(...rounds) : undefined;
+  });
+
+  const upcomingMatches = createMemo(() => {
+    const names = teamNames();
+    const upcoming = live.pools().flatMap((pool) =>
+      pool.schedule
+        .filter((entry) => entry.matchId == null)
+        .slice(0, 3)
+        .map((entry) => ({
+          team1Name: names[entry.team1Id] ?? entry.team1Id,
+          team2Name: names[entry.team2Id] ?? entry.team2Id,
+          court: entry.court ?? undefined,
+        }))
+    );
+    return upcoming.slice(0, 3);
   });
 
   // --- Render ---
@@ -86,6 +195,23 @@ const PublicTournamentPage: Component = () => {
                     </span>
                   </div>
                 </div>
+
+                {/* Tournament Phase Indicator */}
+                <Show when={['pool-play', 'bracket', 'completed'].includes(t().status)}>
+                  <TournamentPhaseIndicator
+                    status={t().status}
+                    liveMatchCount={inProgressMatches().length}
+                    currentRound={currentRound()}
+                    totalRounds={totalRounds()}
+                  />
+                </Show>
+
+                {/* Live Now Section */}
+                <LiveNowSection
+                  matches={allVisibleMatches()}
+                  tournamentCode={params.code}
+                  upcomingMatches={upcomingMatches()}
+                />
 
                 {/* Info Grid */}
                 <div class="grid grid-cols-2 gap-3">
@@ -158,6 +284,8 @@ const PublicTournamentPage: Component = () => {
                     />
                   </div>
                 </Show>
+
+                <SpectatorFooter />
               </>
             )}
           </Show>

@@ -1187,3 +1187,84 @@ describe('Achievements (/users/{uid}/achievements/{achievementId})', () => {
     );
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// PUBLIC TIER — Conditional reads (/users/{userId}/public/{docId})
+// ═══════════════════════════════════════════════════════════════════════
+
+describe('Public tier conditional reads (/users/{userId}/public/{docId})', () => {
+  beforeEach(async () => {
+    await getTestEnv().withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'users', 'user-public', 'public', 'tier'), {
+        tier: 'intermediate',
+        profileVisibility: 'public',
+        displayName: 'Test User',
+      });
+      await setDoc(doc(db, 'users', 'user-private', 'public', 'tier'), {
+        tier: 'beginner',
+        profileVisibility: 'private',
+        displayName: 'Private User',
+      });
+      await setDoc(doc(db, 'users', 'user-no-field', 'public', 'tier'), {
+        tier: 'beginner',
+      });
+    });
+  });
+
+  it('allows unauthenticated read when profileVisibility is public', async () => {
+    const db = unauthedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, 'users/user-public/public/tier')));
+  });
+
+  it('denies unauthenticated read when profileVisibility is private', async () => {
+    const db = unauthedContext().firestore();
+    await assertFails(getDoc(doc(db, 'users/user-private/public/tier')));
+  });
+
+  it('denies unauthenticated read when profileVisibility field is missing', async () => {
+    const db = unauthedContext().firestore();
+    await assertFails(getDoc(doc(db, 'users/user-no-field/public/tier')));
+  });
+
+  it('allows authenticated user to read any public tier doc', async () => {
+    const db = authedContext('random-user').firestore();
+    await assertSucceeds(getDoc(doc(db, 'users/user-private/public/tier')));
+  });
+
+  it('allows authenticated user to write their own public tier doc', async () => {
+    const db = authedContext('owner-1').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'users/owner-1/public/tier'), {
+        tier: 'advanced',
+        profileVisibility: 'public',
+        displayName: 'Owner',
+      }),
+    );
+  });
+
+  it('allows authenticated user to write another users public tier doc (scorer pattern)', async () => {
+    const db = authedContext('scorer-1').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'users/user-public/public/tier'), {
+        tier: 'advanced',
+        profileVisibility: 'public',
+        displayName: 'Test User',
+      }),
+    );
+  });
+
+  it('denies unauthenticated write to public tier doc', async () => {
+    const db = unauthedContext().firestore();
+    await assertFails(
+      setDoc(doc(db, 'users/user-public/public/tier'), {
+        tier: 'advanced',
+      }),
+    );
+  });
+
+  it('denies delete of public tier doc', async () => {
+    const db = authedContext('user-public').firestore();
+    await assertFails(deleteDoc(doc(db, 'users/user-public/public/tier')));
+  });
+});

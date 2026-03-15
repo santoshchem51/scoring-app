@@ -41,9 +41,9 @@ function toCloudMatch(
 }
 
 export const firestoreMatchRepository = {
-  async save(match: Match, ownerId: string, sharedWith: string[] = []): Promise<void> {
+  async save(match: Match, ownerId: string, sharedWith: string[] = [], visibility: 'private' | 'shared' | 'public' = 'private'): Promise<void> {
     const ref = doc(firestore, 'matches', match.id);
-    const cloudMatch = toCloudMatch(match, ownerId, sharedWith);
+    const cloudMatch = toCloudMatch(match, ownerId, sharedWith, visibility);
     await setDoc(ref, {
       ...cloudMatch,
       updatedAt: serverTimestamp(),

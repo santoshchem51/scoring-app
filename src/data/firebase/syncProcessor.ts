@@ -114,8 +114,8 @@ async function executeJobWork(job: SyncJob, uid: string): Promise<void> {
         (err as any).code = 'not-found';
         throw err;
       }
-      const ctx = job.context as { type: 'match'; ownerId: string; sharedWith: string[] };
-      await firestoreMatchRepository.save(match, uid, ctx.sharedWith);
+      const ctx = job.context as { type: 'match'; ownerId: string; sharedWith: string[]; visibility?: 'private' | 'shared' | 'public' };
+      await firestoreMatchRepository.save(match, uid, ctx.sharedWith, ctx.visibility);
       break;
     }
 

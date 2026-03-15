@@ -122,6 +122,7 @@ describe('cloudSync enqueue refactoring', () => {
           type: 'match',
           ownerId: 'test-user',
           sharedWith: ['buddy-1'],
+          visibility: 'private',
         });
       });
     });
