@@ -1,6 +1,7 @@
 import { Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useLiveMatch } from '../hooks/useLiveMatch';
+import { extractLiveScore, extractGameCount } from '../engine/scoreExtraction';
 
 interface Props {
   matchId: string;
@@ -11,35 +12,8 @@ interface Props {
 const LiveScoreCard: Component<Props> = (props) => {
   const { match, loading } = useLiveMatch(() => props.matchId);
 
-  const liveScore = () => {
-    const m = match();
-    if (!m) return { team1Score: 0, team2Score: 0 };
-    // Use lastSnapshot for in-progress scores (games array only has completed games)
-    if (m.lastSnapshot && m.status === 'in-progress') {
-      try {
-        const snap = typeof m.lastSnapshot === 'string' ? JSON.parse(m.lastSnapshot) : m.lastSnapshot;
-        return { team1Score: snap.team1Score ?? 0, team2Score: snap.team2Score ?? 0 };
-      } catch { /* fall through */ }
-    }
-    // Fallback to last completed game
-    if (m.games.length > 0) {
-      const last = m.games[m.games.length - 1];
-      return { team1Score: last.team1Score, team2Score: last.team2Score };
-    }
-    return { team1Score: 0, team2Score: 0 };
-  };
-
-  const gameCount = () => {
-    const m = match();
-    if (!m) return { team1: 0, team2: 0 };
-    let t1 = 0;
-    let t2 = 0;
-    for (const g of m.games) {
-      if (g.winningSide === 1) t1++;
-      else if (g.winningSide === 2) t2++;
-    }
-    return { team1: t1, team2: t2 };
-  };
+  const liveScore = () => extractLiveScore(match());
+  const gameCount = () => extractGameCount(match());
 
   return (
     <div class="bg-surface-light rounded-lg border border-surface-lighter overflow-hidden">
