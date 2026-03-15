@@ -27,6 +27,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Cloud Functions build output
+functions/lib/
+
 # Firebase
 .firebase/
 .firebaserc
