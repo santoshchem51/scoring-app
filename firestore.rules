@@ -55,7 +55,7 @@ service cloud.firestore {
       allow update: if request.auth != null && request.auth.uid == resource.data.ownerId
         && request.resource.data.ownerId == resource.data.ownerId
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['spectatorCount', 'tournamentShareCode', 'publicTeam1Name', 'publicTeam2Name']);
+            .hasAny(['spectatorCount', 'tournamentShareCode', 'publicTeam1Name', 'publicTeam2Name', 'tournamentId', 'visibility']);
 
       // Owner delete
       allow delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
@@ -67,7 +67,7 @@ service cloud.firestore {
       allow update: if request.auth != null && request.auth.uid in resource.data.sharedWith
         && request.resource.data.ownerId == resource.data.ownerId
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['spectatorCount', 'tournamentShareCode', 'publicTeam1Name', 'publicTeam2Name']);
+            .hasAny(['spectatorCount', 'tournamentShareCode', 'publicTeam1Name', 'publicTeam2Name', 'tournamentId', 'visibility']);
 
       // Public read (no auth required)
       allow read: if resource.data.visibility == 'public';

@@ -10,11 +10,8 @@ export interface GameCount {
   team2Wins: number;
 }
 
-const ZERO_SCORE: LiveScore = { team1Score: 0, team2Score: 0 };
-const ZERO_COUNT: GameCount = { team1Wins: 0, team2Wins: 0 };
-
 export function extractLiveScore(match: Match | undefined | null): LiveScore {
-  if (!match) return ZERO_SCORE;
+  if (!match) return { team1Score: 0, team2Score: 0 };
 
   if (match.lastSnapshot && match.status === 'in-progress') {
     try {
@@ -30,11 +27,11 @@ export function extractLiveScore(match: Match | undefined | null): LiveScore {
     return { team1Score: last.team1Score, team2Score: last.team2Score };
   }
 
-  return ZERO_SCORE;
+  return { team1Score: 0, team2Score: 0 };
 }
 
 export function extractGameCount(match: Match | undefined | null): GameCount {
-  if (!match) return ZERO_COUNT;
+  if (!match) return { team1Wins: 0, team2Wins: 0 };
 
   let t1 = 0;
   let t2 = 0;

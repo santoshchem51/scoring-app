@@ -668,7 +668,7 @@ const TournamentDashboardPage: Component = () => {
         winningSide: data.winningSide,
       };
       await matchRepository.save(updatedMatch);
-      cloudSync.syncMatchToCloud(updatedMatch);
+      cloudSync.syncMatchToCloud(updatedMatch, [], 'public');
 
       // Pool match: recalculate standings
       if (ctx.type === 'pool' && ctx.poolId) {

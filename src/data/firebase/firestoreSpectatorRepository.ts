@@ -52,6 +52,14 @@ export function buildSpectatorProjection(
   };
 }
 
+/**
+ * Write the spectator projection to Firestore.
+ * NOTE: This will only succeed via Firebase Admin SDK (Cloud Functions).
+ * Client-side calls will be denied by security rules (allow write: if false).
+ * For v1 (no Cloud Functions), the projection is written at match creation
+ * time using withSecurityRulesDisabled in tests, or deferred until Cloud
+ * Functions are set up.
+ */
 export async function writeSpectatorProjection(matchId: string, projection: SpectatorProjection): Promise<void> {
   const ref = doc(firestore, 'matches', matchId, 'public', 'spectator');
   await setDoc(ref, projection);

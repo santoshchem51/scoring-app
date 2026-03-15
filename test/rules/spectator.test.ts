@@ -151,4 +151,18 @@ describe('Field deny-list on match updates', () => {
       updateDoc(doc(db, `matches/${matchId}`), { spectatorCount: 99 }),
     );
   });
+
+  it('denies owner updating tournamentId', async () => {
+    const db = authedContext(ownerId).firestore();
+    await assertFails(
+      updateDoc(doc(db, `matches/${matchId}`), { tournamentId: 'hijacked-tournament' }),
+    );
+  });
+
+  it('denies owner updating visibility', async () => {
+    const db = authedContext(ownerId).firestore();
+    await assertFails(
+      updateDoc(doc(db, `matches/${matchId}`), { visibility: 'private' }),
+    );
+  });
 });
