@@ -681,88 +681,36 @@ service cloud.firestore {
     // ── Match References (/users/{userId}/matchRefs/{refId}) ──────────
     match /users/{userId}/matchRefs/{refId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null
-        && request.resource.data.matchId is string
-        && request.resource.data.completedAt is number
-        && request.resource.data.result in ['win', 'loss'];
+      // Cloud Function only (Admin SDK)
+      allow create: if false;
       allow update, delete: if false;
     }
 
     // ── Public tier (/users/{userId}/public/{docId}) ────────────────────
     // Public profiles readable without auth when profileVisibility is 'public'
     // Authenticated users can always read (for opponent tier lookups)
-    // Scorer writes public tier for all tournament participants, not just self
     match /users/{userId}/public/{docId} {
       allow read: if resource.data.profileVisibility == 'public';
       allow read: if request.auth != null;
-      allow create, update: if request.auth != null
-        && request.resource.data.tier in ['beginner', 'intermediate', 'advanced', 'expert'];
+      // Cloud Function only (Admin SDK)
+      allow create, update: if false;
       allow delete: if false;
     }
 
     // ── Stats Summary (/users/{userId}/stats/{docId}) ─────────────────
-    // Note: create/update allows any authenticated user because tournament
-    // scorekeepers write stats for all participants (cross-user writes).
     match /users/{userId}/stats/{docId} {
       allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update: if request.auth != null
-        && request.resource.data.totalMatches is number
-        && request.resource.data.winRate is number
-        && request.resource.data.winRate >= 0
-        && request.resource.data.winRate <= 1;
+      // Cloud Function only (Admin SDK)
+      allow create, update: if false;
       allow delete: if false;
     }
 
     // ── Leaderboard (/leaderboard/{uid}) ──────────────────────────────
-    // Note: create/update allows any authenticated user because tournament
-    // scorekeepers write leaderboard entries for all participants (cross-user writes).
     match /leaderboard/{uid} {
       allow read: if request.auth != null;
 
-      allow create: if request.auth != null
-        && request.resource.data.displayName is string
-        && request.resource.data.displayName.size() > 0
-        && request.resource.data.displayName.size() < 256
-        && request.resource.data.winRate is number
-        && request.resource.data.winRate >= 0
-        && request.resource.data.winRate <= 1
-        && request.resource.data.compositeScore is number
-        && request.resource.data.compositeScore >= 0
-        && request.resource.data.compositeScore <= 100
-        && request.resource.data.wins is number
-        && request.resource.data.totalMatches is number
-        && request.resource.data.wins <= request.resource.data.totalMatches
-        && request.resource.data.tier in ['beginner', 'intermediate', 'advanced', 'expert']
-        && request.resource.data.last30d is map
-        && request.resource.data.last30d.winRate is number
-        && request.resource.data.last30d.winRate >= 0
-        && request.resource.data.last30d.winRate <= 1
-        && request.resource.data.last30d.compositeScore is number
-        && request.resource.data.last30d.compositeScore >= 0
-        && request.resource.data.last30d.compositeScore <= 100;
-
-      allow update: if request.auth != null
-        && request.resource.data.displayName is string
-        && request.resource.data.displayName.size() > 0
-        && request.resource.data.displayName.size() < 256
-        && request.resource.data.winRate is number
-        && request.resource.data.winRate >= 0
-        && request.resource.data.winRate <= 1
-        && request.resource.data.compositeScore is number
-        && request.resource.data.compositeScore >= 0
-        && request.resource.data.compositeScore <= 100
-        && request.resource.data.wins is number
-        && request.resource.data.totalMatches is number
-        && request.resource.data.wins <= request.resource.data.totalMatches
-        && request.resource.data.tier in ['beginner', 'intermediate', 'advanced', 'expert']
-        && request.resource.data.last30d is map
-        && request.resource.data.last30d.winRate is number
-        && request.resource.data.last30d.winRate >= 0
-        && request.resource.data.last30d.winRate <= 1
-        && request.resource.data.last30d.compositeScore is number
-        && request.resource.data.last30d.compositeScore >= 0
-        && request.resource.data.last30d.compositeScore <= 100
-        && request.resource.data.createdAt == resource.data.createdAt;
+      // Cloud Function only (Admin SDK)
+      allow create, update: if false;
 
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
