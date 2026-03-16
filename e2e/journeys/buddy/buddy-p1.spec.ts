@@ -358,3 +358,203 @@ test.describe('@p1 Buddy: P1 Group & Session Features', () => {
     await captureScreen(page, testInfo, 'group-invite-page');
   });
 });
+
+test.describe('@p2 Buddy: P2 Edge Cases', () => {
+  test('@p2 BUD-P2-1: Completed session shows read-only state', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+
+    // Seed session with status: 'completed'
+    const seed = await seedGameSessionWithAccess(userUid, {
+      sessionTitle: 'Completed Session',
+      spotsTotal: 8,
+      status: 'completed',
+      sessionOverrides: { spotsConfirmed: 6 },
+    });
+
+    await page.goto(`/session/${seed.sessionId}`);
+    await expect(page.getByText('Completed Session')).toBeVisible({ timeout: 15000 });
+
+    // Assert: Status badge shows "Completed"
+    await expect(page.getByText('Completed', { exact: true })).toBeVisible({ timeout: 10000 });
+
+    // Assert: Session details still visible (date, location)
+    await expect(page.getByText('Test Courts')).toBeVisible({ timeout: 5000 });
+
+    // Assert: No RSVP section visible (canRsvp returns false for completed)
+    await expect(page.getByText('Your RSVP')).not.toBeVisible();
+
+    await captureScreen(page, testInfo, 'completed-session-read-only');
+  });
+
+  test('@p2 BUD-P2-2: Past sessions are displayed in group detail', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+
+    // Seed group with member
+    const groupSeed = await seedBuddyGroupWithMember(userUid, {
+      name: 'Past Sessions Group',
+      displayName: 'Test Player',
+    });
+
+    // Seed a completed session (past) for this group
+    const sessionId = uid('session');
+    const pastDate = Date.now() - 7 * 86400000; // 7 days ago
+    const session = makeGameSession({
+      id: sessionId,
+      groupId: groupSeed.groupId,
+      title: 'Old Game Night',
+      location: 'Past Courts',
+      status: 'completed',
+      visibility: 'private',
+      spotsTotal: 8,
+      spotsConfirmed: 6,
+      createdBy: userUid,
+      scheduledDate: pastDate,
+      shareCode: shareCode(),
+    });
+    await seedFirestoreDocAdmin(PATHS.gameSessions, sessionId, session);
+
+    await page.goto(`/buddies/${groupSeed.groupId}`);
+    await expect(page.getByRole('heading', { name: 'Past Sessions Group' })).toBeVisible({ timeout: 15000 });
+
+    // Past sessions are in a collapsible section — click to expand
+    const pastToggle = page.getByText(/Past Sessions \(/);
+    await expect(pastToggle).toBeVisible({ timeout: 10000 });
+    await pastToggle.click();
+
+    // Assert: Past session visible
+    await expect(page.getByText('Old Game Night')).toBeVisible({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'past-sessions-displayed');
+  });
+
+  test('@p2 BUD-P2-3: Deadline guard — RSVP section hidden after deadline', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+
+    // Seed session with rsvpDeadline in the past
+    const seed = await seedGameSessionWithAccess(userUid, {
+      sessionTitle: 'Deadline Passed Session',
+      spotsTotal: 8,
+      status: 'proposed',
+      sessionOverrides: { rsvpDeadline: Date.now() - 3600000 }, // 1 hour ago
+    });
+
+    await page.goto(`/session/${seed.sessionId}`);
+    await expect(page.getByText('Deadline Passed Session')).toBeVisible({ timeout: 15000 });
+
+    // Assert: Session details still visible
+    await expect(page.getByText('Test Courts')).toBeVisible({ timeout: 5000 });
+
+    // Assert: No RSVP section visible (canRsvp returns false when deadline passed)
+    await expect(page.getByText('Your RSVP')).not.toBeVisible();
+
+    await captureScreen(page, testInfo, 'rsvp-deadline-passed');
+  });
+
+  test('@p2 BUD-P2-4: Invalid group share code shows error', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    // Navigate to a nonexistent share code
+    await page.goto('/g/INVALID_CODE_99999');
+
+    // The GroupInvitePage fetches by share code; if not found, it shows a fallback
+    // Wait for loading to finish, then check for error/not found state
+    await page.waitForLoadState('domcontentloaded');
+
+    // Assert: either "not found" or error state visible
+    await expect(
+      page.getByText(/not found|Group not found|No group/i).first(),
+    ).toBeVisible({ timeout: 15000 });
+
+    await captureScreen(page, testInfo, 'invalid-share-code');
+  });
+
+  test('@p2 BUD-P2-5: Empty group shows no sessions state', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+
+    // Seed group with member but NO sessions
+    const groupSeed = await seedBuddyGroupWithMember(userUid, {
+      name: 'Empty Group',
+      displayName: 'Test Player',
+    });
+
+    await page.goto(`/buddies/${groupSeed.groupId}`);
+    await expect(page.getByRole('heading', { name: 'Empty Group' })).toBeVisible({ timeout: 15000 });
+
+    // Assert: "No upcoming sessions" empty state visible
+    await expect(page.getByText('No upcoming sessions')).toBeVisible({ timeout: 10000 });
+
+    // Assert: FAB (+ button) to create session is visible
+    const createButton = page.locator(`a[href="/buddies/${groupSeed.groupId}/session/new"]`);
+    await expect(createButton).toBeVisible({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'empty-group-no-sessions');
+  });
+
+  test('@p2 BUD-P2-6: Group detail shows member count', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+    const groupId = uid('group');
+    const code = shareCode();
+
+    // Seed a group with memberCount: 5
+    const group = makeBuddyGroup({
+      id: groupId,
+      name: 'Big Group',
+      description: 'A group with several members',
+      createdBy: userUid,
+      memberCount: 5,
+      shareCode: code,
+    });
+    await seedFirestoreDocAdmin(PATHS.buddyGroups, groupId, group);
+
+    // Seed current user as member so they have access
+    await seedFirestoreDocAdmin(PATHS.buddyMembers(groupId), userUid, {
+      displayName: 'Test Player',
+      photoURL: null,
+      role: 'admin',
+      joinedAt: Date.now(),
+    });
+
+    await page.goto(`/buddies/${groupId}`);
+    await expect(page.getByRole('heading', { name: 'Big Group' })).toBeVisible({ timeout: 15000 });
+
+    // Assert: "5 members" text visible
+    await expect(page.getByText('5 members')).toBeVisible({ timeout: 10000 });
+
+    await captureScreen(page, testInfo, 'group-member-count');
+  });
+
+  test('@p2 BUD-P2-7: Session with spotsTotal 0 renders without capacity error', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+
+    // Seed session with spotsTotal: 0 (could represent unlimited)
+    const seed = await seedGameSessionWithAccess(userUid, {
+      sessionTitle: 'Unlimited Spots Session',
+      spotsTotal: 0,
+      status: 'proposed',
+      sessionOverrides: { spotsConfirmed: 0, minPlayers: 0 },
+    });
+
+    await page.goto(`/session/${seed.sessionId}`);
+    await expect(page.getByText('Unlimited Spots Session')).toBeVisible({ timeout: 15000 });
+
+    // Assert: Page renders without crashing — session details visible
+    await expect(page.getByText('Test Courts')).toBeVisible({ timeout: 5000 });
+
+    // Assert: RSVP buttons are still available (session is active)
+    await expect(page.getByText('Your RSVP')).toBeVisible({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'unlimited-spots-session');
+  });
+});
