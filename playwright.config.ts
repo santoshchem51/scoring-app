@@ -13,7 +13,8 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   expect: { timeout: 10000 },
   use: {
-    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
   },
   projects: [
     {
@@ -22,6 +23,17 @@ export default defineConfig({
       use: {
         ...devices['Pixel 5'],
         baseURL: 'http://localhost:5199',
+      },
+    },
+    {
+      name: 'visual-qa',
+      testIgnore: ['**/smoke/**'],
+      use: {
+        ...devices['Pixel 5'],
+        baseURL: 'http://localhost:5199',
+        screenshot: 'on',
+        trace: 'on',
+        video: 'retain-on-first-retry',
       },
     },
     {
