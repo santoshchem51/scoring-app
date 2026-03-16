@@ -2,56 +2,65 @@
 import { test, expect } from '../../fixtures';
 import { seedFirestoreDocAdmin, getCurrentUserUid } from '../../helpers/emulator-auth';
 import { makeTournament, makeTeam, makePool, uid } from '../../helpers/factories';
+import { captureScreen } from '../../helpers/screenshots';
+
+async function seedScorekeeperTournament(userUid: string, role: string = 'scorekeeper') {
+  const ids = {
+    tournament: uid('tournament'),
+    team1: uid('team'),
+    team2: uid('team'),
+    pool: uid('pool'),
+  };
+
+  const tournament = makeTournament({
+    id: ids.tournament,
+    organizerId: 'other-organizer',
+    status: 'pool-play',
+    format: 'round-robin',
+    staff: { [userUid]: role },
+    staffUids: [userUid],
+    config: { poolCount: 2, poolSize: 4, gameType: 'doubles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
+  });
+  await seedFirestoreDocAdmin('tournaments', ids.tournament, tournament);
+
+  const team1 = makeTeam({ id: ids.team1, tournamentId: ids.tournament, name: 'Alpha Squad', poolId: ids.pool });
+  const team2 = makeTeam({ id: ids.team2, tournamentId: ids.tournament, name: 'Beta Squad', poolId: ids.pool });
+  await seedFirestoreDocAdmin(`tournaments/${ids.tournament}/teams`, ids.team1, team1);
+  await seedFirestoreDocAdmin(`tournaments/${ids.tournament}/teams`, ids.team2, team2);
+
+  const pool = makePool({
+    id: ids.pool,
+    tournamentId: ids.tournament,
+    name: 'Pool A',
+    teamIds: [ids.team1, ids.team2],
+    schedule: [
+      { matchId: null, team1Id: ids.team1, team2Id: ids.team2, round: 1, court: null },
+    ],
+    standings: [
+      { teamId: ids.team1, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
+      { teamId: ids.team2, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
+    ],
+  });
+  await seedFirestoreDocAdmin(`tournaments/${ids.tournament}/pools`, ids.pool, pool);
+
+  return ids;
+}
 
 test.describe('Staff P0: Scorekeeper Permissions', () => {
 
   // S1: scorekeeper sees "Matches to Score" list
   test('S1: scorekeeper sees match list on tournament dashboard', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
     const userUid = await getCurrentUserUid(page);
-    const tournamentId = uid('tournament');
-    const team1Id = uid('team');
-    const team2Id = uid('team');
-    const poolId = uid('pool');
-    const matchId = uid('match');
+    const ids = await seedScorekeeperTournament(userUid);
 
-    const tournament = makeTournament({
-      id: tournamentId,
-      organizerId: 'other-organizer',
-      status: 'pool-play',
-      format: 'round-robin',
-      staff: { [userUid]: 'scorekeeper' },
-      staffUids: [userUid],
-      config: { poolCount: 2, poolSize: 4, gameType: 'doubles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
-    });
-    await seedFirestoreDocAdmin('tournaments', tournamentId, tournament);
-
-    const team1 = makeTeam({ id: team1Id, tournamentId, name: 'Alpha Squad', poolId });
-    const team2 = makeTeam({ id: team2Id, tournamentId, name: 'Beta Squad', poolId });
-    await seedFirestoreDocAdmin(`tournaments/${tournamentId}/teams`, team1Id, team1);
-    await seedFirestoreDocAdmin(`tournaments/${tournamentId}/teams`, team2Id, team2);
-
-    const pool = makePool({
-      id: poolId,
-      tournamentId,
-      name: 'Pool A',
-      teamIds: [team1Id, team2Id],
-      schedule: [
-        { matchId: null, team1Id, team2Id, round: 1, court: null },
-      ],
-      standings: [
-        { teamId: team1Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
-        { teamId: team2Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
-      ],
-    });
-    await seedFirestoreDocAdmin(`tournaments/${tournamentId}/pools`, poolId, pool);
-
-    await page.goto(`/tournaments/${tournamentId}`);
+    await page.goto(`/tournaments/${ids.tournament}`);
 
     // Wait for positive element first
     await expect(page.getByText('Matches to Score')).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Alpha Squad vs Beta Squad')).toBeVisible({ timeout: 10000 });
+    await captureScreen(page, testInfo, 'staff-scorekeeper-matchlist');
   });
 
   // S2: scorekeeper taps Score → navigates to scoring page
@@ -59,43 +68,9 @@ test.describe('Staff P0: Scorekeeper Permissions', () => {
     authenticatedPage: page,
   }) => {
     const userUid = await getCurrentUserUid(page);
-    const tournamentId = uid('tournament');
-    const team1Id = uid('team');
-    const team2Id = uid('team');
-    const poolId = uid('pool');
+    const ids = await seedScorekeeperTournament(userUid);
 
-    const tournament = makeTournament({
-      id: tournamentId,
-      organizerId: 'other-organizer',
-      status: 'pool-play',
-      format: 'round-robin',
-      staff: { [userUid]: 'scorekeeper' },
-      staffUids: [userUid],
-      config: { poolCount: 2, poolSize: 4, gameType: 'doubles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
-    });
-    await seedFirestoreDocAdmin('tournaments', tournamentId, tournament);
-
-    const team1 = makeTeam({ id: team1Id, tournamentId, name: 'Alpha Squad', poolId });
-    const team2 = makeTeam({ id: team2Id, tournamentId, name: 'Beta Squad', poolId });
-    await seedFirestoreDocAdmin(`tournaments/${tournamentId}/teams`, team1Id, team1);
-    await seedFirestoreDocAdmin(`tournaments/${tournamentId}/teams`, team2Id, team2);
-
-    const pool = makePool({
-      id: poolId,
-      tournamentId,
-      name: 'Pool A',
-      teamIds: [team1Id, team2Id],
-      schedule: [
-        { matchId: null, team1Id, team2Id, round: 1, court: null },
-      ],
-      standings: [
-        { teamId: team1Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
-        { teamId: team2Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
-      ],
-    });
-    await seedFirestoreDocAdmin(`tournaments/${tournamentId}/pools`, poolId, pool);
-
-    await page.goto(`/tournaments/${tournamentId}`);
+    await page.goto(`/tournaments/${ids.tournament}`);
 
     // Wait for match list to appear
     await expect(page.getByText('Matches to Score')).toBeVisible({ timeout: 15000 });
@@ -114,43 +89,9 @@ test.describe('Staff P0: Scorekeeper Permissions', () => {
     authenticatedPage: page,
   }) => {
     const userUid = await getCurrentUserUid(page);
-    const tournamentId = uid('tournament');
-    const team1Id = uid('team');
-    const team2Id = uid('team');
-    const poolId = uid('pool');
+    const ids = await seedScorekeeperTournament(userUid);
 
-    const tournament = makeTournament({
-      id: tournamentId,
-      organizerId: 'other-organizer',
-      status: 'pool-play',
-      format: 'round-robin',
-      staff: { [userUid]: 'scorekeeper' },
-      staffUids: [userUid],
-      config: { poolCount: 2, poolSize: 4, gameType: 'doubles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
-    });
-    await seedFirestoreDocAdmin('tournaments', tournamentId, tournament);
-
-    const team1 = makeTeam({ id: team1Id, tournamentId, name: 'Alpha Squad', poolId });
-    const team2 = makeTeam({ id: team2Id, tournamentId, name: 'Beta Squad', poolId });
-    await seedFirestoreDocAdmin(`tournaments/${tournamentId}/teams`, team1Id, team1);
-    await seedFirestoreDocAdmin(`tournaments/${tournamentId}/teams`, team2Id, team2);
-
-    const pool = makePool({
-      id: poolId,
-      tournamentId,
-      name: 'Pool A',
-      teamIds: [team1Id, team2Id],
-      schedule: [
-        { matchId: null, team1Id, team2Id, round: 1, court: null },
-      ],
-      standings: [
-        { teamId: team1Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
-        { teamId: team2Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
-      ],
-    });
-    await seedFirestoreDocAdmin(`tournaments/${tournamentId}/pools`, poolId, pool);
-
-    await page.goto(`/tournaments/${tournamentId}`);
+    await page.goto(`/tournaments/${ids.tournament}`);
 
     // Wait for positive element first — scorekeeper should see Activity Log
     await expect(page.getByText('Activity Log')).toBeVisible({ timeout: 15000 });

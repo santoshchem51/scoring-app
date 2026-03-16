@@ -72,10 +72,10 @@ test.describe('Player: Tournament View Journeys', () => {
       name: 'Pool A',
       teamIds: teams.map(t => t.id),
       standings: [
-        { teamId: teams[0].id, teamName: 'Aces',     wins: 3, losses: 0, pointsFor: 33, pointsAgainst: 18, diff: 15 },
-        { teamId: teams[1].id, teamName: 'Blazers',  wins: 2, losses: 1, pointsFor: 30, pointsAgainst: 25, diff: 5 },
-        { teamId: teams[2].id, teamName: 'Crushers', wins: 1, losses: 2, pointsFor: 22, pointsAgainst: 28, diff: -6 },
-        { teamId: teams[3].id, teamName: 'Dynamos',  wins: 0, losses: 3, pointsFor: 15, pointsAgainst: 33, diff: -18 },
+        { teamId: teams[0].id, teamName: 'Aces',     wins: 3, losses: 0, pointsFor: 33, pointsAgainst: 18, pointDiff: 15 },
+        { teamId: teams[1].id, teamName: 'Blazers',  wins: 2, losses: 1, pointsFor: 30, pointsAgainst: 25, pointDiff: 5 },
+        { teamId: teams[2].id, teamName: 'Crushers', wins: 1, losses: 2, pointsFor: 22, pointsAgainst: 28, pointDiff: -6 },
+        { teamId: teams[3].id, teamName: 'Dynamos',  wins: 0, losses: 3, pointsFor: 15, pointsAgainst: 33, pointDiff: -18 },
       ],
     });
     await seedFirestoreDocAdmin(
@@ -106,6 +106,6 @@ test.describe('Player: Tournament View Journeys', () => {
     await expect(standingsSection.getByText('L')).toBeVisible();
     await expect(standingsSection.getByText('PF')).toBeVisible();
     await expect(standingsSection.getByText('PA')).toBeVisible();
-    await expect(standingsSection.getByText('Diff')).toBeVisible();
+    await expect(standingsSection.getByText('+/-')).toBeVisible();
   });
 });

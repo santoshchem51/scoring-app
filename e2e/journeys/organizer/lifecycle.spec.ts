@@ -1,7 +1,9 @@
 // e2e/journeys/organizer/lifecycle.spec.ts
 import { test, expect } from '../../fixtures';
 import { seedFirestoreDocAdmin, getCurrentUserUid, goToTournamentDashboard } from '../../helpers/emulator-auth';
-import { makeTournament, makeTeam, makePool, makeBracketSlot, uid } from '../../helpers/factories';
+import { makeTournament, makeTeam, uid } from '../../helpers/factories';
+import { ScoringPage } from '../../pages/ScoringPage';
+import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('Organizer P0: Pool-Bracket Full Lifecycle (DASH-11)', () => {
 
@@ -10,7 +12,7 @@ test.describe('Organizer P0: Pool-Bracket Full Lifecycle (DASH-11)', () => {
   // following the pattern from dashboard.spec.ts.
   test('pool-bracket lifecycle: setup -> registration -> pool-play -> bracket -> completed', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
     const userUid = await getCurrentUserUid(page);
 
     // ── Step 1: Create tournament in setup status ────────────────────
@@ -73,6 +75,7 @@ test.describe('Organizer P0: Pool-Bracket Full Lifecycle (DASH-11)', () => {
       await goToTournamentDashboard(page, tournamentId);
       await expect(page.getByText('Pool Play')).toBeVisible({ timeout: 10000 });
       await expect(page.getByText('Pool Standings')).toBeVisible({ timeout: 15000 });
+      await captureScreen(page, testInfo, 'organizer-lifecycle-poolplay');
     });
 
     // ── Steps 6-7: Seed scored pool matches and advance to bracket ───
@@ -97,7 +100,9 @@ test.describe('Organizer P0: Pool-Bracket Full Lifecycle (DASH-11)', () => {
       const scoreButtons = page.getByRole('button', { name: 'Score' });
       const scoreCount = await scoreButtons.count();
 
-      // For each unscored match, click Score to create the match, score it, then come back
+      const scoring = new ScoringPage(page);
+
+      // For each unscored match, click Score, score it via POM, then come back
       for (let i = 0; i < scoreCount; i++) {
         await goToTournamentDashboard(page, tournamentId);
         await expect(page.getByText('Pool Play')).toBeVisible({ timeout: 10000 });
@@ -110,26 +115,10 @@ test.describe('Organizer P0: Pool-Bracket Full Lifecycle (DASH-11)', () => {
         await btn.click();
         await expect(page).toHaveURL(/\/score\//, { timeout: 15000 });
 
-        // We're on the scoring page — score the match quickly by tapping team 1 to 11
-        // The scoring page has tap zones for team 1 and team 2
-        for (let pt = 0; pt < 11; pt++) {
-          // Use the left side tap zone (team 1)
-          const tapZone = page.locator('[data-testid="team1-tap-zone"]');
-          const tapVisible = await tapZone.isVisible().catch(() => false);
-          if (tapVisible) {
-            await tapZone.click();
-          } else {
-            // Fallback: try the team 1 score area
-            const team1Area = page.locator('.tap-zone-left, [data-team="1"]').first();
-            const areaVisible = await team1Area.isVisible().catch(() => false);
-            if (areaVisible) {
-              await team1Area.click();
-            }
-          }
-        }
-
-        // Wait briefly for the match to complete, then navigate back
-        await page.waitForTimeout(1000);
+        // Score the match using the ScoringPage POM
+        await scoring.scorePoints('Team 1', 11);
+        await scoring.expectMatchOver();
+        await scoring.saveAndFinish();
       }
 
       // If we couldn't score through UI, seed the pool data directly
@@ -186,19 +175,14 @@ test.describe('Organizer P0: Pool-Bracket Full Lifecycle (DASH-11)', () => {
       const hasScoreMatch = await scoreMatchBtn.isVisible().catch(() => false);
 
       if (hasScoreMatch) {
-        // Score the bracket match through UI
+        // Score the bracket match through UI using ScoringPage POM
         await scoreMatchBtn.click();
         await expect(page).toHaveURL(/\/score\//, { timeout: 15000 });
 
-        // Score team 1 to win
-        for (let pt = 0; pt < 11; pt++) {
-          const tapZone = page.locator('[data-testid="team1-tap-zone"]');
-          const tapVisible = await tapZone.isVisible().catch(() => false);
-          if (tapVisible) {
-            await tapZone.click();
-          }
-        }
-        await page.waitForTimeout(1000);
+        const scoring = new ScoringPage(page);
+        await scoring.scorePoints('Team 1', 11);
+        await scoring.expectMatchOver();
+        await scoring.saveAndFinish();
         await goToTournamentDashboard(page, tournamentId);
       }
 

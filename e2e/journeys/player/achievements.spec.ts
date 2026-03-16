@@ -1,6 +1,5 @@
 import { test, expect } from '../../fixtures';
 import {
-  signInAsTestUser,
   getCurrentUserUid,
   seedFirestoreDocAdmin,
 } from '../../helpers/emulator-auth';
@@ -12,7 +11,6 @@ import {
 } from '../../helpers/factories';
 import { GameSetupPage } from '../../pages/GameSetupPage';
 import { ScoringPage } from '../../pages/ScoringPage';
-import { randomUUID } from 'crypto';
 
 test.describe('Player: Achievement Journeys', () => {
 
@@ -187,12 +185,10 @@ test.describe('Player: Achievement Journeys', () => {
     if (bellVisible) {
       await bellButton.click();
       // Check for a notification about the tournament or achievement
-      await expect(
-        page.getByText(/achievement|tournament|match/i),
-      ).toBeVisible({ timeout: 5000 }).catch(() => {
-        // Notification panel may be empty — this is an expected limitation
-        // in E2E where Cloud Functions aren't running
-      });
+      // NOTE: Notification content assertion deferred — Cloud Functions
+      // don't run in E2E, so the notification panel may be empty.
+      // Once Cloud Functions are available in E2E, assert:
+      //   await expect(page.getByText(/achievement|tournament|match/i)).toBeVisible({ timeout: 5000 });
     }
     // NOTE: Notification assertion deferred — depends on Cloud Functions
     // triggering notifications after match completion.

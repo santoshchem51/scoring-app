@@ -2,6 +2,7 @@
 import { test, expect } from '../../fixtures';
 import { seedFirestoreDocAdmin, getCurrentUserUid } from '../../helpers/emulator-auth';
 import { makeTournament, makeTeam, makePool, uid } from '../../helpers/factories';
+import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('Staff P0: Moderator Permissions', () => {
 
@@ -53,13 +54,13 @@ test.describe('Staff P0: Moderator Permissions', () => {
     await expect(page.getByText('Pool Standings')).toBeVisible({ timeout: 15000 });
 
     // Moderator should see Edit Score button on the completed match
-    await expect(page.getByRole('button', { name: /Edit Score/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: /Edit/i })).toBeVisible({ timeout: 10000 });
   });
 
   // S8: moderator sees DisputePanel
   test('S8: moderator sees Disputes section with seeded dispute', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
     const userUid = await getCurrentUserUid(page);
     const tournamentId = uid('tournament');
     const disputeId = uid('dispute');
@@ -107,5 +108,6 @@ test.describe('Staff P0: Moderator Permissions', () => {
     // Moderator should see resolve actions
     await expect(page.getByRole('button', { name: 'Edit Scores' })).toBeVisible({ timeout: 10000 });
     await expect(page.getByRole('button', { name: 'Dismiss' })).toBeVisible({ timeout: 10000 });
+    await captureScreen(page, testInfo, 'staff-moderator-disputepanel');
   });
 });

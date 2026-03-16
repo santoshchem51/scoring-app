@@ -5,15 +5,9 @@ import { NavigationBar } from '../../pages/NavigationBar';
 import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('Casual Scorer: Core Journeys', () => {
-  let setup: GameSetupPage;
-  let scoring: ScoringPage;
-
-  test.beforeEach(async ({ page }) => {
-    setup = new GameSetupPage(page);
-    scoring = new ScoringPage(page);
-  });
 
   test('CS-1: landing page Start Scoring navigates to game setup', async ({ page }) => {
+    const setup = new GameSetupPage(page);
     await page.goto('/');
     await expect(page.getByText(/start scoring/i)).toBeVisible({ timeout: 10000 });
     await page.getByRole('link', { name: /start scoring/i }).click();
@@ -21,6 +15,8 @@ test.describe('Casual Scorer: Core Journeys', () => {
   });
 
   test('CS-3: best-of-3 plays through game boundary', async ({ page }, testInfo) => {
+    const setup = new GameSetupPage(page);
+    const scoring = new ScoringPage(page);
     await setup.goto();
     await setup.selectRallyScoring();
     await setup.selectBestOf(3);
@@ -43,6 +39,8 @@ test.describe('Casual Scorer: Core Journeys', () => {
   });
 
   test('CS-4: doubles sideout serving restrictions + score call', async ({ page }, testInfo) => {
+    const setup = new GameSetupPage(page);
+    const scoring = new ScoringPage(page);
     await setup.goto();
     await setup.selectDoubles();
     await setup.selectSideoutScoring();
@@ -63,6 +61,8 @@ test.describe('Casual Scorer: Core Journeys', () => {
   });
 
   test('CS-6: rally scoring win-by-2 enforced', async ({ page }, testInfo) => {
+    const setup = new GameSetupPage(page);
+    const scoring = new ScoringPage(page);
     await setup.goto();
     await setup.selectRallyScoring();
     await setup.startGame();
@@ -84,6 +84,8 @@ test.describe('Casual Scorer: Core Journeys', () => {
   });
 
   test('CS-2: quick game to completion appears in history', async ({ page }) => {
+    const setup = new GameSetupPage(page);
+    const scoring = new ScoringPage(page);
     await setup.goto();
     await setup.quickGame();
     await scoring.expectOnScoringScreen();
@@ -94,10 +96,12 @@ test.describe('Casual Scorer: Core Journeys', () => {
 
     const nav = new NavigationBar(page);
     await nav.goToHistory();
-    await expect(page.getByText(/11/)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/11\s*-\s*0/)).toBeVisible({ timeout: 10000 });
   });
 
   test('CS-16: match history persists across reload', async ({ page }) => {
+    const setup = new GameSetupPage(page);
+    const scoring = new ScoringPage(page);
     await setup.goto();
     await setup.quickGame();
     await scoring.expectOnScoringScreen();
@@ -107,9 +111,9 @@ test.describe('Casual Scorer: Core Journeys', () => {
 
     const nav = new NavigationBar(page);
     await nav.goToHistory();
-    await expect(page.getByText(/11/)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/11\s*-\s*0/)).toBeVisible({ timeout: 10000 });
 
     await page.reload();
-    await expect(page.getByText(/11/)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/11\s*-\s*0/)).toBeVisible({ timeout: 10000 });
   });
 });

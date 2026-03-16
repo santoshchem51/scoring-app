@@ -47,21 +47,13 @@ test.describe('Cross-Cutting: Sync Journeys', () => {
     await page.goto('/settings');
     await expect(page.getByText('Cloud Sync')).toBeVisible({ timeout: 10000 });
 
-    // Verify sync error indicator or retry button is visible
-    // The sync system should show failed state after Firestore errors
-    const syncSection = page.locator('text=Cloud Sync').locator('..');
+    // Wait for sync to attempt and fail — poll for error/retry state
     const retryBtn = page.getByRole('button', { name: /retry|sync now/i });
-
-    // Wait for sync to attempt and fail
-    await page.waitForTimeout(3000);
-
-    // Check for error indicator
-    const syncIndicator = page.locator('[data-testid="sync-indicator"]');
-    const indicatorVisible = await syncIndicator.isVisible().catch(() => false);
-    if (indicatorVisible) {
-      // Indicator should show error/failed state
-      await expect(syncIndicator).toBeVisible();
-    }
+    await expect(async () => {
+      const hasError = await page.getByText(/failed|error/i).isVisible().catch(() => false);
+      const hasRetry = await retryBtn.isVisible().catch(() => false);
+      expect(hasError || hasRetry).toBe(true);
+    }).toPass({ timeout: 15000 });
 
     // Remove the route intercepts to allow recovery
     await page.unroute('**/firestore.googleapis.com/**');
@@ -71,16 +63,10 @@ test.describe('Cross-Cutting: Sync Journeys', () => {
     await expect(retryBtn).toBeVisible({ timeout: 5000 });
     await retryBtn.click();
 
-    // Verify sync recovers — indicator should settle to idle/success
+    // Verify sync recovers — error text should disappear
     await expect(async () => {
-      const indicator = page.locator('[data-testid="sync-indicator"]');
-      const isVisible = await indicator.isVisible();
-      if (isVisible) {
-        // If still visible, it should not show "failed" or "error"
-        const text = await indicator.textContent();
-        expect(text).not.toMatch(/failed|error/i);
-      }
-      // If not visible, sync has settled to idle — success
+      const hasError = await page.getByText(/failed|error/i).isVisible().catch(() => false);
+      expect(hasError).toBe(false);
     }).toPass({ timeout: 15000 });
   });
 
@@ -158,18 +144,10 @@ test.describe('Cross-Cutting: Sync Journeys', () => {
     await page.goto('/settings');
     await expect(page.getByText('Cloud Sync')).toBeVisible({ timeout: 10000 });
 
-    // Wait for sync to process both matches
-    // The sync indicator should eventually settle (not stuck in syncing/failed)
+    // Wait for sync to process both matches — error text should not persist
     await expect(async () => {
-      const indicator = page.locator('[data-testid="sync-indicator"]');
-      const isVisible = await indicator.isVisible();
-      if (isVisible) {
-        const text = await indicator.textContent();
-        // Should not be in failed state
-        expect(text).not.toMatch(/failed|error/i);
-        // Should not be actively syncing forever
-        // (allow "syncing" briefly, but eventually it should settle)
-      }
+      const hasError = await page.getByText(/failed|error/i).isVisible().catch(() => false);
+      expect(hasError).toBe(false);
     }).toPass({ timeout: 25000 });
 
     // Verify via Firestore emulator that matches exist

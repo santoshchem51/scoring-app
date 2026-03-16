@@ -4,15 +4,10 @@ import { ScoringPage } from '../../pages/ScoringPage';
 import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('Casual Scorer: Offline & Resume', () => {
-  let setup: GameSetupPage;
-  let scoring: ScoringPage;
-
-  test.beforeEach(async ({ page }) => {
-    setup = new GameSetupPage(page);
-    scoring = new ScoringPage(page);
-  });
 
   test('CS-7: match resume restores full snapshot', async ({ page }, testInfo) => {
+    const setup = new GameSetupPage(page);
+    const scoring = new ScoringPage(page);
     await setup.goto();
     await setup.selectRallyScoring();
     await setup.selectBestOf(3);
@@ -34,6 +29,8 @@ test.describe('Casual Scorer: Offline & Resume', () => {
   });
 
   test('CS-8: go offline mid-match, continue scoring', async ({ page, context }, testInfo) => {
+    const setup = new GameSetupPage(page);
+    const scoring = new ScoringPage(page);
     await setup.goto();
     await setup.selectRallyScoring();
     await setup.startGame();
@@ -56,6 +53,8 @@ test.describe('Casual Scorer: Offline & Resume', () => {
   });
 
   test('CS-9: undo sequences and boundary behavior', async ({ page }) => {
+    const setup = new GameSetupPage(page);
+    const scoring = new ScoringPage(page);
     await setup.goto();
     await setup.selectRallyScoring();
     await setup.startGame();
