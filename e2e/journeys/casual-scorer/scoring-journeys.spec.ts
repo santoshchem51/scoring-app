@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import { GameSetupPage } from '../../pages/GameSetupPage';
 import { ScoringPage } from '../../pages/ScoringPage';
 import { NavigationBar } from '../../pages/NavigationBar';
+import { PlayersPage } from '../../pages/PlayersPage';
 import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('@p0 Casual Scorer: Core Journeys', () => {
@@ -410,5 +411,57 @@ test.describe('@p1 Casual Scorer: P1 Journeys', () => {
     // Team 1 at game point (14 >= 14, 14 > 13)
     await scoring.expectGamePoint();
     await captureScreen(page, testInfo, 'cs18-game-point-14-13');
+  });
+});
+
+test.describe('@p2 Casual Scorer: P2 Edge Cases', () => {
+
+  test('CS-19: invalid match ID navigates to error state', async ({ page }, testInfo) => {
+    await page.goto('/score/nonexistent-match-id-12345');
+
+    // Wait for error state: "Match not found" text
+    await expect(page.getByText('Match not found')).toBeVisible({ timeout: 15000 });
+    await captureScreen(page, testInfo, 'cs19-invalid-match-error');
+
+    // Positive: verify recovery link exists (Back to Home)
+    const backLink = page.getByRole('link', { name: /Back to Home/i });
+    await expect(backLink).toBeVisible();
+
+    // Positive: verify the page renders content (not blank)
+    const bodyText = await page.locator('body').innerText();
+    expect(bodyText.trim().length).toBeGreaterThan(0);
+    await captureScreen(page, testInfo, 'cs19-invalid-match-id');
+  });
+
+  test('CS-20: player CRUD — add, delete with confirmation, empty name validation', async ({ page }, testInfo) => {
+    const players = new PlayersPage(page);
+    await players.goto();
+
+    // Verify empty state first
+    await players.expectEmpty({ timeout: 10000 });
+    await captureScreen(page, testInfo, 'cs20-players-empty');
+
+    // Try to add a player with empty name — click Add without filling name
+    await page.getByRole('button', { name: 'Add' }).click();
+
+    // Assert: validation error or player NOT added (empty state still visible)
+    const validationError = page.getByText(/required|enter.*name|name.*empty|cannot be empty/i);
+    const validationVisible = await validationError.isVisible().catch(() => false);
+    const stillEmpty = await page.getByText('No Players Yet').isVisible().catch(() => false);
+    expect(validationVisible || stillEmpty).toBe(true);
+    await captureScreen(page, testInfo, 'cs20-empty-name-validation');
+
+    // Add a player "Test Player"
+    await players.addPlayer('Test Player');
+    await players.expectPlayer('Test Player');
+    await players.expectInputCleared();
+    await captureScreen(page, testInfo, 'cs20-player-added');
+
+    // Delete the player — deletePlayer handles clicking the delete button and confirming
+    await players.deletePlayer('Test Player');
+
+    // Assert player is removed
+    await players.expectPlayerGone('Test Player', { timeout: 10000 });
+    await captureScreen(page, testInfo, 'cs20-player-deleted');
   });
 });
