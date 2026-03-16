@@ -170,7 +170,9 @@ test.describe('@p1 Player: P1 Tournament Journeys', () => {
     await expect(page.getByRole('tab', { name: 'My Tournaments' })).toBeVisible({ timeout: 15000 });
     await captureScreen(page, testInfo, 'pl2-initial-load');
 
-    // Click "My Tournaments" tab
+    // NOTE: Smart tab defaulting (auto-selecting "My Tournaments") depends on Firestore
+    // queries that may not match emulator-seeded data. Click the tab explicitly to verify
+    // content, then revisit smart defaulting once the query is confirmed working.
     await page.getByRole('tab', { name: 'My Tournaments' }).click();
 
     // Verify user's tournament is visible in the My Tournaments tab
