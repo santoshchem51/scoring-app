@@ -1,5 +1,5 @@
 // e2e/fixtures.ts
-import { test as base } from '@playwright/test';
+import { test as base, devices } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { signInAsTestUser } from './helpers/emulator-auth';
 import { randomUUID } from 'crypto';
@@ -11,6 +11,8 @@ type E2EFixtures = {
   testUserEmail: string;
   /** A page that's already navigated to the app and signed in. */
   authenticatedPage: Page;
+  /** A second authenticated page in a separate browser context (Pixel 5). */
+  secondAuthenticatedPage: Page;
 };
 
 export const test = base.extend<E2EFixtures>({
@@ -22,5 +24,17 @@ export const test = base.extend<E2EFixtures>({
     await page.goto('/');
     await signInAsTestUser(page, { email: testUserEmail });
     await use(page);
+  },
+
+  secondAuthenticatedPage: async ({ browser }, use) => {
+    const context = await browser.newContext({
+      ...devices['Pixel 5'],
+    });
+    const page = await context.newPage();
+    const email = `e2e-second-${randomUUID().slice(0, 8)}@test.com`;
+    await page.goto('/');
+    await signInAsTestUser(page, { email });
+    await use(page);
+    await context.close();
   },
 });
