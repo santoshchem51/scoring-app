@@ -17,7 +17,7 @@ export function makeTournament(overrides: Record<string, unknown> = {}) {
     date: Date.now() + 86400000,
     location: 'Test Courts',
     format: 'round-robin',
-    config: { poolCount: 0, poolSize: 0, advanceCount: 0, consolation: false, thirdPlace: false },
+    config: { gameType: 'singles', scoringMode: 'rally', matchFormat: 'single', pointsToWin: 11, poolCount: 1, teamsPerPoolAdvancing: 2 },
     organizerId: 'test-organizer',
     staff: {},
     staffUids: [],
@@ -171,7 +171,7 @@ export function makeMatchRefSeed(overrides: Record<string, unknown> = {}) {
       startedAt: Date.now() - 7200000,
       completedAt: Date.now() - 3600000,
       gameType: 'singles',
-      scoringMode: 'sideout',
+      scoringMode: 'rally',
       result: 'win',
       scores: '11-7, 11-4',
       gameScores: [],
@@ -205,12 +205,34 @@ export function makeScoreEvent(matchId: string, overrides: Record<string, unknow
 }
 
 export function makePublicMatch(ownerId: string, overrides: Record<string, unknown> = {}) {
-  return {
+  const status = (overrides.status as string) ?? 'in-progress';
+  const team1Score = (overrides.team1Score as number) ?? 0;
+  const team2Score = (overrides.team2Score as number) ?? 0;
+
+  // Status-driven defaults for co-fields
+  let statusDefaults: Record<string, unknown> = {};
+  if (status === 'in-progress') {
+    statusDefaults = {
+      lastSnapshot: JSON.stringify({ team1Score, team2Score, gameNumber: 1 }),
+      games: [],
+      winningSide: null,
+      completedAt: null,
+    };
+  } else if (status === 'completed') {
+    const winningSide = team1Score >= team2Score ? 1 : 2;
+    statusDefaults = {
+      games: [{ gameNumber: 1, team1Score: team1Score || 11, team2Score: team2Score || 5, winningSide }],
+      winningSide,
+      completedAt: Date.now(),
+    };
+  }
+
+  const merged = {
     id: uid('match'),
     config: {
       gameType: 'singles',
       scoringMode: 'rally',
-      matchFormat: 'best-of-3',
+      matchFormat: 'single',
       pointsToWin: 11,
     },
     team1PlayerIds: [],
@@ -219,15 +241,22 @@ export function makePublicMatch(ownerId: string, overrides: Record<string, unkno
     team2Name: 'Team Beta',
     games: [],
     winningSide: null,
-    status: 'in-progress',
+    status,
     startedAt: Date.now(),
     completedAt: null,
     ownerId,
     sharedWith: [],
     visibility: 'public',
     syncedAt: Date.now(),
+    ...statusDefaults,
     ...overrides,
   };
+
+  // Remove helper-only fields that are not real match fields
+  delete merged.team1Score;
+  delete merged.team2Score;
+
+  return merged;
 }
 
 export function makeSpectatorProjection(overrides: Record<string, unknown> = {}) {
