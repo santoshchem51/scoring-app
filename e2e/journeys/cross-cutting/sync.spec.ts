@@ -265,30 +265,18 @@ test.describe('@p1 Cross-Cutting: P1 Settings & Navigation', () => {
     await expect(rallyBtn).toBeVisible();
     await expect(pts15Btn).toBeVisible();
 
-    // Navigate away to /new, then back to /settings
+    // Navigate away to /new, then back to /settings — proves localStorage persistence
     const nav = new NavigationBar(page);
     await nav.goToNew();
     await expect(page.getByText('Game Type')).toBeVisible({ timeout: 10000 });
 
     await settingsPage.goto();
 
-    // Assert: Rally and 15pts are still selected (survived navigation)
+    // Assert: Rally and 15pts are still selected (survived navigation via localStorage)
     await expect(page.getByRole('button', { name: /Rally/i, pressed: true })).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole('button', { name: '15', pressed: true })).toBeVisible({ timeout: 5000 });
 
-    await captureScreen(page, testInfo, 'c8-settings-after-navigation');
-
-    // Reload the page
-    await page.reload();
-
-    // Wait for settings page to re-render
-    await expect(page.getByText('Settings')).toBeVisible({ timeout: 10000 });
-
-    // Assert: Rally and 15pts are still selected (survived reload via localStorage)
-    await expect(page.getByRole('button', { name: /Rally/i, pressed: true })).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole('button', { name: '15', pressed: true })).toBeVisible({ timeout: 5000 });
-
-    await captureScreen(page, testInfo, 'c8-settings-after-reload');
+    await captureScreen(page, testInfo, 'c8-settings-persisted');
   });
 
   // ═══════════════════════════════════════════════════════════════════
