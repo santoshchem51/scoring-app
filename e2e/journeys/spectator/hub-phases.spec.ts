@@ -6,78 +6,11 @@ import {
   makePool,
   makeBracketSlot,
 } from '../../helpers/factories';
-
-// --- Config ---
-const FIRESTORE_URL = 'http://127.0.0.1:8180';
-const PROJECT_ID = 'picklescore-b0a71';
-
-// --- Firestore helpers (same pattern as layer8-features.spec.ts) ---
-
-async function clearEmulator() {
-  await fetch(
-    `${FIRESTORE_URL}/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`,
-    { method: 'DELETE' },
-  );
-}
-
-function toFirestoreFields(obj: Record<string, unknown>): Record<string, unknown> {
-  const fields: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string') fields[key] = { stringValue: value };
-    else if (typeof value === 'number') fields[key] = { integerValue: String(value) };
-    else if (typeof value === 'boolean') fields[key] = { booleanValue: value };
-    else if (value === null) fields[key] = { nullValue: null };
-    else if (Array.isArray(value))
-      fields[key] = {
-        arrayValue: {
-          values: value.map((v) => {
-            if (typeof v === 'string') return { stringValue: v };
-            if (typeof v === 'number') return { integerValue: String(v) };
-            if (typeof v === 'boolean') return { booleanValue: v };
-            if (v === null) return { nullValue: null };
-            if (typeof v === 'object')
-              return { mapValue: { fields: toFirestoreFields(v as Record<string, unknown>) } };
-            return { stringValue: String(v) };
-          }),
-        },
-      };
-    else if (typeof value === 'object')
-      fields[key] = {
-        mapValue: { fields: toFirestoreFields(value as Record<string, unknown>) },
-      };
-  }
-  return fields;
-}
-
-async function seedDoc(path: string, data: Record<string, unknown>) {
-  const parts = path.split('/');
-  const collectionPath = parts.slice(0, -1).join('/');
-  const docId = parts[parts.length - 1];
-
-  const resp = await fetch(
-    `${FIRESTORE_URL}/v1/projects/${PROJECT_ID}/databases/(default)/documents/${collectionPath}?documentId=${docId}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer owner',
-      },
-      body: JSON.stringify({ fields: toFirestoreFields(data) }),
-    },
-  );
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`seedDoc(${path}) failed ${resp.status}: ${text}`);
-  }
-}
+import { seedDoc } from './spectator-helpers';
 
 // --- Tests ---
 
 test.describe('Spectator Hub: Tournament Phase Rendering', () => {
-  test.beforeEach(async () => {
-    await clearEmulator();
-  });
-
   test('hub in registration status shows tournament name and registration info', async ({
     page,
   }, testInfo) => {
@@ -175,8 +108,8 @@ test.describe('Spectator Hub: Tournament Phase Rendering', () => {
       team1Id: 'team-c',
       team2Id: 'team-d',
     });
-    await seedDoc(`tournaments/${tournamentId}/bracketSlots/${slot1.id}`, slot1);
-    await seedDoc(`tournaments/${tournamentId}/bracketSlots/${slot2.id}`, slot2);
+    await seedDoc(`tournaments/${tournamentId}/bracket/${slot1.id}`, slot1);
+    await seedDoc(`tournaments/${tournamentId}/bracket/${slot2.id}`, slot2);
 
     await page.goto(`/t/${shareCode}`);
     await expect(page.getByText('Bracket Bash 2026')).toBeVisible({ timeout: 10_000 });

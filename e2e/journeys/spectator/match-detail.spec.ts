@@ -4,82 +4,18 @@ import {
   makePublicMatch,
   makeSpectatorProjection,
   makeScoreEvent,
+  uid,
+  shareCode as makeShareCode,
 } from '../../helpers/factories';
-
-// --- Config ---
-const FIRESTORE_URL = 'http://127.0.0.1:8180';
-const PROJECT_ID = 'picklescore-b0a71';
-
-// --- Firestore helpers ---
-
-async function clearEmulator() {
-  await fetch(
-    `${FIRESTORE_URL}/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`,
-    { method: 'DELETE' },
-  );
-}
-
-function toFirestoreFields(obj: Record<string, unknown>): Record<string, unknown> {
-  const fields: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string') fields[key] = { stringValue: value };
-    else if (typeof value === 'number') fields[key] = { integerValue: String(value) };
-    else if (typeof value === 'boolean') fields[key] = { booleanValue: value };
-    else if (value === null) fields[key] = { nullValue: null };
-    else if (Array.isArray(value))
-      fields[key] = {
-        arrayValue: {
-          values: value.map((v) => {
-            if (typeof v === 'string') return { stringValue: v };
-            if (typeof v === 'number') return { integerValue: String(v) };
-            if (typeof v === 'boolean') return { booleanValue: v };
-            if (v === null) return { nullValue: null };
-            if (typeof v === 'object')
-              return { mapValue: { fields: toFirestoreFields(v as Record<string, unknown>) } };
-            return { stringValue: String(v) };
-          }),
-        },
-      };
-    else if (typeof value === 'object')
-      fields[key] = {
-        mapValue: { fields: toFirestoreFields(value as Record<string, unknown>) },
-      };
-  }
-  return fields;
-}
-
-async function seedDoc(path: string, data: Record<string, unknown>) {
-  const parts = path.split('/');
-  const collectionPath = parts.slice(0, -1).join('/');
-  const docId = parts[parts.length - 1];
-
-  const resp = await fetch(
-    `${FIRESTORE_URL}/v1/projects/${PROJECT_ID}/databases/(default)/documents/${collectionPath}?documentId=${docId}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer owner',
-      },
-      body: JSON.stringify({ fields: toFirestoreFields(data) }),
-    },
-  );
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`seedDoc(${path}) failed ${resp.status}: ${text}`);
-  }
-}
-
-// --- Shared seed data ---
-const SHARE_CODE = 'MTCH0001';
-const TOURNAMENT_ID = 'tourney-match';
-const MATCH_ID = 'match-detail-1';
+import { seedDoc } from './spectator-helpers';
 
 // --- Tests ---
 
 test.describe('Spectator Match Detail', () => {
-  test.beforeEach(async () => {
-    await clearEmulator();
+  test('scoreboard shows team names and scores', async ({ page }) => {
+    const SHARE_CODE = makeShareCode();
+    const TOURNAMENT_ID = uid('tourney');
+    const MATCH_ID = uid('match');
 
     // Seed tournament
     const tournament = makeTournament({
@@ -91,9 +27,7 @@ test.describe('Spectator Match Detail', () => {
       registrationCounts: { confirmed: 4, pending: 0 },
     });
     await seedDoc(`tournaments/${TOURNAMENT_ID}`, tournament);
-  });
 
-  test('scoreboard shows team names and scores', async ({ page }) => {
     // Seed match
     const match = makePublicMatch('org-test', {
       id: MATCH_ID,
@@ -124,12 +58,28 @@ test.describe('Spectator Match Detail', () => {
     await expect(page.getByText('Smashers')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Dinkers')).toBeVisible();
 
-    // Verify scores are visible
-    await expect(page.getByText('7')).toBeVisible();
-    await expect(page.getByText('4')).toBeVisible();
+    // Verify scores are visible within the scoreboard region
+    const scoreboard = page.locator('[aria-label="Scoreboard"]');
+    await expect(scoreboard.getByText('7')).toBeVisible();
+    await expect(scoreboard.getByText('4')).toBeVisible();
   });
 
   test('play-by-play events render with score text', async ({ page }) => {
+    const SHARE_CODE = makeShareCode();
+    const TOURNAMENT_ID = uid('tourney');
+    const MATCH_ID = uid('match');
+
+    // Seed tournament
+    const tournament = makeTournament({
+      id: TOURNAMENT_ID,
+      shareCode: SHARE_CODE,
+      name: 'Play-by-Play Tournament',
+      status: 'pool-play',
+      visibility: 'public',
+      registrationCounts: { confirmed: 4, pending: 0 },
+    });
+    await seedDoc(`tournaments/${TOURNAMENT_ID}`, tournament);
+
     // Seed match
     const match = makePublicMatch('org-test', {
       id: MATCH_ID,
