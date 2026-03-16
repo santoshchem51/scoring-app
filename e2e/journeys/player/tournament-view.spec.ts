@@ -1,6 +1,7 @@
 import { test, expect } from '../../fixtures';
 import { seedFirestoreDocAdmin } from '../../helpers/emulator-auth';
 import { makeTournament, makeTeam, makePool } from '../../helpers/factories';
+import { captureScreen } from '../../helpers/screenshots';
 import { randomUUID } from 'crypto';
 
 test.describe('Player: Tournament View Journeys', () => {
@@ -34,7 +35,7 @@ test.describe('Player: Tournament View Journeys', () => {
   // PL-10 — Pool standings display (all columns)
   // ═══════════════════════════════════════════════════════════════════
 
-  test('PL-10: pool standings table shows all columns', async ({ authenticatedPage: page }) => {
+  test('PL-10: pool standings table shows all columns', async ({ authenticatedPage: page }, testInfo) => {
     const tournament = makeTournament({
       name: 'Pool Play Classic',
       format: 'pool-play',
@@ -107,5 +108,6 @@ test.describe('Player: Tournament View Journeys', () => {
     await expect(standingsSection.getByText('PF')).toBeVisible();
     await expect(standingsSection.getByText('PA')).toBeVisible();
     await expect(standingsSection.getByText('+/-')).toBeVisible();
+    await captureScreen(page, testInfo, 'player-poolstandings-table');
   });
 });

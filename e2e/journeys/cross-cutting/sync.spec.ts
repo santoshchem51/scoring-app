@@ -6,6 +6,7 @@ import {
 import { FIRESTORE_EMULATOR, PROJECT_ID } from '../../helpers/emulator-config';
 import { GameSetupPage } from '../../pages/GameSetupPage';
 import { ScoringPage } from '../../pages/ScoringPage';
+import { captureScreen } from '../../helpers/screenshots';
 import { randomUUID } from 'crypto';
 
 test.describe('Cross-Cutting: Sync Journeys', () => {
@@ -16,7 +17,7 @@ test.describe('Cross-Cutting: Sync Journeys', () => {
 
   test('C1: sync retry button appears after failed sync and recovers', async ({
     page,
-  }) => {
+  }, testInfo) => {
     const email = `e2e-c1-${randomUUID().slice(0, 8)}@test.com`;
     await page.goto('/');
     await signInAsTestUser(page, { email, displayName: 'Sync Retry User' });
@@ -54,6 +55,7 @@ test.describe('Cross-Cutting: Sync Journeys', () => {
       const hasRetry = await retryBtn.isVisible().catch(() => false);
       expect(hasError || hasRetry).toBe(true);
     }).toPass({ timeout: 15000 });
+    await captureScreen(page, testInfo, 'sync-settings-errorstate');
 
     // Remove the route intercepts to allow recovery
     await page.unroute('**/firestore.googleapis.com/**');

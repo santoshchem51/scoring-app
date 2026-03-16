@@ -9,11 +9,12 @@ import {
   uid,
   shareCode,
 } from '../../helpers/factories';
+import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('Buddy Group Journeys', () => {
   test('group detail shows header, members, sessions', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
     const userUid = await getCurrentUserUid(page);
     const groupId = uid('group');
     const sessionId = uid('session');
@@ -75,6 +76,7 @@ test.describe('Buddy Group Journeys', () => {
     await expect(page.getByText('Saturday Morning Doubles')).toBeVisible({
       timeout: 5000,
     });
+    await captureScreen(page, testInfo, 'buddy-groupdetail-header');
   });
 
   test('join group via invite link', async ({ authenticatedPage: page }) => {

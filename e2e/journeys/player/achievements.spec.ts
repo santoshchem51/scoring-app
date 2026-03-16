@@ -11,6 +11,7 @@ import {
 } from '../../helpers/factories';
 import { GameSetupPage } from '../../pages/GameSetupPage';
 import { ScoringPage } from '../../pages/ScoringPage';
+import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('Player: Achievement Journeys', () => {
 
@@ -20,7 +21,7 @@ test.describe('Player: Achievement Journeys', () => {
 
   test('PL-14: achievement appears in trophy case after first match', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
     const uid = await getCurrentUserUid(page);
 
     // Seed user profile (fresh user, no previous matches)
@@ -75,6 +76,7 @@ test.describe('Player: Achievement Journeys', () => {
       const trophyCase = page.locator('section[aria-labelledby="trophycase-heading"]');
       await expect(trophyCase).toBeVisible({ timeout: 15000 });
       await expect(trophyCase.locator('#trophycase-heading')).toContainText('Achievements');
+      await captureScreen(page, testInfo, 'player-trophycase-badges');
     }
   });
 

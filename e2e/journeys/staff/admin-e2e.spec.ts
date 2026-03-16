@@ -3,13 +3,14 @@ import { test, expect } from '../../fixtures';
 import { seedFirestoreDocAdmin, getCurrentUserUid } from '../../helpers/emulator-auth';
 import { makeTournament, makeTeam, makePool, uid } from '../../helpers/factories';
 import { ScoringPage } from '../../pages/ScoringPage';
+import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('Staff P0: Admin & Scorekeeper E2E', () => {
 
   // S12: admin sees StaffManager with role badges for all staff
   test('S12: admin sees StaffManager with role badges for 3 staff members', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
     const userUid = await getCurrentUserUid(page);
     const tournamentId = uid('tournament');
     const modUid = uid('user');
@@ -65,6 +66,7 @@ test.describe('Staff P0: Admin & Scorekeeper E2E', () => {
 
     // Verify the Add Staff button is visible (admin privilege)
     await expect(page.getByRole('button', { name: 'Add Staff' })).toBeVisible({ timeout: 10000 });
+    await captureScreen(page, testInfo, 'staff-admin-staffmanager');
   });
 
   // S16: scorekeeper scores a pool match end-to-end

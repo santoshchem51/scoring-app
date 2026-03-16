@@ -2,6 +2,7 @@
 import { test, expect } from '../../fixtures';
 import { seedFirestoreDocAdmin, getCurrentUserUid, goToTournamentDashboard } from '../../helpers/emulator-auth';
 import { makeTournament, uid } from '../../helpers/factories';
+import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('Organizer P0: Approval Queue (REG-09)', () => {
 
@@ -10,7 +11,7 @@ test.describe('Organizer P0: Approval Queue (REG-09)', () => {
   test('REG-09: organizer approves pending registration from approval queue', async ({
     authenticatedPage: organizerPage,
     secondAuthenticatedPage: playerPage,
-  }) => {
+  }, testInfo) => {
     const organizerUid = await getCurrentUserUid(organizerPage);
     const tournamentId = uid('tournament');
 
@@ -49,6 +50,7 @@ test.describe('Organizer P0: Approval Queue (REG-09)', () => {
     // Organizer should see the pending registration in the approval queue
     // The ApprovalQueue component shows pending registrations with Approve/Reject buttons
     await expect(organizerPage.getByText('Pending')).toBeVisible({ timeout: 15000 });
+    await captureScreen(organizerPage, testInfo, 'organizer-approvalqueue-pending');
 
     // Click "Approve" button for the pending registration
     const approveBtn = organizerPage.getByRole('button', { name: /Approve/ });

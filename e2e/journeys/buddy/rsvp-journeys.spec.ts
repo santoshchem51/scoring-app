@@ -9,11 +9,12 @@ import {
   uid,
   shareCode,
 } from '../../helpers/factories';
+import { captureScreen } from '../../helpers/screenshots';
 
 test.describe('RSVP Journeys', () => {
   test('RSVP Out to In increments spots (reverse delta)', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
     const userUid = await getCurrentUserUid(page);
     const groupId = uid('group');
     const sessionId = uid('session');
@@ -81,6 +82,7 @@ test.describe('RSVP Journeys', () => {
 
     // Verify spots counter incremented (1 existing + 1 new = 2 of 4)
     await expect(page.getByText(/2 of 4/)).toBeVisible({ timeout: 10000 });
+    await captureScreen(page, testInfo, 'buddy-rsvp-statuschange');
   });
 
   test('RSVP disabled for cancelled session', async ({
