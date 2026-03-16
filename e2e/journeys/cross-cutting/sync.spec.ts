@@ -133,7 +133,7 @@ test.describe('Cross-Cutting: Sync Journeys', () => {
     // Match 2
     await setup.goto();
     await setup.quickGame();
-    await scoring.scorePoints('Team 2', 11);
+    await scoring.scorePoints('Team 1', 11);
     await scoring.expectMatchOver();
     await scoring.saveAndFinish();
 

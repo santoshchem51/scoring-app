@@ -59,7 +59,7 @@ test.describe('Staff P0: Scorekeeper Permissions', () => {
 
     // Wait for positive element first
     await expect(page.getByText('Matches to Score')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText('Alpha Squad vs Beta Squad')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Alpha Squad vs Beta Squad').first()).toBeVisible({ timeout: 10000 });
     await captureScreen(page, testInfo, 'staff-scorekeeper-matchlist');
   });
 
@@ -76,7 +76,7 @@ test.describe('Staff P0: Scorekeeper Permissions', () => {
     await expect(page.getByText('Matches to Score')).toBeVisible({ timeout: 15000 });
 
     // Click the Score button on the match row
-    const scoreBtn = page.getByText('Score', { exact: true });
+    const scoreBtn = page.getByRole('button', { name: 'Score', exact: true });
     await expect(scoreBtn).toBeVisible({ timeout: 10000 });
     await scoreBtn.click();
 

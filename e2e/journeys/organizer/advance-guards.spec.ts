@@ -108,17 +108,18 @@ test.describe('Organizer P0: Advance Guards (DASH-12, DASH-14)', () => {
     // Verify we're in registration
     await expect(page.getByText('Registration Open')).toBeVisible({ timeout: 10000 });
 
-    // The advance button should be disabled or not visible with 0 players
+    // The advance button is enabled but clicking it should show an error toast
     const advanceBtn = page.getByRole('button', { name: /Advance to Pool Play|Advance to Bracket/ });
-    const advanceBtnVisible = await advanceBtn.isVisible().catch(() => false);
+    await expect(advanceBtn).toBeVisible({ timeout: 10000 });
+    await advanceBtn.click();
 
-    if (advanceBtnVisible) {
-      // Button exists but should be disabled
-      await expect(advanceBtn).toBeDisabled({ timeout: 5000 });
-    } else {
-      // Button is not shown at all — this is also valid guard behavior
-      await expect(advanceBtn).not.toBeVisible();
-    }
+    // Expect an error toast/message indicating insufficient players
+    await expect(
+      page.getByText(/could not|cannot|need|insufficient|not enough|at least|required|0 team/i),
+    ).toBeVisible({ timeout: 10000 });
+
+    // Status should remain Registration Open (advance was blocked)
+    await expect(page.getByText('Registration Open')).toBeVisible({ timeout: 5000 });
   });
 
   test('DASH-14: advance blocked with only 1 registered player', async ({
@@ -156,16 +157,17 @@ test.describe('Organizer P0: Advance Guards (DASH-12, DASH-14)', () => {
     await expect(playerNameInput).toHaveValue('', { timeout: 10000 });
     await expect(page.getByText('Registered Players (1)')).toBeVisible({ timeout: 10000 });
 
-    // The advance button should be disabled with only 1 player
+    // The advance button is enabled but clicking it should show an error toast
     const advanceBtn = page.getByRole('button', { name: /Advance to Pool Play|Advance to Bracket/ });
-    const advanceBtnVisible = await advanceBtn.isVisible().catch(() => false);
+    await expect(advanceBtn).toBeVisible({ timeout: 10000 });
+    await advanceBtn.click();
 
-    if (advanceBtnVisible) {
-      // Button exists but should be disabled
-      await expect(advanceBtn).toBeDisabled({ timeout: 5000 });
-    } else {
-      // Button is not shown at all — this is also valid guard behavior
-      await expect(advanceBtn).not.toBeVisible();
-    }
+    // Expect an error toast/message indicating insufficient players
+    await expect(
+      page.getByText(/could not|cannot|need|insufficient|not enough|at least|required|1 team/i),
+    ).toBeVisible({ timeout: 10000 });
+
+    // Status should remain Registration Open (advance was blocked)
+    await expect(page.getByText('Registration Open')).toBeVisible({ timeout: 5000 });
   });
 });

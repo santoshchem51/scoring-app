@@ -28,11 +28,12 @@ test.describe('Spectator Hub: Tournament Phase Rendering', () => {
     await expect(page.getByText('Spring Open 2026')).toBeVisible({ timeout: 10_000 });
 
     // Registration-related text should be visible
-    await expect(page.getByText(/registration/i)).toBeVisible();
+    await expect(page.getByText('Registration Open')).toBeVisible();
 
-    // No pool or bracket sections should be present
-    await expect(page.getByText(/pool/i)).not.toBeVisible();
-    await expect(page.getByText(/bracket/i)).not.toBeVisible();
+    // No pool or bracket sections should be present in main content
+    const mainContent = page.getByRole('main');
+    await expect(mainContent.getByText(/pool\s*(play|standings)/i)).not.toBeVisible();
+    await expect(mainContent.getByText(/bracket/i)).not.toBeVisible();
 
     await captureScreen(page, testInfo, 'hub-registration-phase');
   });
@@ -74,7 +75,7 @@ test.describe('Spectator Hub: Tournament Phase Rendering', () => {
     await expect(page.getByText('Pool Play Classic')).toBeVisible({ timeout: 10_000 });
 
     // Pool standings section should be visible
-    await expect(page.getByText(/pool/i)).toBeVisible();
+    await expect(page.getByText('Pool Play').first()).toBeVisible();
 
     await captureScreen(page, testInfo, 'hub-pool-play-phase');
   });
@@ -115,7 +116,7 @@ test.describe('Spectator Hub: Tournament Phase Rendering', () => {
     await expect(page.getByText('Bracket Bash 2026')).toBeVisible({ timeout: 10_000 });
 
     // Bracket section should be visible
-    await expect(page.getByText(/bracket/i)).toBeVisible();
+    await expect(page.getByText('Bracket Play').first()).toBeVisible();
 
     await captureScreen(page, testInfo, 'hub-bracket-phase');
   });
@@ -136,7 +137,7 @@ test.describe('Spectator Hub: Tournament Phase Rendering', () => {
     await expect(page.getByText('Championship Finale')).toBeVisible({ timeout: 10_000 });
 
     // Completed status or results should be visible
-    await expect(page.getByText(/complete/i)).toBeVisible();
+    await expect(page.getByText('Completed').first()).toBeVisible();
 
     await captureScreen(page, testInfo, 'hub-completed-phase');
   });

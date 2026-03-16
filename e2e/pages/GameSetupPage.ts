@@ -109,7 +109,7 @@ export class GameSetupPage {
 
   // ── Assertions ──
   async expectSetupVisible() {
-    await expect(this.page.getByRole('link', { name: 'New Game' })).toBeVisible();
+    await expect(this.page.getByRole('banner').getByRole('link', { name: 'New Game' })).toBeVisible();
     await expect(this.page.getByRole('button', { name: /Quick Game/ })).toBeVisible();
     await expect(this.page.getByText('Game Type')).toBeVisible();
     await expect(this.page.getByText('Scoring')).toBeVisible();

@@ -62,13 +62,13 @@ test.describe('Buddy Group Journeys', () => {
       page.getByRole('heading', { name: 'Weekend Warriors' }),
     ).toBeVisible({ timeout: 15000 });
 
-    // Assert location visible
-    await expect(page.getByText('Riverside Courts')).toBeVisible({
+    // Assert location visible (appears in both group header and session card)
+    await expect(page.getByText('Riverside Courts').first()).toBeVisible({
       timeout: 5000,
     });
 
-    // Assert member avatar / member indicator visible
-    await expect(page.getByText('Test Player')).toBeVisible({
+    // Assert member first name visible (MemberAvatar renders first name only)
+    await expect(page.getByText('Test')).toBeVisible({
       timeout: 5000,
     });
 

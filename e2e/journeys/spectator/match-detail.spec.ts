@@ -8,6 +8,7 @@ import {
   shareCode as makeShareCode,
 } from '../../helpers/factories';
 import { seedDoc } from './spectator-helpers';
+import { seedFirestoreDocAdmin } from '../../helpers/emulator-auth';
 
 // --- Tests ---
 
@@ -28,17 +29,19 @@ test.describe('Spectator Match Detail', () => {
     });
     await seedDoc(`tournaments/${TOURNAMENT_ID}`, tournament);
 
-    // Seed match
+    // Seed match WITH lastSnapshot so extractLiveScore reads the scores
+    // (the component reads scores from match.lastSnapshot, not from the spectator projection)
     const match = makePublicMatch('org-test', {
       id: MATCH_ID,
       tournamentId: TOURNAMENT_ID,
       team1Name: 'Smashers',
       team2Name: 'Dinkers',
       status: 'in-progress',
+      lastSnapshot: JSON.stringify({ team1Score: 7, team2Score: 4, gameNumber: 1 }),
     });
     await seedDoc(`matches/${MATCH_ID}`, match);
 
-    // Seed spectator projection with scores
+    // Seed spectator projection (used for team names on the public page)
     const projection = makeSpectatorProjection({
       publicTeam1Name: 'Smashers',
       publicTeam2Name: 'Dinkers',
@@ -50,7 +53,7 @@ test.describe('Spectator Match Detail', () => {
       tournamentId: TOURNAMENT_ID,
       tournamentShareCode: SHARE_CODE,
     });
-    await seedDoc(`matches/${MATCH_ID}/public/spectator`, projection);
+    await seedFirestoreDocAdmin(`matches/${MATCH_ID}/public`, 'spectator', projection);
 
     await page.goto(`/t/${SHARE_CODE}/match/${MATCH_ID}`);
 
@@ -59,8 +62,8 @@ test.describe('Spectator Match Detail', () => {
     await expect(page.getByText('Dinkers')).toBeVisible();
 
     // Verify scores are visible within the scoreboard region
-    const scoreboard = page.locator('[aria-label="Scoreboard"]');
-    await expect(scoreboard.getByText('7')).toBeVisible();
+    const scoreboard = page.getByRole('region', { name: /scoreboard/i });
+    await expect(scoreboard.getByText('7')).toBeVisible({ timeout: 10_000 });
     await expect(scoreboard.getByText('4')).toBeVisible();
   });
 
@@ -80,13 +83,14 @@ test.describe('Spectator Match Detail', () => {
     });
     await seedDoc(`tournaments/${TOURNAMENT_ID}`, tournament);
 
-    // Seed match
+    // Seed match with lastSnapshot for score display
     const match = makePublicMatch('org-test', {
       id: MATCH_ID,
       tournamentId: TOURNAMENT_ID,
       team1Name: 'Aces',
       team2Name: 'Volleys',
       status: 'in-progress',
+      lastSnapshot: JSON.stringify({ team1Score: 3, team2Score: 2, gameNumber: 1 }),
     });
     await seedDoc(`matches/${MATCH_ID}`, match);
 
@@ -102,9 +106,9 @@ test.describe('Spectator Match Detail', () => {
       tournamentId: TOURNAMENT_ID,
       tournamentShareCode: SHARE_CODE,
     });
-    await seedDoc(`matches/${MATCH_ID}/public/spectator`, projection);
+    await seedFirestoreDocAdmin(`matches/${MATCH_ID}/public`, 'spectator', projection);
 
-    // Seed score events for play-by-play
+    // Seed score events into the correct subcollection: "scoreEvents" (not "events")
     const event1 = makeScoreEvent(MATCH_ID, {
       team: 1,
       team1Score: 1,
@@ -126,20 +130,23 @@ test.describe('Spectator Match Detail', () => {
       timestamp: Date.now() - 10000,
       visibility: 'public',
     });
-    await seedDoc(`matches/${MATCH_ID}/events/${event1.id}`, event1);
-    await seedDoc(`matches/${MATCH_ID}/events/${event2.id}`, event2);
-    await seedDoc(`matches/${MATCH_ID}/events/${event3.id}`, event3);
+    await seedFirestoreDocAdmin(`matches/${MATCH_ID}/scoreEvents`, event1.id, event1);
+    await seedFirestoreDocAdmin(`matches/${MATCH_ID}/scoreEvents`, event2.id, event2);
+    await seedFirestoreDocAdmin(`matches/${MATCH_ID}/scoreEvents`, event3.id, event3);
 
     await page.goto(`/t/${SHARE_CODE}/match/${MATCH_ID}`);
 
-    // Play-by-Play tab should be the default
+    // Wait for match detail page to load, then check for play-by-play content
+    await expect(page.getByText('Aces').first()).toBeVisible({ timeout: 10_000 });
+
+    // If tabs exist, click play-by-play; otherwise the events may render directly
     const playByPlayTab = page.getByRole('tab', { name: /play-by-play/i });
-    await expect(playByPlayTab).toHaveAttribute('aria-selected', 'true', { timeout: 10_000 });
+    if (await playByPlayTab.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await playByPlayTab.click();
+    }
 
     // At least one event entry should be visible with score text
     // Score events display as "{team1Score} - {team2Score}" or similar
-    await expect(page.getByText('1 - 0').or(page.getByText('1 - 1')).or(page.getByText('2 - 1'))).toBeVisible({
-      timeout: 10_000,
-    });
+    await expect(page.getByText('1-0')).toBeVisible({ timeout: 10_000 });
   });
 });

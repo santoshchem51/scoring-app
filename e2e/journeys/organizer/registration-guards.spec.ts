@@ -1,7 +1,7 @@
 // e2e/journeys/organizer/registration-guards.spec.ts
 import { test, expect } from '../../fixtures';
 import { seedFirestoreDocAdmin, getCurrentUserUid, goToTournamentDashboard } from '../../helpers/emulator-auth';
-import { makeTournament, makeTeam, makePool, uid } from '../../helpers/factories';
+import { makeTournament, makeTeam, makePool, makePublicMatch, uid } from '../../helpers/factories';
 
 test.describe('Organizer P0: Registration Guards & Rescore (REG-12, INT-03, AUTH-04)', () => {
 
@@ -122,6 +122,18 @@ test.describe('Organizer P0: Registration Guards & Rescore (REG-12, INT-03, AUTH
     });
     await seedFirestoreDocAdmin(`tournaments/${tournamentId}/pools`, poolId, pool);
 
+    // Seed the actual match document so the app can load it when Edit is clicked
+    const match = makePublicMatch(userUid, {
+      id: matchId,
+      tournamentId,
+      team1Name: 'Scorers',
+      team2Name: 'Defenders',
+      status: 'completed',
+      completedAt: Date.now(),
+      config: { gameType: 'doubles', scoringMode: 'sideout', matchFormat: 'single', pointsToWin: 11 },
+    });
+    await seedFirestoreDocAdmin('matches', matchId, match);
+
     await goToTournamentDashboard(page, tournamentId);
 
     // Verify pool standings are visible
@@ -138,13 +150,8 @@ test.describe('Organizer P0: Registration Guards & Rescore (REG-12, INT-03, AUTH
     if (editVisible) {
       await editScoreBtn.click();
 
-      // Verify ScoreEditModal or scoring page opens
-      // Check for modal or navigation to score page
-      const modalVisible = await page.locator('[role="dialog"]').isVisible().catch(() => false);
-      const onScorePage = page.url().includes('/score/');
-
-      // At least one of these should be true
-      expect(modalVisible || onScorePage).toBeTruthy();
+      // The Edit button opens an inline "Edit Score" section on the dashboard
+      await expect(page.getByRole('heading', { name: /Edit Score/ })).toBeVisible({ timeout: 10000 });
     } else {
       // Edit Score may not be exposed in the current UI — verify the match
       // is at least shown as completed (the rescore feature may need implementation)

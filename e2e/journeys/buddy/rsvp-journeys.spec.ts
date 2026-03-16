@@ -88,16 +88,43 @@ test.describe('RSVP Journeys', () => {
   test('RSVP disabled for cancelled session', async ({
     authenticatedPage: page,
   }) => {
+    const userUid = await getCurrentUserUid(page);
+    const groupId = uid('group');
     const sessionId = uid('session');
+
+    // Seed buddy group (needed for Firestore security rules — session read
+    // requires user to be a group member when visibility is not 'open')
+    const group = makeBuddyGroup({
+      id: groupId,
+      name: 'Cancelled Session Group',
+      createdBy: userUid,
+      memberCount: 1,
+    });
+    await seedFirestoreDocAdmin('buddyGroups', groupId, group);
+
+    // Seed current user as member
+    await seedFirestoreDocAdmin(
+      `buddyGroups/${groupId}/members`,
+      userUid,
+      {
+        userId: userUid,
+        displayName: 'Test Player',
+        photoURL: null,
+        role: 'member',
+        joinedAt: Date.now(),
+      },
+    );
 
     // Seed a cancelled session
     const session = makeGameSession({
       id: sessionId,
+      groupId,
       title: 'Cancelled Meetup',
       location: 'Rain Courts',
       status: 'cancelled',
       spotsTotal: 4,
       spotsConfirmed: 0,
+      createdBy: userUid,
       shareCode: shareCode(),
     });
     await seedFirestoreDocAdmin('gameSessions', sessionId, session);

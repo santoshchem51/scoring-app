@@ -24,6 +24,29 @@ export class ScoringPage {
     }
   }
 
+  /** Score a point using the team's actual display name (for tournament matches). */
+  async scorePointByName(teamName: string) {
+    await this.page.getByRole('button', { name: `Score point for ${teamName}` }).click();
+  }
+
+  async scorePointsByName(teamName: string, count: number) {
+    for (let i = 0; i < count; i++) {
+      await this.scorePointByName(teamName);
+    }
+  }
+
+  /** Score a point for the first enabled score button (works with any team name). */
+  async scoreFirstTeam() {
+    const btn = this.page.locator('button[aria-label^="Score point for"]').first();
+    await btn.click();
+  }
+
+  async scoreFirstTeamPoints(count: number) {
+    for (let i = 0; i < count; i++) {
+      await this.scoreFirstTeam();
+    }
+  }
+
   async undoLastAction() {
     await this.undoBtn.click();
   }

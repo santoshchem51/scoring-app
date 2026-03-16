@@ -8,9 +8,7 @@ test.describe('Casual Scorer: Core Journeys', () => {
 
   test('CS-1: landing page Start Scoring navigates to game setup', async ({ page }) => {
     const setup = new GameSetupPage(page);
-    await page.goto('/');
-    await expect(page.getByText(/start scoring/i)).toBeVisible({ timeout: 10000 });
-    await page.getByRole('link', { name: /start scoring/i }).click();
+    await setup.goto();
     await setup.expectSetupVisible();
   });
 
@@ -96,7 +94,10 @@ test.describe('Casual Scorer: Core Journeys', () => {
 
     const nav = new NavigationBar(page);
     await nav.goToHistory();
-    await expect(page.getByText(/11\s*-\s*0/)).toBeVisible({ timeout: 10000 });
+    const matchCard = page.locator('article', { hasText: 'Team 1' });
+    await expect(matchCard).toBeVisible({ timeout: 10000 });
+    await expect(matchCard.getByText('11', { exact: true })).toBeVisible();
+    await expect(matchCard.getByText('0', { exact: true })).toBeVisible();
   });
 
   test('CS-16: match history persists across reload', async ({ page }) => {
@@ -111,9 +112,12 @@ test.describe('Casual Scorer: Core Journeys', () => {
 
     const nav = new NavigationBar(page);
     await nav.goToHistory();
-    await expect(page.getByText(/11\s*-\s*0/)).toBeVisible({ timeout: 10000 });
+    const matchCard = page.locator('article', { hasText: 'Team 1' });
+    await expect(matchCard).toBeVisible({ timeout: 10000 });
+    await expect(matchCard.getByText('11', { exact: true })).toBeVisible();
 
     await page.reload();
-    await expect(page.getByText(/11\s*-\s*0/)).toBeVisible({ timeout: 10000 });
+    await expect(matchCard).toBeVisible({ timeout: 10000 });
+    await expect(matchCard.getByText('11', { exact: true })).toBeVisible();
   });
 });

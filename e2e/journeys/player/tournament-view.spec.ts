@@ -28,7 +28,7 @@ test.describe('Player: Tournament View Journeys', () => {
     await expect(page.getByText('Spring Open 2026')).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Riverside Courts')).toBeVisible();
     await expect(page.getByText(/round.?robin/i)).toBeVisible();
-    await expect(page.getByText(/registration/i)).toBeVisible();
+    await expect(page.getByText('Registration Open')).toBeVisible();
   });
 
   // ═══════════════════════════════════════════════════════════════════
@@ -38,8 +38,8 @@ test.describe('Player: Tournament View Journeys', () => {
   test('PL-10: pool standings table shows all columns', async ({ authenticatedPage: page }, testInfo) => {
     const tournament = makeTournament({
       name: 'Pool Play Classic',
-      format: 'pool-play',
-      status: 'in-progress',
+      format: 'round-robin',
+      status: 'pool-play',
       config: {
         poolCount: 1,
         poolSize: 4,
@@ -103,11 +103,11 @@ test.describe('Player: Tournament View Journeys', () => {
 
     // Verify column headers (W, L, PF, PA, Diff)
     const standingsSection = page.locator('table, [role="table"], [data-testid="pool-standings"]').first();
-    await expect(standingsSection.getByText('W')).toBeVisible();
-    await expect(standingsSection.getByText('L')).toBeVisible();
-    await expect(standingsSection.getByText('PF')).toBeVisible();
-    await expect(standingsSection.getByText('PA')).toBeVisible();
-    await expect(standingsSection.getByText('+/-')).toBeVisible();
+    await expect(standingsSection.getByRole('columnheader', { name: 'W' })).toBeVisible();
+    await expect(standingsSection.getByRole('columnheader', { name: 'L' })).toBeVisible();
+    await expect(standingsSection.getByRole('columnheader', { name: 'PF' })).toBeVisible();
+    await expect(standingsSection.getByRole('columnheader', { name: 'PA' })).toBeVisible();
+    await expect(standingsSection.getByRole('columnheader', { name: '+/-' })).toBeVisible();
     await captureScreen(page, testInfo, 'player-poolstandings-table');
   });
 });

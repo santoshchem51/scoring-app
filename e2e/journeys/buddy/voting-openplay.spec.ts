@@ -56,6 +56,21 @@ test.describe('Voting & Open Play Journeys', () => {
     await addSlotButton.click();
     await addSlotButton.click();
 
+    // Fill in the date, start time, and end time for each slot
+    const slotContainers = page.locator('.bg-surface-light.border.rounded-xl');
+    const dateInputs = slotContainers.locator('input[type="date"]');
+    const timeInputs = slotContainers.locator('input[type="time"]');
+
+    // Slot 1: date, start, end
+    await dateInputs.nth(0).fill('2026-03-20');
+    await timeInputs.nth(0).fill('09:00');
+    await timeInputs.nth(1).fill('11:00');
+
+    // Slot 2: date, start, end
+    await dateInputs.nth(1).fill('2026-03-21');
+    await timeInputs.nth(2).fill('14:00');
+    await timeInputs.nth(3).fill('16:00');
+
     // Submit the voting session
     const submitButton = page.getByRole('button', { name: /create/i });
     await expect(submitButton).toBeVisible({ timeout: 5000 });
@@ -145,7 +160,7 @@ test.describe('Voting & Open Play Journeys', () => {
     // After confirming, the session's status updates to 'confirmed' and the
     // display status recalculates based on spots (e.g., "0/8 confirmed" or similar).
     // The confirmed slot's date/time should now appear in the header.
-    await expect(page.getByText(/9:00 AM - 11:00 AM/)).toBeVisible({
+    await expect(page.getByText(/9:00 AM - 11:00 AM/).first()).toBeVisible({
       timeout: 10000,
     });
 

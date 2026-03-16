@@ -49,7 +49,7 @@ test.describe('Organizer P0: Approval Queue (REG-09)', () => {
 
     // Organizer should see the pending registration in the approval queue
     // The ApprovalQueue component shows pending registrations with Approve/Reject buttons
-    await expect(organizerPage.getByText('Pending')).toBeVisible({ timeout: 15000 });
+    await expect(organizerPage.getByRole('heading', { name: /Pending Requests/ })).toBeVisible({ timeout: 15000 });
     await captureScreen(organizerPage, testInfo, 'organizer-approvalqueue-pending');
 
     // Click "Approve" button for the pending registration
