@@ -14,11 +14,14 @@ export class SettingsPage {
   }
 
   async selectDefaultScoringMode(mode: 'sideout' | 'rally') {
-    await this.page.getByLabel(mode, { exact: false }).click();
+    const label = mode === 'sideout' ? 'Side-Out' : 'Rally';
+    const fieldset = this.page.locator('fieldset', { has: this.page.getByText('Default Scoring') });
+    await fieldset.getByRole('button', { name: label }).click();
   }
 
   async selectDefaultPointsToWin(points: 11 | 15 | 21) {
-    await this.page.getByLabel(`${points}`, { exact: false }).click();
+    const fieldset = this.page.locator('fieldset', { has: this.page.getByText('Default Points to Win') });
+    await fieldset.getByRole('button', { name: String(points), exact: true }).click();
   }
 
   async selectDefaultMatchFormat(format: '1 Game' | 'Best of 3' | 'Best of 5') {
