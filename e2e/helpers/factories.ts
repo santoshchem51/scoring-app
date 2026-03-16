@@ -1,11 +1,11 @@
 // e2e/helpers/factories.ts
 import { randomUUID } from 'crypto';
 
-function uid(prefix: string) {
+export function uid(prefix: string) {
   return `${prefix}-${randomUUID().slice(0, 8)}`;
 }
 
-function shareCode() {
+export function shareCode() {
   return `E2E${randomUUID().slice(0, 5).toUpperCase()}`;
 }
 
