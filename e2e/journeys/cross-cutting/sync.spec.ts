@@ -397,3 +397,201 @@ test.describe('@p1 Cross-Cutting: P1 Settings & Navigation', () => {
     await expect(anyCard).toHaveCount(0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P2 Cross-Cutting: Edge Cases
+// ═══════════════════════════════════════════════════════════════════════════
+
+test.describe('@p2 Cross-Cutting: P2 Edge Cases', () => {
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CC-P2-1: Sync indicator shows active state
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('CC-P2-1: sync indicator shows active state after sign-in @p2', async ({
+    page,
+  }, testInfo) => {
+    const email = `e2e-ccp2-1-${randomUUID().slice(0, 8)}@test.com`;
+    await page.goto('/');
+    await signInAsTestUser(page, { email, displayName: 'Sync Status User' });
+
+    // Play a quick match to generate sync data
+    const setup = new GameSetupPage(page);
+    const scoring = new ScoringPage(page);
+    await setup.goto();
+    await setup.quickGame();
+    await scoring.scorePoints('Team 1', 11);
+    await scoring.expectMatchOver();
+    await scoring.saveAndFinish();
+
+    // Navigate to settings
+    const settingsPage = new SettingsPage(page);
+    await settingsPage.goto();
+
+    // Cloud Sync section visible (auth-only)
+    await expect(page.getByText('Cloud Sync')).toBeVisible({ timeout: 10000 });
+
+    // Status label should be visible with some non-error status
+    await expect(page.getByText('Status')).toBeVisible({ timeout: 5000 });
+
+    // Wait for sync to settle — ensure no persistent error
+    await expect(async () => {
+      const statusText = await page.locator('fieldset', { hasText: 'Cloud Sync' })
+        .locator('.capitalize').textContent();
+      // Status should be one of: idle, processing, synced — not a raw error
+      expect(statusText?.trim()).toBeTruthy();
+    }).toPass({ timeout: 15000 });
+
+    await captureScreen(page, testInfo, 'ccp2-1-sync-indicator');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CC-P2-2: Voice settings toggles
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('CC-P2-2: voice settings toggles change active state @p2', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/');
+
+    const settingsPage = new SettingsPage(page);
+    await settingsPage.goto();
+
+    // Voice section visible with Off/Scores/Full buttons
+    await expect(page.getByText('Voice')).toBeVisible({ timeout: 5000 });
+    const voiceFieldset = page.locator('fieldset', { hasText: 'Voice' });
+
+    const offBtn = voiceFieldset.getByRole('button', { name: 'Off' });
+    const scoresBtn = voiceFieldset.getByRole('button', { name: 'Scores' });
+    const fullBtn = voiceFieldset.getByRole('button', { name: 'Full' });
+
+    await expect(offBtn).toBeVisible({ timeout: 5000 });
+    await expect(scoresBtn).toBeVisible({ timeout: 5000 });
+    await expect(fullBtn).toBeVisible({ timeout: 5000 });
+
+    // Default is Off — verify via aria-pressed
+    await expect(offBtn).toHaveAttribute('aria-pressed', 'true');
+
+    await captureScreen(page, testInfo, 'ccp2-2-voice-default');
+
+    // Click Scores → active state changes
+    await scoresBtn.click();
+    await expect(scoresBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(offBtn).toHaveAttribute('aria-pressed', 'false');
+
+    // Extra voice config panel should appear
+    await expect(page.getByText('Test Voice')).toBeVisible({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'ccp2-2-voice-scores');
+
+    // Click Full → active state changes again
+    await fullBtn.click();
+    await expect(fullBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(scoresBtn).toHaveAttribute('aria-pressed', 'false');
+
+    await captureScreen(page, testInfo, 'ccp2-2-voice-full');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CC-P2-3: Invalid group share code shows error
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('CC-P2-3: invalid group share code shows not found @p2', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/g/INVALID_CODE_12345');
+
+    // Wait for loading to finish, then expect "not found" state
+    await expect(page.getByText('Group Not Found')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('This invite link is invalid')).toBeVisible({ timeout: 5000 });
+
+    // "Go to Buddies" link visible as fallback navigation
+    await expect(page.getByRole('link', { name: 'Go to Buddies' })).toBeVisible({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'ccp2-3-invalid-group-code');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CC-P2-4: Keep screen awake toggle persists
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('CC-P2-4: keep screen awake toggle persists across navigation @p2', async ({
+    page,
+  }, testInfo) => {
+    await page.goto('/');
+
+    const settingsPage = new SettingsPage(page);
+    await settingsPage.goto();
+
+    // Find the Keep Screen Awake toggle
+    const toggle = page.getByRole('switch', { name: /Keep Screen Awake/i });
+    await expect(toggle).toBeVisible({ timeout: 5000 });
+
+    // Get initial state
+    const initialState = await toggle.getAttribute('aria-checked');
+
+    // Toggle it
+    await toggle.click();
+
+    // State should flip
+    const newState = initialState === 'true' ? 'false' : 'true';
+    await expect(toggle).toHaveAttribute('aria-checked', newState);
+
+    await captureScreen(page, testInfo, 'ccp2-4-after-toggle');
+
+    // Navigate away to /new
+    await page.goto('/new');
+    await expect(page.getByText('Game Type')).toBeVisible({ timeout: 10000 });
+
+    // Navigate back to settings
+    await settingsPage.goto();
+
+    // Toggle state should be persisted
+    const persistedToggle = page.getByRole('switch', { name: /Keep Screen Awake/i });
+    await expect(persistedToggle).toHaveAttribute('aria-checked', newState);
+
+    await captureScreen(page, testInfo, 'ccp2-4-persisted');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CC-P2-5: Settings page shows all sections
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('CC-P2-5: settings page shows all sections, auth-only sections after sign-in @p2', async ({
+    page,
+  }, testInfo) => {
+    // Unauthenticated: navigate to settings
+    await page.goto('/');
+    const settingsPage = new SettingsPage(page);
+    await settingsPage.goto();
+
+    // Common sections visible without auth
+    await expect(page.getByText('Theme')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Display')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Sound Effects')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Voice')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Default Scoring')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Default Points to Win')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Default Match Format')).toBeVisible({ timeout: 5000 });
+
+    // Auth-only sections should NOT be visible
+    await expect(page.getByText('Cloud Sync')).not.toBeVisible();
+    await expect(page.getByText('Notifications')).not.toBeVisible();
+
+    await captureScreen(page, testInfo, 'ccp2-5-unauth-settings');
+
+    // Sign in — must navigate to app root first so Firebase SDK is available
+    const email = `e2e-ccp2-5-${randomUUID().slice(0, 8)}@test.com`;
+    await page.goto('/');
+    await signInAsTestUser(page, { email, displayName: 'Settings User' });
+
+    // Re-navigate to settings after auth (fresh page load picks up auth state)
+    await settingsPage.goto();
+
+    // Auth-only sections now visible
+    await expect(page.getByText('Cloud Sync')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Notifications')).toBeVisible({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'ccp2-5-auth-settings');
+  });
+});

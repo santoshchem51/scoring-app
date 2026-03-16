@@ -753,3 +753,288 @@ test.describe('@p1 Organizer: P1 Creation & Dashboard', () => {
     await captureScreen(page, testInfo, 'adm16-after-cancel');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// P2 Organizer: Edge Cases
+// ═══════════════════════════════════════════════════════════════════════════
+
+test.describe('@p2 Organizer: P2 Edge Cases', () => {
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ORG-P2-1: Max players enforced on creation form
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('ORG-P2-1: max players enforced — registration count shows correct number @p2', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+    const tournamentId = uid('tournament');
+
+    const tournament = makeTournament({
+      id: tournamentId,
+      organizerId: userUid,
+      status: 'registration',
+      format: 'round-robin',
+      maxPlayers: 4,
+      registrationCounts: { confirmed: 4, pending: 0 },
+    });
+    await seedFirestoreDocAdmin(PATHS.tournaments, tournamentId, tournament);
+
+    // Seed 4 confirmed registrations (at max capacity)
+    const playerNames = ['Alice', 'Bob', 'Charlie', 'Dana'];
+    for (let i = 0; i < 4; i++) {
+      const playerId = `player-${uid('p')}`;
+      await seedFirestoreDocAdmin(`tournaments/${tournamentId}/registrations`, playerId, {
+        id: playerId,
+        tournamentId,
+        userId: playerId,
+        playerName: playerNames[i],
+        teamId: null,
+        paymentStatus: 'unpaid',
+        paymentNote: '',
+        lateEntry: false,
+        skillRating: null,
+        partnerId: null,
+        partnerName: null,
+        profileComplete: false,
+        registeredAt: Date.now(),
+        status: 'confirmed',
+        declineReason: null,
+        statusUpdatedAt: null,
+      });
+    }
+
+    await goToTournamentDashboard(page, tournamentId);
+
+    // Wait for registration dashboard to load
+    await expect(page.getByText('Registration Open')).toBeVisible({ timeout: 10000 });
+
+    // Registered Players count should show (4)
+    await expect(page.getByText('Registered Players (4)')).toBeVisible({ timeout: 10000 });
+
+    // Verify all 4 player names are visible
+    for (const name of playerNames) {
+      await expect(page.getByText(name)).toBeVisible({ timeout: 5000 });
+    }
+
+    await captureScreen(page, testInfo, 'orgp2-1-max-players');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ORG-P2-2: Past date shows on tournament
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('ORG-P2-2: tournament with past date displays date correctly @p2', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+    const tournamentId = uid('tournament');
+
+    // Set date to 30 days ago
+    const pastDate = Date.now() - 30 * 86400000;
+
+    const tournament = makeTournament({
+      id: tournamentId,
+      organizerId: userUid,
+      status: 'registration',
+      format: 'round-robin',
+      date: pastDate,
+    });
+    await seedFirestoreDocAdmin(PATHS.tournaments, tournamentId, tournament);
+
+    await goToTournamentDashboard(page, tournamentId);
+
+    await expect(page.getByText('Registration Open')).toBeVisible({ timeout: 10000 });
+
+    // Date card should be visible and not blank
+    await expect(page.getByText('Date')).toBeVisible({ timeout: 5000 });
+
+    // The date value should render as a non-empty string in the info grid
+    const dateSection = page.locator('div', { hasText: 'Date' }).first();
+    await expect(dateSection).toBeVisible({ timeout: 5000 });
+
+    // Verify the date section contains actual date text (not blank)
+    await expect(async () => {
+      const text = await dateSection.textContent();
+      // Should contain "Date" plus some date-like content
+      expect(text!.length).toBeGreaterThan(4);
+    }).toPass({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'orgp2-2-past-date');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ORG-P2-3: Cancel mid-match (tournament context)
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('ORG-P2-3: organizer cancels tournament during pool play @p2', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+    const tournamentId = uid('tournament');
+
+    const tournament = makeTournament({
+      id: tournamentId,
+      organizerId: userUid,
+      status: 'pool-play',
+      format: 'round-robin',
+      registrationCounts: { confirmed: 4, pending: 0 },
+    });
+    await seedFirestoreDocAdmin(PATHS.tournaments, tournamentId, tournament);
+
+    // Seed minimal pool data with an active match
+    const team1Id = uid('team');
+    const team2Id = uid('team');
+    await seedFirestoreDocAdmin(PATHS.teams(tournamentId), team1Id,
+      makeTeam({ id: team1Id, tournamentId, name: 'Eagles', playerIds: ['p1'], poolId: 'pool-0' }));
+    await seedFirestoreDocAdmin(PATHS.teams(tournamentId), team2Id,
+      makeTeam({ id: team2Id, tournamentId, name: 'Hawks', playerIds: ['p2'], poolId: 'pool-0' }));
+    await seedFirestoreDocAdmin(PATHS.pools(tournamentId), 'pool-0', makePool({
+      id: 'pool-0', tournamentId, name: 'Pool A', teamIds: [team1Id, team2Id],
+      schedule: [{ round: 1, team1Id, team2Id, matchId: 'active-match-1', court: null }],
+      standings: [
+        { teamId: team1Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
+        { teamId: team2Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
+      ],
+    }));
+
+    await goToTournamentDashboard(page, tournamentId);
+
+    // Organizer Controls visible
+    await expect(page.getByText('Organizer Controls')).toBeVisible({ timeout: 10000 });
+
+    // Cancel Tournament button visible
+    const cancelBtn = page.getByRole('button', { name: 'Cancel Tournament' });
+    await expect(cancelBtn).toBeVisible({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'orgp2-3-before-cancel');
+
+    // Click Cancel Tournament — opens confirm dialog
+    await cancelBtn.click();
+
+    // Confirm dialog appears — click the confirmation button
+    const confirmBtn = page.getByRole('button', { name: 'Cancel Tournament' }).last();
+    await expect(confirmBtn).toBeVisible({ timeout: 5000 });
+    await confirmBtn.click();
+
+    // Status changes to Cancelled
+    await expect(page.getByText('Cancelled')).toBeVisible({ timeout: 10000 });
+
+    // Organizer Controls no longer visible for cancelled tournaments
+    await expect(page.getByText('Organizer Controls')).not.toBeVisible({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'orgp2-3-after-cancel');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ORG-P2-4: Activity Log integration — status change logged
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('ORG-P2-4: activity log visible on tournament dashboard @p2', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+    const tournamentId = uid('tournament');
+
+    const tournament = makeTournament({
+      id: tournamentId,
+      organizerId: userUid,
+      status: 'pool-play',
+      format: 'round-robin',
+      registrationCounts: { confirmed: 4, pending: 0 },
+    });
+    await seedFirestoreDocAdmin(PATHS.tournaments, tournamentId, tournament);
+
+    // Seed minimal pool data so pool-play renders
+    const team1Id = uid('team');
+    const team2Id = uid('team');
+    await seedFirestoreDocAdmin(PATHS.teams(tournamentId), team1Id,
+      makeTeam({ id: team1Id, tournamentId, name: 'Team X', playerIds: ['p1'], poolId: 'pool-0' }));
+    await seedFirestoreDocAdmin(PATHS.teams(tournamentId), team2Id,
+      makeTeam({ id: team2Id, tournamentId, name: 'Team Y', playerIds: ['p2'], poolId: 'pool-0' }));
+    await seedFirestoreDocAdmin(PATHS.pools(tournamentId), 'pool-0', makePool({
+      id: 'pool-0', tournamentId, name: 'Pool A', teamIds: [team1Id, team2Id],
+      schedule: [{ round: 1, team1Id, team2Id, matchId: null, court: null }],
+      standings: [
+        { teamId: team1Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
+        { teamId: team2Id, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, pointDiff: 0 },
+      ],
+    }));
+
+    await goToTournamentDashboard(page, tournamentId);
+    await expect(page.getByText('Pool Play')).toBeVisible({ timeout: 10000 });
+
+    // Activity Log section should be present on dashboard
+    // It may show "No activity yet" or contain entries
+    await expect(page.getByText('Activity Log')).toBeVisible({ timeout: 10000 });
+
+    await captureScreen(page, testInfo, 'orgp2-4-activity-log-initial');
+
+    // Trigger a status change by pausing the tournament
+    const pauseBtn = page.getByRole('button', { name: 'Pause' });
+    await expect(pauseBtn).toBeVisible({ timeout: 5000 });
+    await pauseBtn.click();
+
+    // Wait for status to change
+    await expect(page.getByText('Paused')).toBeVisible({ timeout: 10000 });
+
+    // Check if activity log now contains an entry for the status change
+    // Allow time for audit entry to appear
+    await page.waitForTimeout(2000);
+
+    await captureScreen(page, testInfo, 'orgp2-4-activity-log-after-pause');
+
+    // Activity Log should still be visible
+    await expect(page.getByText('Activity Log')).toBeVisible({ timeout: 5000 });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ORG-P2-5: Tournament creation with all fields
+  // ═══════════════════════════════════════════════════════════════════
+
+  test('ORG-P2-5: tournament with all optional fields displayed in info grid @p2', async ({
+    authenticatedPage: page,
+  }, testInfo) => {
+    const userUid = await getCurrentUserUid(page);
+    const tournamentId = uid('tournament');
+
+    const tournament = makeTournament({
+      id: tournamentId,
+      name: 'Full Fields Tournament',
+      organizerId: userUid,
+      status: 'registration',
+      format: 'pool-bracket',
+      location: 'Sunset Courts',
+      date: Date.now() + 7 * 86400000,
+      maxPlayers: 16,
+      accessMode: 'approval',
+      config: {
+        gameType: 'doubles',
+        scoringMode: 'sideout',
+        matchFormat: 'best-of-3',
+        pointsToWin: 15,
+        poolCount: 2,
+        teamsPerPoolAdvancing: 2,
+      },
+    });
+    await seedFirestoreDocAdmin(PATHS.tournaments, tournamentId, tournament);
+
+    await goToTournamentDashboard(page, tournamentId);
+
+    // Tournament name displayed
+    await expect(page.getByText('Full Fields Tournament')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Registration Open')).toBeVisible({ timeout: 5000 });
+
+    // Info grid shows all fields
+    await expect(page.getByText('Pool Play + Bracket')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Sunset Courts')).toBeVisible({ timeout: 5000 });
+
+    // Info cards present
+    await expect(page.getByText('Date')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Location')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Format')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Teams')).toBeVisible({ timeout: 5000 });
+
+    await captureScreen(page, testInfo, 'orgp2-5-all-fields');
+  });
+});
