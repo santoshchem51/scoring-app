@@ -82,4 +82,34 @@ test.describe('Casual Scorer: Core Journeys', () => {
     await scoring.expectMatchOver();
     await captureScreen(page, testInfo, 'scoring-rally-winby2-matchover');
   });
+
+  test('CS-2: quick game to completion appears in history', async ({ page }) => {
+    await setup.goto();
+    await setup.quickGame();
+    await scoring.expectOnScoringScreen();
+
+    await scoring.scorePoints('Team 1', 11);
+    await scoring.expectMatchOver();
+    await scoring.saveAndFinish();
+
+    const nav = new NavigationBar(page);
+    await nav.goToHistory();
+    await expect(page.getByText(/11/)).toBeVisible({ timeout: 10000 });
+  });
+
+  test('CS-16: match history persists across reload', async ({ page }) => {
+    await setup.goto();
+    await setup.quickGame();
+    await scoring.expectOnScoringScreen();
+    await scoring.scorePoints('Team 1', 11);
+    await scoring.expectMatchOver();
+    await scoring.saveAndFinish();
+
+    const nav = new NavigationBar(page);
+    await nav.goToHistory();
+    await expect(page.getByText(/11/)).toBeVisible({ timeout: 10000 });
+
+    await page.reload();
+    await expect(page.getByText(/11/)).toBeVisible({ timeout: 10000 });
+  });
 });
