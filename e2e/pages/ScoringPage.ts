@@ -152,4 +152,22 @@ export class ScoringPage {
   async expectScoreCall(call: string) {
     await expect(this.page.getByTestId('score-call')).toContainText(call);
   }
+
+  /** Read actual team names from the scoring button aria-labels. */
+  async getTeamNames(): Promise<{ team1: string; team2: string }> {
+    const buttons = this.page.locator('button[aria-label^="Score point for"]');
+    const label1 = await buttons.nth(0).getAttribute('aria-label');
+    const label2 = await buttons.nth(1).getAttribute('aria-label');
+    return {
+      team1: label1!.replace('Score point for ', ''),
+      team2: label2!.replace('Score point for ', ''),
+    };
+  }
+
+  /** Assert match is over and click Save & Finish. */
+  async expectMatchCompleteAndSave() {
+    await this.expectMatchOver();
+    await expect(this.saveFinishBtn).toBeEnabled({ timeout: 5000 });
+    await this.saveAndFinish();
+  }
 }
