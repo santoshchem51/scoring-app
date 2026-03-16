@@ -41,4 +41,45 @@ test.describe('Casual Scorer: Core Journeys', () => {
     await scoring.expectMatchOver();
     await captureScreen(page, testInfo, 'scoring-matchover-bestof3');
   });
+
+  test('CS-4: doubles sideout serving restrictions + score call', async ({ page }, testInfo) => {
+    await setup.goto();
+    await setup.selectDoubles();
+    await setup.selectSideoutScoring();
+    await setup.startGame();
+    await scoring.expectOnScoringScreen();
+
+    await scoring.expectTeam1Enabled();
+    await scoring.expectTeam2Disabled();
+    await scoring.expectScoreCall('0-0-2');
+
+    await scoring.scorePoint('Team 1');
+    await scoring.expectTeamScore('Team 1', 1);
+
+    await scoring.triggerSideOut();
+    await scoring.expectTeam1Disabled();
+    await scoring.expectTeam2Enabled();
+    await captureScreen(page, testInfo, 'scoring-sideout-team2serving');
+  });
+
+  test('CS-6: rally scoring win-by-2 enforced', async ({ page }, testInfo) => {
+    await setup.goto();
+    await setup.selectRallyScoring();
+    await setup.startGame();
+    await scoring.expectOnScoringScreen();
+
+    await scoring.scorePoints('Team 1', 10);
+    await scoring.expectTeamScore('Team 1', 10);
+
+    await scoring.scorePoints('Team 2', 10);
+    await scoring.expectScores(10, 10);
+
+    await scoring.scorePoint('Team 1');
+    await scoring.expectScores(11, 10);
+    await expect(scoring.team1ScoreBtn).toBeVisible();
+
+    await scoring.scorePoint('Team 1');
+    await scoring.expectMatchOver();
+    await captureScreen(page, testInfo, 'scoring-rally-winby2-matchover');
+  });
 });
