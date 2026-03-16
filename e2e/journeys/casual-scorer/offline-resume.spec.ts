@@ -3,7 +3,7 @@ import { GameSetupPage } from '../../pages/GameSetupPage';
 import { ScoringPage } from '../../pages/ScoringPage';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('Casual Scorer: Offline & Resume', () => {
+test.describe('@p0 Casual Scorer: Offline & Resume', () => {
 
   test('CS-7: match resume restores full snapshot', async ({ page }, testInfo) => {
     const setup = new GameSetupPage(page);

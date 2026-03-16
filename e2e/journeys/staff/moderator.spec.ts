@@ -4,7 +4,7 @@ import { seedFirestoreDocAdmin, getCurrentUserUid } from '../../helpers/emulator
 import { makeTournament, makeTeam, makePool, uid } from '../../helpers/factories';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('Staff P0: Moderator Permissions', () => {
+test.describe('@p0 Staff P0: Moderator Permissions', () => {
 
   // S7: moderator sees Edit Score button on completed matches
   test('S7: moderator sees Edit Score button on completed pool match', async ({

@@ -8,7 +8,7 @@ import { seedDoc } from './spectator-helpers';
 
 // --- Tests ---
 
-test.describe('Spectator: Mobile Viewport', () => {
+test.describe('@p0 Spectator: Mobile Viewport', () => {
   test.use({ viewport: { width: 375, height: 667 } });
 
   test('hub renders on 375px without horizontal overflow', async ({ page }) => {

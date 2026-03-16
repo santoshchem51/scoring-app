@@ -5,7 +5,7 @@ import { makeTournament, makeTeam, uid } from '../../helpers/factories';
 import { ScoringPage } from '../../pages/ScoringPage';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('Organizer P0: Pool-Bracket Full Lifecycle (DASH-11)', () => {
+test.describe('@p0 Organizer P0: Pool-Bracket Full Lifecycle (DASH-11)', () => {
 
   // DASH-11: Pool-bracket full lifecycle
   // Seeds state at each phase rather than clicking through all UI transitions,

@@ -13,7 +13,7 @@ import { GameSetupPage } from '../../pages/GameSetupPage';
 import { ScoringPage } from '../../pages/ScoringPage';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('Player: Achievement Journeys', () => {
+test.describe('@p0 Player: Achievement Journeys', () => {
 
   // ═══════════════════════════════════════════════════════════════════
   // PL-14 — Achievement toast on unlock (or trophy case fallback)

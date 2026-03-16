@@ -4,7 +4,7 @@ import { ScoringPage } from '../../pages/ScoringPage';
 import { NavigationBar } from '../../pages/NavigationBar';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('Casual Scorer: Core Journeys', () => {
+test.describe('@p0 Casual Scorer: Core Journeys', () => {
 
   test('CS-1: landing page Start Scoring navigates to game setup', async ({ page }) => {
     const setup = new GameSetupPage(page);

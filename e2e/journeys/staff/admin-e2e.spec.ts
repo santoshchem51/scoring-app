@@ -5,7 +5,7 @@ import { makeTournament, makeTeam, makePool, uid } from '../../helpers/factories
 import { ScoringPage } from '../../pages/ScoringPage';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('Staff P0: Admin & Scorekeeper E2E', () => {
+test.describe('@p0 Staff P0: Admin & Scorekeeper E2E', () => {
 
   // S12: admin sees StaffManager with role badges for all staff
   test('S12: admin sees StaffManager with role badges for 3 staff members', async ({

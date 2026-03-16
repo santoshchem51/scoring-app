@@ -11,7 +11,7 @@ import {
 } from '../../helpers/factories';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('Buddy Group Journeys', () => {
+test.describe('@p0 Buddy Group Journeys', () => {
   test('group detail shows header, members, sessions', async ({
     authenticatedPage: page,
   }, testInfo) => {

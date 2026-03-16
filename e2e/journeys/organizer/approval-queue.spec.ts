@@ -4,7 +4,7 @@ import { seedFirestoreDocAdmin, getCurrentUserUid, goToTournamentDashboard } fro
 import { makeTournament, uid } from '../../helpers/factories';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('Organizer P0: Approval Queue (REG-09)', () => {
+test.describe('@p0 Organizer P0: Approval Queue (REG-09)', () => {
 
   // REG-09: Organizer approves pending registration
   // Two browser contexts: authenticatedPage (organizer), secondAuthenticatedPage (player)

@@ -10,7 +10,7 @@ import { seedDoc } from './spectator-helpers';
 
 // --- Tests ---
 
-test.describe('Spectator Hub: Tournament Phase Rendering', () => {
+test.describe('@p0 Spectator Hub: Tournament Phase Rendering', () => {
   test('hub in registration status shows tournament name and registration info', async ({
     page,
   }, testInfo) => {

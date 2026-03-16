@@ -4,7 +4,7 @@ import { makeTournament, makeTeam, makePool } from '../../helpers/factories';
 import { captureScreen } from '../../helpers/screenshots';
 import { randomUUID } from 'crypto';
 
-test.describe('Player: Tournament View Journeys', () => {
+test.describe('@p0 Player: Tournament View Journeys', () => {
 
   // ═══════════════════════════════════════════════════════════════════
   // PL-4 — View tournament via share code

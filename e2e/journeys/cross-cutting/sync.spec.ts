@@ -9,7 +9,7 @@ import { ScoringPage } from '../../pages/ScoringPage';
 import { captureScreen } from '../../helpers/screenshots';
 import { randomUUID } from 'crypto';
 
-test.describe('Cross-Cutting: Sync Journeys', () => {
+test.describe('@p0 Cross-Cutting: Sync Journeys', () => {
 
   // ═══════════════════════════════════════════════════════════════════
   // C1 — Sync retry button after failed sync

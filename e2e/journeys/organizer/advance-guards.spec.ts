@@ -3,7 +3,7 @@ import { test, expect } from '../../fixtures';
 import { seedFirestoreDocAdmin, getCurrentUserUid, goToTournamentDashboard } from '../../helpers/emulator-auth';
 import { makeTournament, makeTeam, makePool, makeBracketSlot, uid } from '../../helpers/factories';
 
-test.describe('Organizer P0: Advance Guards (DASH-12, DASH-14)', () => {
+test.describe('@p0 Organizer P0: Advance Guards (DASH-12, DASH-14)', () => {
 
   // ═══════════════════════════════════════════════════════════════════
   // DASH-12: Advance to Completed via button

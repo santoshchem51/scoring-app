@@ -11,7 +11,7 @@ import {
 } from '../../helpers/factories';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('Voting & Open Play Journeys', () => {
+test.describe('@p0 Voting & Open Play Journeys', () => {
   test('create voting session (Find a Time)', async ({
     authenticatedPage: page,
   }, testInfo) => {

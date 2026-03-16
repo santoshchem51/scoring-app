@@ -12,7 +12,7 @@ import { seedFirestoreDocAdmin } from '../../helpers/emulator-auth';
 
 // --- Tests ---
 
-test.describe('Spectator Match Detail', () => {
+test.describe('@p0 Spectator Match Detail', () => {
   test('scoreboard shows team names and scores', async ({ page }) => {
     const SHARE_CODE = makeShareCode();
     const TOURNAMENT_ID = uid('tourney');

@@ -11,7 +11,7 @@ import {
 } from '../../helpers/factories';
 import { captureScreen } from '../../helpers/screenshots';
 
-test.describe('RSVP Journeys', () => {
+test.describe('@p0 RSVP Journeys', () => {
   test('RSVP Out to In increments spots (reverse delta)', async ({
     authenticatedPage: page,
   }, testInfo) => {

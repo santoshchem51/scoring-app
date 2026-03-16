@@ -3,7 +3,7 @@ import { test, expect } from '../../fixtures';
 import { seedFirestoreDocAdmin, getCurrentUserUid, goToTournamentDashboard } from '../../helpers/emulator-auth';
 import { makeTournament, makeTeam, makePool, makePublicMatch, uid } from '../../helpers/factories';
 
-test.describe('Organizer P0: Registration Guards & Rescore (REG-12, INT-03, AUTH-04)', () => {
+test.describe('@p0 Organizer P0: Registration Guards & Rescore (REG-12, INT-03, AUTH-04)', () => {
 
   // ═══════════════════════════════════════════════════════════════════
   // REG-12: Max player cap enforced

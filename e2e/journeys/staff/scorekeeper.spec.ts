@@ -46,7 +46,7 @@ async function seedScorekeeperTournament(userUid: string, role: string = 'scorek
   return ids;
 }
 
-test.describe('Staff P0: Scorekeeper Permissions', () => {
+test.describe('@p0 Staff P0: Scorekeeper Permissions', () => {
 
   // S1: scorekeeper sees "Matches to Score" list
   test('S1: scorekeeper sees match list on tournament dashboard', async ({
