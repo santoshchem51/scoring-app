@@ -331,7 +331,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
 
         {/* Score Call */}
         <Show when={props.match.config.scoringMode === 'sideout' && props.match.config.gameType === 'doubles' && stateName() === 'serving'}>
-          <div class="text-center py-3 mx-4 border-t border-b" style={{ "border-color": "var(--color-court-line-strong)" }}>
+          <div data-testid="score-call" class="text-center py-3 mx-4 border-t border-b" style={{ "border-color": "var(--color-court-line-strong)" }}>
             <span class="text-2xl font-bold text-on-surface tabular-nums tracking-widest" style={{ "font-family": "var(--font-score)", "font-weight": "500" }}>
               {ctx().servingTeam === 1
                 ? `${ctx().team1Score}-${ctx().team2Score}-${ctx().serverNumber}`

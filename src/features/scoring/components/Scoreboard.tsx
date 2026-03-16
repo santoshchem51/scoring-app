@@ -91,6 +91,7 @@ const Scoreboard: Component<Props> = (props) => {
         </span>
         <Show when={isServing(1)}>
           <span
+            data-testid="serving-indicator-1"
             class="mt-2 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
             style={{ color: t1Color(), "border-color": t1Color() }}
           >
@@ -144,6 +145,7 @@ const Scoreboard: Component<Props> = (props) => {
         </span>
         <Show when={isServing(2)}>
           <span
+            data-testid="serving-indicator-2"
             class="mt-2 text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border"
             style={{ color: t2Color(), "border-color": t2Color() }}
           >
