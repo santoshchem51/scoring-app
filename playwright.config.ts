@@ -19,7 +19,7 @@ export default defineConfig({
   projects: [
     {
       name: 'emulator',
-      testIgnore: '**/smoke/**',
+      testIgnore: ['**/smoke/**', '**/visual-qa/**'],
       use: {
         ...devices['Pixel 5'],
         baseURL: 'http://localhost:5199',
@@ -27,13 +27,36 @@ export default defineConfig({
     },
     {
       name: 'visual-qa',
-      testIgnore: ['**/smoke/**'],
+      testDir: './e2e/journeys/visual-qa',
+      outputDir: './test-results/visual-qa',
+      timeout: 60_000,
+      retries: 0,
       use: {
         ...devices['Pixel 5'],
         baseURL: 'http://localhost:5199',
-        screenshot: 'on',
-        trace: 'on',
+        screenshot: 'only-on-failure',
+        trace: 'retain-on-failure',
         video: 'retain-on-first-retry',
+        actionTimeout: 15_000,
+      },
+    },
+    {
+      name: 'visual-qa-desktop',
+      testDir: './e2e/journeys/visual-qa',
+      testMatch: '**/chrome-visual.spec.ts',
+      outputDir: './test-results/visual-qa-desktop',
+      timeout: 60_000,
+      retries: 0,
+      use: {
+        baseURL: 'http://localhost:5199',
+        viewport: { width: 1440, height: 900 },
+        deviceScaleFactor: 1,
+        isMobile: false,
+        hasTouch: false,
+        screenshot: 'only-on-failure',
+        trace: 'retain-on-failure',
+        video: 'retain-on-first-retry',
+        actionTimeout: 15_000,
       },
     },
     {
