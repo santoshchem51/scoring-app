@@ -16,6 +16,10 @@ export const PATHS = {
   gameSessions: 'gameSessions',
   rsvps: (sessionId: string) => `gameSessions/${sessionId}/rsvps`,
   users: 'users',
+  notifications: (userId: string) => `users/${userId}/notifications`,
+  achievements: (userId: string) => `users/${userId}/achievements`,
+  stats: (userId: string) => `users/${userId}/stats`,
+  matchRefs: (userId: string) => `users/${userId}/matchRefs`,
 } as const;
 
 /** Document ID for the spectator projection subdoc within matches/{id}/public/ */
