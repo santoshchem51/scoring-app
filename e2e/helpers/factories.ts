@@ -277,3 +277,38 @@ export function makeSpectatorProjection(overrides: Record<string, unknown> = {})
     ...overrides,
   };
 }
+
+export function makeRsvp(overrides: Record<string, unknown> = {}) {
+  return {
+    userId: 'test-user',
+    displayName: 'Test Player',
+    status: 'in',
+    respondedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export function makeNotification(overrides: Record<string, unknown> = {}) {
+  return {
+    id: uid('notif'),
+    type: 'tournament_update',
+    title: 'Tournament Update',
+    body: 'Pool play has started.',
+    read: false,
+    createdAt: Date.now(),
+    targetRoute: null,
+    ...overrides,
+  };
+}
+
+export function makeAchievement(overrides: Record<string, unknown> = {}) {
+  return {
+    achievementId: 'first-match',
+    label: 'First Match',
+    description: 'Played your first match',
+    icon: 'trophy',
+    unlockedAt: Date.now(),
+    triggerMatchId: null,
+    ...overrides,
+  };
+}
