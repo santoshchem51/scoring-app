@@ -218,7 +218,7 @@ const GameSetupPage: Component = () => {
             {/* Points to Win */}
             <fieldset>
               <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Points to Win</legend>
-              <div class="grid grid-cols-3 gap-3">
+              <div class="grid grid-cols-3 gap-2 min-w-0">
                 <OptionCard label="11" selected={pointsToWin() === 11} onClick={() => setPointsToWin(11)} />
                 <OptionCard label="15" selected={pointsToWin() === 15} onClick={() => setPointsToWin(15)} />
                 <OptionCard label="21" selected={pointsToWin() === 21} onClick={() => setPointsToWin(21)} />
@@ -228,7 +228,7 @@ const GameSetupPage: Component = () => {
             {/* Match Format */}
             <fieldset>
               <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">Match Format</legend>
-              <div class="grid grid-cols-3 gap-3">
+              <div class="grid grid-cols-3 gap-2 min-w-0">
                 <OptionCard label="1 Game" selected={matchFormat() === 'single'} onClick={() => setMatchFormat('single')} />
                 <OptionCard label="Best of 3" selected={matchFormat() === 'best-of-3'} onClick={() => setMatchFormat('best-of-3')} />
                 <OptionCard label="Best of 5" selected={matchFormat() === 'best-of-5'} onClick={() => setMatchFormat('best-of-5')} />
