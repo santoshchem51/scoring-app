@@ -872,7 +872,7 @@ const TournamentDashboardPage: Component = () => {
               </Show>
 
               {/* Scorekeeper Match List */}
-              <Show when={role() === 'scorekeeper' || (live.tournament() && user() && hasMinRole(live.tournament()!, user()!.uid, 'scorekeeper') && role() !== 'player')}>
+              <Show when={live.tournament() && live.tournament()!.status !== 'completed' && live.tournament()!.status !== 'cancelled' && (role() === 'scorekeeper' || (user() && hasMinRole(live.tournament()!, user()!.uid, 'scorekeeper') && role() !== 'player'))}>
                 <ScorekeeperMatchList
                   pools={live.pools()}
                   bracket={live.bracket()}
