@@ -10,6 +10,97 @@
 
 ---
 
+## Specialist Review Errata (4 reviewers, applied before execution)
+
+### Critical Fixes (will cause runtime errors if not applied)
+
+**E1 — Task 7: Wrong RSVP field name.**
+The plan uses `r.status === 'in'` but the actual field is `r.response`. All occurrences in Task 7 must use `r.response === 'in'` (both SessionDetailPage and PublicSessionPage).
+
+**E2 — Task 2: Missing import diff.**
+The plan says "change the import" but doesn't show the code. Line 28 of TournamentDashboardPage.tsx must change from:
+`import { statusLabels, statusColors, formatLabels } from './constants';`
+to:
+`import { statusLabels, statusColors, formatLabels, shortStatusLabels } from './constants';`
+
+**E3 — Task 13: Inline style specificity bug.**
+`style="background-color: #0f1118"` on `<body>` has higher specificity than `body { background-color: var(--color-surface); }` in CSS. Fix: remove the inline style and instead use `addInitScript` in the theme hook or add `!important` to the CSS rule. Recommended: use `body { background-color: var(--color-surface) !important; }` in styles.css, and use `style="background-color: #0f1118"` only as the flash-prevention default (CSS !important overrides inline once loaded).
+
+**E4 — Task 14: `<A>` crashes ProfileHeader unit test.**
+`ProfileHeader.test.tsx` renders without a `<Router>` context. Using `<A>` from `@solidjs/router` will throw. Fix: use a plain `<a href="/settings">` tag instead of `<A>`. This is a presentational component, not a navigation controller — a plain anchor is appropriate.
+
+**E5 — Task 15: Match object shape is wrong.**
+The plan puts `gameType`, `scoringMode`, `matchFormat`, `pointsToWin` as top-level fields, but the `Match` interface nests them under `config: MatchConfig`. Also missing `status`, `team1PlayerIds`, `team2PlayerIds`. Correct shape:
+```typescript
+await db.matches.put({
+  id: data.matchId,
+  team1Name: 'Alpha',
+  team2Name: 'Bravo',
+  team1PlayerIds: [],
+  team2PlayerIds: [],
+  config: { gameType: 'singles', scoringMode: 'rally', matchFormat: 'single', pointsToWin: 11 },
+  games: [{ gameNumber: 1, team1Score: 11, team2Score: 7, winningSide: 1 }],
+  winningSide: 1,
+  status: 'completed',
+  startedAt: Date.now() - 3600000,
+  completedAt: Date.now() - 3500000,
+  lastSnapshot: null,
+});
+```
+
+**E6 — Task 5: StatsOverview unit test will break.**
+`StatsOverview.test.tsx` asserts `/Singles 4-2/` and `/Doubles 3-1/`. After the format change to `4W–2L`, these assertions fail. Update test to match the new format: `/Singles 4W/` and `/Doubles 3W/`.
+
+### Test Fixes (will cause silent false-passes if not applied)
+
+**E7 — Task 18: `data-testid="buddy-avatar"` doesn't exist.**
+`BuddyAvatar.tsx` has no `data-testid`. Fix: add `data-testid="buddy-avatar"` to the `<button>` in `BuddyAvatar.tsx`, or use `page.getByLabel(/Tap to change/)` as the selector.
+
+**E8 — Task 18: Wrong button text.**
+Plan uses `page.getByText('Add Buddies')` but actual text is `'Add Players [optional]'` in `BuddyPicker.tsx`. Fix: use `page.getByText('Add Players')`.
+
+**E9 — Task 16: InstallPromptBanner never mounts on iOS.**
+`App.tsx` wraps `InstallPromptBanner` in `<Show when={showInstallBanner() && ...}>`. `showInstallBanner()` requires `beforeinstallprompt` which iOS never fires. The component will never mount on iOS. The test's graceful skip is correct but the annotation should explain the real reason: `'App.tsx guards InstallPromptBanner behind showInstallBanner() which requires beforeinstallprompt — iOS never fires this'`.
+
+**E10 — Tasks 16, 17, 18: Soft-fail tests.**
+Tests using `.catch(() => false)` + conditional branches can never fail. Where possible, convert to hard `expect()` assertions. For Task 18, remove all `.catch(() => false)` patterns and make assertions mandatory. For Tasks 16 and 17 where the UI state may genuinely not be capturable, the graceful skip is acceptable but the annotation must clearly explain why.
+
+**E11 — Task 18: Missing import.**
+`addMemberToGroup` must be added to the import statement at the top of `social-visual.spec.ts`.
+
+**E12 — Task 18: Brittle timeout.**
+Replace `page.waitForTimeout(3000)` with `await expect(page.getByText('Jane Doe')).toBeVisible({ timeout: 10000 })`.
+
+### Ordering Constraints
+
+**E13 — TournamentDashboardPage.tsx edits must apply in order: Task 2 → Task 3 → Task 11.**
+Tasks 2 and 11 both modify lines 783-789. Task 11's code sample assumes Task 2 is already applied. Task 3 modifies line 875 (independent of 2/11 but same file).
+
+**E14 — social-visual.spec.ts edits must apply in order: Task 18 → Task 19 → Task 20 → Task 21.**
+Line references shift as each task modifies the file.
+
+**E15 — constants.ts: Task 10 line references shift after Task 2.**
+Task 2 adds `shortStatusLabels` after line 9, pushing `statusColors` down. Task 10 references the old line numbers. Navigate by content ("before `statusColors`"), not by line number.
+
+### Validation Enhancements
+
+**E16 — All visual fix tasks: Capture before-screenshots.**
+Before applying each fix, run the relevant visual QA test to capture the "before" state. After the fix, run again for "after". This provides diff evidence.
+
+**E17 — Tasks 1, 2, 4, 9: Add 375px viewport test.**
+These fixes address 375px-specific issues but the visual-qa project may only use 393px. Add explicit `page.setViewportSize({ width: 375, height: 812 })` checks.
+
+**E18 — Task 10: Replace manual inspection with programmatic contrast check.**
+Extract computed `color` and `backgroundColor` via `page.evaluate()` on badge elements. Compute contrast ratio using WCAG luminance formula. Assert ≥ 4.5:1 for text. Log results in a table.
+
+**E19 — Task 22: Run suites twice with `--repeat-each=2`.**
+Single green run cannot catch flakiness. Run E2E and visual suites twice. Assert expected test counts (no decrease from baseline, no unexpected skips).
+
+**E20 — Task 3: Add negative test.**
+Verify "Matches to Score" IS still visible for active tournaments (pool-play status) after the fix. Also test `cancelled` status.
+
+---
+
 ## Wave A: P2 UI Fixes (Tasks 1–7)
 
 ### Task 1: Pool standings table readability at 375px
