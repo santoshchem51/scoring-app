@@ -8,6 +8,17 @@ export const statusLabels: Record<string, string> = {
   paused: 'Paused',
 };
 
+/** Short labels for use in action buttons to prevent text wrapping */
+export const shortStatusLabels: Record<string, string> = {
+  setup: 'Setup',
+  registration: 'Registration',
+  'pool-play': 'Pools',
+  bracket: 'Bracket',
+  completed: 'Complete',
+  cancelled: 'Cancelled',
+  paused: 'Paused',
+};
+
 export const statusColors: Record<string, string> = {
   setup: 'bg-yellow-500/20 text-yellow-400',
   registration: 'bg-blue-500/20 text-blue-400',

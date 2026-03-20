@@ -25,7 +25,7 @@ import TournamentResults from './components/TournamentResults';
 import OrganizerControls from './components/OrganizerControls';
 import OrganizerPlayerManager from './components/OrganizerPlayerManager';
 import OrganizerPairingPanel from './components/OrganizerPairingPanel';
-import { statusLabels, statusColors, formatLabels } from './constants';
+import { statusLabels, statusColors, formatLabels, shortStatusLabels } from './constants';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding, Match } from '../../data/types';
 import ScoreEditModal from './components/ScoreEditModal';
@@ -360,7 +360,7 @@ const TournamentDashboardPage: Component = () => {
   const nextStatusLabel = createMemo(() => {
     const next = nextStatus();
     if (!next) return '';
-    return statusLabels[next] ?? next;
+    return shortStatusLabels[next] ?? next;
   });
 
   const showPoolTables = createMemo(() => {
@@ -783,7 +783,7 @@ const TournamentDashboardPage: Component = () => {
                   <Show when={isAdminPlus() && nextStatus()}>
                     <button type="button" onClick={handleStatusAdvance}
                       disabled={advancing()}
-                      class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform ${advancing() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
+                      class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform whitespace-nowrap ${advancing() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
                       {advancing() ? 'Advancing...' : `Advance to ${nextStatusLabel()}`}
                     </button>
                   </Show>
