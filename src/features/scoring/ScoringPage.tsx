@@ -443,19 +443,71 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           </Match>
 
           <Match when={stateName() === 'betweenGames'}>
-            <div class="flex flex-col items-center gap-4 px-4">
-              <p class="text-2xl font-bold text-score">Game Complete!</p>
-              <p class="text-on-surface-muted">
-                Games: {ctx().gamesWon[0]} - {ctx().gamesWon[1]}
-              </p>
-              <button
-                type="button"
-                onClick={() => startNextGame()}
-                class="w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl active:scale-95 transition-transform"
+            <Show
+              when={isLandscape()}
+              fallback={
+                <div class="flex flex-col items-center gap-4 px-4">
+                  <p class="text-2xl font-bold text-score">Game Complete!</p>
+                  <p class="text-on-surface-muted">
+                    Games: {ctx().gamesWon[0]} - {ctx().gamesWon[1]}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => startNextGame()}
+                    class="w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl active:scale-95 transition-transform"
+                  >
+                    Start Next Game
+                  </button>
+                </div>
+              }
+            >
+              <div
+                class="fixed inset-0 bg-surface z-40 flex ambient-bg"
+                style={{
+                  "--team1-color-rgb": hexToRgb(t1Color()),
+                  "--team2-color-rgb": hexToRgb(t2Color()),
+                } as import('solid-js').JSX.CSSProperties}
               >
-                Start Next Game
-              </button>
-            </div>
+                {/* Left side: Scoreboard */}
+                <div class="flex-1 flex flex-col justify-center">
+                  <div class="flex items-center justify-center gap-4 px-4 mb-4">
+                    <span class="text-sm text-on-surface-muted">
+                      Game {ctx().gameNumber}
+                    </span>
+                    <span class="text-xs text-on-surface-muted px-2 py-1 bg-surface-light rounded-full">
+                      {ctx().gamesWon[0]} - {ctx().gamesWon[1]}
+                    </span>
+                  </div>
+                  <Scoreboard
+                    team1Name={props.match.team1Name}
+                    team2Name={props.match.team2Name}
+                    team1Score={ctx().team1Score}
+                    team2Score={ctx().team2Score}
+                    servingTeam={ctx().servingTeam}
+                    serverNumber={ctx().serverNumber}
+                    scoringMode={props.match.config.scoringMode}
+                    gameType={props.match.config.gameType}
+                    pointsToWin={props.match.config.pointsToWin}
+                    team1Color={props.match.team1Color}
+                    team2Color={props.match.team2Color}
+                  />
+                </div>
+                {/* Right side: Game complete actions */}
+                <div class="flex-1 flex flex-col items-center justify-center gap-4 px-6">
+                  <p class="text-2xl font-bold text-score">Game Complete!</p>
+                  <p class="text-on-surface-muted">
+                    Games: {ctx().gamesWon[0]} - {ctx().gamesWon[1]}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => startNextGame()}
+                    class="w-full max-w-xs bg-primary text-surface font-bold text-lg py-4 rounded-xl active:scale-95 transition-transform"
+                  >
+                    Start Next Game
+                  </button>
+                </div>
+              </div>
+            </Show>
           </Match>
 
           <Match when={stateName() === 'matchOver'}>
