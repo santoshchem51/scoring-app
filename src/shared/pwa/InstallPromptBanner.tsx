@@ -59,7 +59,7 @@ const InstallPromptBanner: Component = () => {
       </Show>
 
       {/* iOS Safari instructions */}
-      <Show when={!isInstalled() && iosInstallSupported()}>
+      <Show when={!isInstalled() && iosInstallSupported() && !showInstallBanner()}>
         <div class="bg-surface-light border border-border rounded-xl p-4">
           <p class="text-sm font-semibold text-on-surface">Install PickleScore</p>
           <p class="text-xs text-on-surface-muted mt-1">
