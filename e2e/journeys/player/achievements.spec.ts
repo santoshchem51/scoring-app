@@ -1044,7 +1044,7 @@ test.describe('@p2 Player: P2 Edge Cases', () => {
       await seedFirestoreDocAdmin(`users/${userUid}/notifications`, uid(`notif-${i}`), {
         type: 'achievement',
         title: `Notification ${i + 1}`,
-        body: `Test notification body ${i + 1}`,
+        message: `Test notification body ${i + 1}`,
         read: false,
         createdAt: Date.now() - i * 60000,
       });

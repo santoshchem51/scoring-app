@@ -161,6 +161,7 @@ test.describe('Dialogs and overlays', () => {
 
     // Wait for notification panel
     await expect(page.locator('[role="dialog"][aria-labelledby="notif-panel-title"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Your tournament has begun.')).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(1000);
 
     await captureScreen(page, testInfo, screenshotName(

@@ -291,12 +291,14 @@ export function makeRsvp(overrides: Record<string, unknown> = {}) {
 export function makeNotification(overrides: Record<string, unknown> = {}) {
   return {
     id: uid('notif'),
+    userId: 'test-user',
+    category: 'tournament',
     type: 'tournament_update',
-    title: 'Tournament Update',
-    body: 'Pool play has started.',
+    message: 'Pool play has started.',
+    payload: {},
     read: false,
     createdAt: Date.now(),
-    targetRoute: null,
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
     ...overrides,
   };
 }

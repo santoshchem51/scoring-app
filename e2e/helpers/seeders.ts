@@ -776,10 +776,10 @@ export async function seedNotifications(
   count: number = 3,
 ): Promise<ReturnType<typeof makeNotification>[]> {
   const types = [
-    { type: 'tournament_update', title: 'Pool Play Started', body: 'Your tournament has begun.' },
-    { type: 'buddy_invite', title: 'Group Invite', body: 'Alex invited you to Pickle Pals.' },
-    { type: 'match_result', title: 'Match Result', body: 'You won 11-7!' },
-    { type: 'achievement', title: 'Achievement Unlocked', body: 'You earned First Match!' },
+    { type: 'tournament_update', category: 'tournament', message: 'Your tournament has begun.' },
+    { type: 'buddy_invite', category: 'buddy', message: 'Alex invited you to Pickle Pals.' },
+    { type: 'match_result', category: 'tournament', message: 'You won 11-7!' },
+    { type: 'achievement', category: 'tournament', message: 'You earned First Match!' },
   ];
 
   const notifications: ReturnType<typeof makeNotification>[] = [];
