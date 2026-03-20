@@ -363,7 +363,8 @@ test.describe('Spectator views', () => {
       });
 
       await page.goto(`/t/${seed.shareCode}/match/${seed.matchId}`, { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(3000);
+      await expect(page.getByText('Sarah M.')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('Mike T.')).toBeVisible({ timeout: 10000 });
 
       await captureScreen(page, testInfo, screenshotName(
         'chrome', 'spectator-match', 'live-scoreboard', '393', theme, mode,
@@ -384,7 +385,8 @@ test.describe('Spectator views', () => {
     });
 
     await page.goto(`/t/${seed.shareCode}/match/${seed.matchId}`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(3000);
+    await expect(page.getByText('Sarah M.')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Mike T.')).toBeVisible({ timeout: 10000 });
 
     // Click Play-by-Play tab if it exists
     const pbpTab = page.getByRole('tab', { name: /play-by-play/i });
@@ -411,7 +413,8 @@ test.describe('Spectator views', () => {
     });
 
     await page.goto(`/t/${seed.shareCode}/match/${seed.matchId}`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(3000);
+    await expect(page.getByText('Sarah M.')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Mike T.')).toBeVisible({ timeout: 10000 });
 
     // Click Stats tab
     const statsTab = page.getByRole('tab', { name: /stats/i });
