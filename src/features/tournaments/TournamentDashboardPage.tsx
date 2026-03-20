@@ -741,7 +741,7 @@ const TournamentDashboardPage: Component = () => {
 
   return (
     <PageLayout title={live.tournament()?.name ?? 'Tournament'}>
-      <div class="p-4 space-y-6">
+      <div class="p-4 pb-20 space-y-6">
         <Show when={!live.loading()} fallback={<p class="text-on-surface-muted">Loading...</p>}>
         <Show when={live.tournament()} fallback={<p class="text-on-surface-muted">Tournament not found.</p>}>
           {(t) => (
