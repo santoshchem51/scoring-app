@@ -283,6 +283,15 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
     }
   };
 
+  const handleShare = async () => {
+    const freshMatch = await matchRepository.getById(props.match.id);
+    if (!freshMatch) return;
+    const completedMatch = { ...freshMatch, team1Color: props.match.team1Color, team2Color: props.match.team2Color };
+    const result = await shareScoreCard(completedMatch);
+    setShareStatus(result === 'shared' ? 'Shared!' : result === 'copied' ? 'Copied to clipboard!' : result === 'downloaded' ? 'Downloaded!' : 'Share failed');
+    setTimeout(() => setShareStatus(null), 2000);
+  };
+
   return (
     <PageLayout title="Live Score">
       <div
@@ -511,37 +520,85 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           </Match>
 
           <Match when={stateName() === 'matchOver'}>
-            <div class="flex flex-col items-center gap-4 px-4">
-              <p class="text-2xl font-bold text-score">Match Over!</p>
-              <p class="text-lg text-on-surface">
-                {winnerName()} wins!
-              </p>
-              <p class="text-on-surface-muted">
-                Final: {ctx().gamesWon[0]} - {ctx().gamesWon[1]}
-              </p>
-              <button
-                type="button"
-                onClick={saveAndFinish}
-                class="w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl active:scale-95 transition-transform"
+            <Show
+              when={isLandscape()}
+              fallback={
+                <div class="flex flex-col items-center gap-4 px-4">
+                  <p class="text-2xl font-bold text-score">Match Over!</p>
+                  <p class="text-lg text-on-surface">
+                    {winnerName()} wins!
+                  </p>
+                  <p class="text-on-surface-muted">
+                    Final: {ctx().gamesWon[0]} - {ctx().gamesWon[1]}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={saveAndFinish}
+                    class="w-full bg-primary text-surface font-bold text-lg py-4 rounded-xl active:scale-95 transition-transform"
+                  >
+                    Save & Finish
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    class="w-full bg-surface-lighter text-on-surface font-semibold text-base py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2"
+                  >
+                    <Share2 size={20} aria-hidden="true" />
+                    {shareStatus() ?? 'Share Score Card'}
+                  </button>
+                </div>
+              }
+            >
+              <div
+                class="fixed inset-0 bg-surface z-40 flex ambient-bg"
+                style={{
+                  "--team1-color-rgb": hexToRgb(t1Color()),
+                  "--team2-color-rgb": hexToRgb(t2Color()),
+                } as import('solid-js').JSX.CSSProperties}
               >
-                Save & Finish
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const freshMatch = await matchRepository.getById(props.match.id);
-                  if (!freshMatch) return;
-                  const completedMatch = { ...freshMatch, team1Color: props.match.team1Color, team2Color: props.match.team2Color };
-                  const result = await shareScoreCard(completedMatch);
-                  setShareStatus(result === 'shared' ? 'Shared!' : result === 'copied' ? 'Copied to clipboard!' : result === 'downloaded' ? 'Downloaded!' : 'Share failed');
-                  setTimeout(() => setShareStatus(null), 2000);
-                }}
-                class="w-full bg-surface-lighter text-on-surface font-semibold text-base py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2"
-              >
-                <Share2 size={20} aria-hidden="true" />
-                {shareStatus() ?? 'Share Score Card'}
-              </button>
-            </div>
+                {/* Left side: Scoreboard */}
+                <div class="flex-1 flex flex-col justify-center">
+                  <Scoreboard
+                    team1Name={props.match.team1Name}
+                    team2Name={props.match.team2Name}
+                    team1Score={ctx().team1Score}
+                    team2Score={ctx().team2Score}
+                    servingTeam={ctx().servingTeam}
+                    serverNumber={ctx().serverNumber}
+                    scoringMode={props.match.config.scoringMode}
+                    gameType={props.match.config.gameType}
+                    pointsToWin={props.match.config.pointsToWin}
+                    team1Color={props.match.team1Color}
+                    team2Color={props.match.team2Color}
+                  />
+                </div>
+                {/* Right side: Match over actions */}
+                <div class="flex-1 flex flex-col items-center justify-center gap-4 px-6">
+                  <p class="text-2xl font-bold text-score">Match Over!</p>
+                  <p class="text-lg text-on-surface">
+                    {winnerName()} wins!
+                  </p>
+                  <p class="text-on-surface-muted">
+                    Final: {ctx().gamesWon[0]} - {ctx().gamesWon[1]}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={saveAndFinish}
+                    class="w-full max-w-xs bg-primary text-surface font-bold text-lg py-4 rounded-xl active:scale-95 transition-transform"
+                  >
+                    Save & Finish
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    class="w-full max-w-xs bg-surface-lighter text-on-surface font-semibold text-base py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2"
+                  >
+                    <Share2 size={20} aria-hidden="true" />
+                    {shareStatus() ?? 'Share Score Card'}
+                  </button>
+                </div>
+              </div>
+            </Show>
           </Match>
         </Switch>
       </div>
