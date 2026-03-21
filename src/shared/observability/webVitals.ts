@@ -35,6 +35,8 @@ export function initWebVitals() {
   // Report on page hide
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
+      // CLS is a unitless float (typically 0-1). Multiply by 1000 for integer
+      // precision in logging. Dashboard consumers must divide by 1000.
       if (clsValue > 0) logger.info('web_vital:CLS', { value: Math.round(clsValue * 1000) });
       if (worstInp > 0) logger.info('web_vital:INP', { value: Math.round(worstInp) });
     }
