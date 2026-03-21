@@ -18,7 +18,8 @@ function emit(level: string, msg: string, data?: unknown) {
     } else {
       console.log(msg, data);
     }
-    for (const sink of sinks) {
+    const snapshot = [...sinks];
+    for (const sink of snapshot) {
       try {
         sink(level, msg, data);
       } catch {

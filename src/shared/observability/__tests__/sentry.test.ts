@@ -388,6 +388,21 @@ describe('sentry', () => {
       expect(mockClose).not.toHaveBeenCalled();
     });
 
+    it('allows re-initialization after teardown (re-consent)', async () => {
+      const { initSentry, teardownSentry } = await import('../sentry');
+      await initSentry();
+      await teardownSentry();
+
+      mockInit.mockClear();
+      mockFlushEarlyErrors.mockClear();
+      registeredSinks.length = 0;
+
+      await initSentry();
+
+      expect(mockInit).toHaveBeenCalledTimes(1);
+      expect(registeredSinks).toHaveLength(1);
+    });
+
     it('sink stops sending after teardown', async () => {
       const { initSentry, teardownSentry } = await import('../sentry');
       await initSentry();

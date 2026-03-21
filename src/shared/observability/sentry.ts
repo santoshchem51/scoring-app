@@ -99,7 +99,6 @@ export async function initSentry() {
 
   try {
     const Sentry = await import('@sentry/browser');
-    SentryModule = Sentry;
     Sentry.init({
       dsn: import.meta.env.VITE_SENTRY_DSN,
       environment: import.meta.env.MODE,
@@ -114,6 +113,7 @@ export async function initSentry() {
       beforeSend: scrubPII,
       beforeBreadcrumb: filterBreadcrumb,
     });
+    SentryModule = Sentry;
 
     // Connectivity tags
     Sentry.setTag('connectivity', navigator.onLine ? 'online' : 'offline');
