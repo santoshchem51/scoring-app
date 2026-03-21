@@ -157,7 +157,6 @@ const TournamentCreatePage: Component = () => {
 
       // Increment template usage count if one was used
       const templateId = usedTemplateId();
-      const currentUser = user();
       if (templateId && currentUser) {
         incrementUsageCount(currentUser.uid, templateId).catch(() => {});
       }
