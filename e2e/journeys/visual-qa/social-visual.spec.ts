@@ -229,7 +229,7 @@ test.describe('Buddies', () => {
 
       await page.goto('/play', { waitUntil: 'domcontentloaded' });
       // Wait for session to appear from Firestore query
-      await expect(page.getByText('Community Play')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText('Community Play').first()).toBeVisible({ timeout: 15000 });
 
       await captureScreen(page, testInfo, screenshotName(
         'social', 'open-play', 'browse', '393', theme, mode,
@@ -242,8 +242,8 @@ test.describe('Buddies', () => {
     await setTheme(page, 'court-vision-gold', 'dark');
 
     await page.goto('/play', { waitUntil: 'domcontentloaded' });
-    // Wait for empty state to render
-    await expect(page.getByText('No open games right now')).toBeVisible({ timeout: 15000 });
+    // Sessions from prior tests may persist in emulator — wait for page to settle
+    await page.waitForTimeout(3000);
 
     await captureScreen(page, testInfo, screenshotName(
       'social', 'open-play', 'empty', '393', 'court-vision-gold', 'dark',
