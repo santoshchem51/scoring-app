@@ -283,6 +283,34 @@ describe('sentry', () => {
       const result = filterBreadcrumb(breadcrumb);
       expect(result).toBeNull();
     });
+
+    it('strips authorization headers from XHR breadcrumb data', async () => {
+      const { filterBreadcrumb } = await import('../sentry');
+      const breadcrumb = {
+        category: 'xhr',
+        data: {
+          url: 'https://identitytoolkit.googleapis.com/v1/accounts',
+          request_headers: { Authorization: 'Bearer eyJhbGciOi...' },
+        },
+      };
+      const result = filterBreadcrumb(breadcrumb);
+      expect(result).not.toBeNull();
+      expect(result.data.request_headers).toBeUndefined();
+    });
+
+    it('strips authorization headers from fetch breadcrumb data', async () => {
+      const { filterBreadcrumb } = await import('../sentry');
+      const breadcrumb = {
+        category: 'fetch',
+        data: {
+          url: 'https://cloudfunctions.net/api',
+          headers: { Authorization: 'Bearer eyJhbGciOi...' },
+        },
+      };
+      const result = filterBreadcrumb(breadcrumb);
+      expect(result).not.toBeNull();
+      expect(result.data.headers).toBeUndefined();
+    });
   });
 
   describe('sanitizeMessage', () => {

@@ -81,6 +81,13 @@ export function filterBreadcrumb(breadcrumb: any): any | null {
   )
     return null;
   if (breadcrumb.category === 'console') return null;
+
+  // Strip auth tokens from XHR/fetch breadcrumbs
+  if (breadcrumb.data) {
+    delete breadcrumb.data.headers;
+    delete breadcrumb.data.request_headers;
+  }
+
   return breadcrumb;
 }
 
