@@ -1,4 +1,5 @@
 import { doc, getDoc, getDocs, setDoc, collection, query, orderBy, limit as fbLimit, startAfter, runTransaction } from 'firebase/firestore';
+import { logger } from '../../shared/observability/logger';
 import { firestore, auth } from './config';
 import type { Match, MatchRef, StatsSummary, RecentResult, Tier } from '../types';
 import { computeTierScore, computeTier, computeTierConfidence, nearestTier, TIER_MULTIPLIER } from '../../shared/utils/tierEngine';
@@ -165,7 +166,7 @@ async function resolveParticipantUids(
       // Fall through to shared dedup guard below
     } catch (err) {
       // Return empty — don't fall through to casual path and give scorer phantom stats
-      console.warn('Failed to resolve tournament participant UIDs, skipping stats:', err);
+      logger.warn('Failed to resolve tournament participant UIDs, skipping stats', err);
       return participants;
     }
   }
@@ -178,7 +179,7 @@ async function resolveParticipantUids(
     // Capacity guard: reject invalid team sizes
     const maxPerTeam = match.config.gameType === 'singles' ? 1 : 2;
     if (team1Uids.length > maxPerTeam || team2Uids.length > maxPerTeam) {
-      console.warn('Invalid team size for casual match, skipping stats:', {
+      logger.warn('Invalid team size for casual match, skipping stats', {
         matchId: match.id,
         gameType: match.config.gameType,
         team1Count: team1Uids.length,
@@ -211,7 +212,7 @@ async function resolveParticipantUids(
   const deduped: typeof participants = [];
   for (const p of participants) {
     if (seen.has(p.uid)) {
-      console.warn('Duplicate UID across teams, skipping:', p.uid);
+      logger.warn('Duplicate UID across teams, skipping', p.uid);
       continue;
     }
     seen.add(p.uid);
@@ -367,7 +368,7 @@ export const firestorePlayerStatsRepository = {
     // Only write public tier if we actually processed the match
     if (tierUpdated) {
       await writePublicTier(uid, newTier).catch((err) => {
-        console.warn('Failed to write public tier for', uid, err);
+        logger.warn('Failed to write public tier', { uid, error: err });
       });
     }
 
@@ -392,7 +393,7 @@ export const firestorePlayerStatsRepository = {
               await firestoreAchievementRepository.cacheInDexie(a);
               written.push(a);
             } catch (writeErr) {
-              console.warn('Failed to write achievement:', a.achievementId, writeErr);
+              logger.warn('Failed to write achievement', { achievementId: a.achievementId, error: writeErr });
             }
           }
 
@@ -413,7 +414,7 @@ export const firestorePlayerStatsRepository = {
           }
         }
       } catch (err) {
-        console.warn('Achievement evaluation failed for user:', uid, err);
+        logger.warn('Achievement evaluation failed for user', { uid, error: err });
       }
     }
   },
@@ -478,7 +479,7 @@ export const firestorePlayerStatsRepository = {
           },
           currentUserUid,
         ).catch((err) => {
-          console.warn('Stats update failed for user:', uid, err);
+          logger.warn('Stats update failed for user', { uid, error: err });
         });
       }),
     );

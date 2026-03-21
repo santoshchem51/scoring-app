@@ -1,3 +1,4 @@
+import { logger } from '../../shared/observability/logger';
 import { auth } from './config';
 import { firestoreMatchRepository } from './firestoreMatchRepository';
 import { firestoreTournamentRepository } from './firestoreTournamentRepository';
@@ -21,7 +22,7 @@ export const cloudSync = {
       sharedWith,
       visibility,
     }).catch((err) => {
-      console.warn('Failed to enqueue match sync:', match.id, err);
+      logger.warn('Failed to enqueue match sync', { id: match.id, error: err });
     });
   },
 
@@ -118,7 +119,7 @@ export const cloudSync = {
     try {
       await firestoreUserRepository.saveProfile(user);
     } catch (err) {
-      console.warn('Failed to sync user profile:', err);
+      logger.warn('Failed to sync user profile', err);
     }
   },
 
@@ -159,7 +160,7 @@ export const cloudSync = {
     enqueueJob('tournament', tournament.id, {
       type: 'tournament',
     }).catch((err) => {
-      console.warn('Failed to enqueue tournament sync:', tournament.id, err);
+      logger.warn('Failed to enqueue tournament sync', { id: tournament.id, error: err });
     });
   },
 
@@ -172,7 +173,7 @@ export const cloudSync = {
     try {
       return await firestoreTournamentRepository.getByOrganizer(user.uid);
     } catch (err) {
-      console.warn('Failed to pull tournaments:', err);
+      logger.warn('Failed to pull tournaments', err);
       return [];
     }
   },
@@ -190,7 +191,7 @@ export const cloudSync = {
       { type: 'playerStats', scorerUid: user.uid },
       [`match:${match.id}`],
     ).catch((err) => {
-      console.warn('Failed to enqueue stats sync:', match.id, err);
+      logger.warn('Failed to enqueue stats sync', { id: match.id, error: err });
     });
   },
 };

@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { auth } from '../../../data/firebase/config';
 import { firestorePlayerStatsRepository } from '../../../data/firebase/firestorePlayerStatsRepository';
 import { firestoreAchievementRepository } from '../repository/firestoreAchievementRepository';
@@ -77,7 +78,7 @@ export async function runAchievementMigration(): Promise<void> {
             triggerMatchId: 'retroactive-migration',
           });
         } catch (err) {
-          console.warn('Migration: failed to write achievement:', a.achievementId, err);
+          logger.warn('Migration: failed to write achievement', { achievementId: a.achievementId, error: err });
         }
       }
 
@@ -110,7 +111,7 @@ export async function runAchievementMigration(): Promise<void> {
 
     localStorage.setItem(MIGRATION_KEY, MIGRATION_VERSION);
   } catch (err) {
-    console.warn('Achievement migration failed:', err);
+    logger.warn('Achievement migration failed', err);
     // Don't set version key — retry next time
   }
 }

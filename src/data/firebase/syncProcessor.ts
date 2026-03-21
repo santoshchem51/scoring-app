@@ -1,4 +1,5 @@
 import type { SyncJob } from './syncQueue.types';
+import { logger } from '../../shared/observability/logger';
 import { db } from '../db';
 import { auth } from './config';
 import { matchRepository } from '../repositories/matchRepository';
@@ -66,7 +67,7 @@ export async function runStartupCleanup(): Promise<void> {
 
   // Prune stale tournament cache (>90 days old)
   await pruneStaleTournamentCache().catch((err) => {
-    console.warn('Tournament cache pruning failed:', err);
+    logger.warn('Tournament cache pruning failed', err);
   });
 }
 
@@ -124,7 +125,7 @@ async function executeJobWork(job: SyncJob, uid: string): Promise<void> {
           const projection = buildSpectatorProjection(match, names);
           await writeSpectatorProjection(match.id, projection);
         } catch (err) {
-          console.warn('[syncProcessor] Projection update failed (non-fatal):', err);
+          logger.warn('[syncProcessor] Projection update failed (non-fatal)', err);
         }
       }
 
@@ -141,7 +142,7 @@ async function executeJobWork(job: SyncJob, uid: string): Promise<void> {
             spectatorCount: 0, updatedAt: Date.now(),
           });
         } catch (err) {
-          console.warn('[syncProcessor] Revocation failed (non-fatal):', err);
+          logger.warn('[syncProcessor] Revocation failed (non-fatal)', err);
         }
       }
 
@@ -288,7 +289,7 @@ async function processOnce(): Promise<void> {
   // since we catch inside the map, but guard against it)
   for (const result of results) {
     if (result.status === 'rejected') {
-      console.error('[syncProcessor] Unexpected job settlement error:', result.reason);
+      logger.error('[syncProcessor] Unexpected job settlement error', result.reason);
     }
   }
 
@@ -353,7 +354,7 @@ async function pollLoop(): Promise<void> {
         await sleep(WATCHDOG_INTERVAL_MS);
       }
     } catch (err) {
-      console.error('[syncProcessor] Poll loop error:', err);
+      logger.error('[syncProcessor] Poll loop error', err);
       await sleep(ERROR_SLEEP_MS);
     }
   }
@@ -396,12 +397,12 @@ export function startProcessor(lockProvider?: LockProvider): void {
     lock(WEB_LOCK_NAME, { mode: 'exclusive' }, async () => {
       await runLoop();
     }).catch((err: unknown) => {
-      console.error('[syncProcessor] Web Lock error:', err);
+      logger.error('[syncProcessor] Web Lock error', err);
     });
   } else {
     // No lock support — run directly
     runLoop().catch((err) => {
-      console.error('[syncProcessor] Loop error:', err);
+      logger.error('[syncProcessor] Loop error', err);
     });
   }
 }

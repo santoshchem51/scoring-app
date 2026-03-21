@@ -1,5 +1,6 @@
 import { createSignal, onCleanup, createEffect } from 'solid-js';
 import { liveQuery } from 'dexie';
+import { logger } from '../shared/observability/logger';
 
 export function useLiveQuery<T>(
   querier: () => T | Promise<T>,
@@ -13,7 +14,7 @@ export function useLiveQuery<T>(
     const observable = liveQuery(querier);
     const subscription = observable.subscribe({
       next: (value) => { setResult(() => value); setError(undefined); },
-      error: (err) => { console.error('liveQuery error:', err); setError(() => err); },
+      error: (err) => { logger.error('liveQuery error', err); setError(() => err); },
     });
     onCleanup(() => subscription.unsubscribe());
   });
