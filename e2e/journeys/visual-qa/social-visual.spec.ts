@@ -41,7 +41,10 @@ test.describe('Buddies', () => {
       });
 
       await page.goto('/buddies', { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(2000);
+
+      // Wait for groups to load from Firestore (replaces brittle waitForTimeout)
+      await expect(page.getByText('Pickle Pals')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByText('Court Crusaders')).toBeVisible({ timeout: 10000 });
 
       await captureScreen(page, testInfo, screenshotName(
         'social', 'buddies-list', 'with-groups', '393', theme, mode,
@@ -54,7 +57,9 @@ test.describe('Buddies', () => {
     await setTheme(page, 'court-vision-gold', 'dark');
 
     await page.goto('/buddies', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+
+    // Wait for empty state to render
+    await expect(page.getByText('No groups yet')).toBeVisible({ timeout: 15000 });
 
     await captureScreen(page, testInfo, screenshotName(
       'social', 'buddies-list', 'empty', '393', 'court-vision-gold', 'dark',
