@@ -273,6 +273,21 @@ describe('sentry', () => {
       expect(stored.count).toBe(2);
     });
 
+    it('scrubs email patterns from exception value messages', async () => {
+      const { scrubPII } = await import('../sentry');
+      const event = {
+        exception: {
+          values: [
+            { value: 'Error for john@example.com in handler' },
+            { value: 'No email here' },
+          ],
+        },
+      };
+      const result = scrubPII(event);
+      expect(result.exception.values[0].value).toBe('Error for [email] in handler');
+      expect(result.exception.values[1].value).toBe('No email here');
+    });
+
     it('resets counter on new day', async () => {
       const { scrubPII } = await import('../sentry');
       localStorage.setItem(

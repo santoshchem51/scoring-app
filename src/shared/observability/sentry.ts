@@ -39,6 +39,14 @@ export function scrubPII(event: any): any | null {
       }
     }
   }
+  // Scrub email patterns from exception messages
+  if (event.exception?.values) {
+    for (const ex of event.exception.values) {
+      if (ex.value) {
+        ex.value = sanitizeMessage(ex.value);
+      }
+    }
+  }
   // Scrub Firestore paths
   if (event.message) {
     event.message = event.message.replace(/users\/[^/\s]+/g, 'users/[redacted]');
