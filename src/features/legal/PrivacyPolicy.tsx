@@ -44,8 +44,8 @@ export default function PrivacyPolicy() {
             </a>.
           </li>
           <li>
-            <strong class="text-on-surface">Google Analytics</strong> — Anonymous usage statistics
-            to help us understand how the app is used. See{' '}
+            <strong class="text-on-surface">Google Cloud Platform</strong> — Firebase may collect
+            basic crash and performance data as part of its standard operation. See{' '}
             <a
               href="https://policies.google.com/privacy"
               target="_blank"
@@ -61,10 +61,11 @@ export default function PrivacyPolicy() {
       <section class="mb-8">
         <h2 class="text-xl font-semibold mb-3">Data Retention & Deletion</h2>
         <p class="mb-2 text-on-surface-muted">
-          Your match data is stored as long as you maintain an active account. You may
-          request deletion of your data at any time by contacting us at the email below.
-          Upon request, we will delete all personal data associated with your account
-          within 30 days.
+          Your match data is stored as long as you maintain an active account. You can
+          delete your account and all associated data at any time from the Settings page
+          in the app. This permanently removes your profile, match history, statistics,
+          achievements, and leaderboard entries. You may also contact us by email for
+          data deletion requests.
         </p>
         <p class="text-on-surface-muted">
           Local data stored on your device (via IndexedDB) can be cleared at any time
@@ -78,6 +79,15 @@ export default function PrivacyPolicy() {
           PickleScore is not directed at children under 13. We do not knowingly collect
           personal information from children under 13. If you believe a child under 13
           has provided us with personal data, please contact us so we can remove it.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-3">Changes to This Policy</h2>
+        <p class="text-on-surface-muted">
+          We may update this privacy policy from time to time. We will notify you of any
+          changes by posting the new privacy policy on this page and updating the
+          "Last updated" date. You are advised to review this page periodically.
         </p>
       </section>
 

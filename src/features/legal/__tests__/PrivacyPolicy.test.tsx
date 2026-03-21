@@ -14,6 +14,12 @@ describe('PrivacyPolicy', () => {
     expect(getByText('Data Retention & Deletion')).toBeTruthy();
   });
 
+  it('contains changes to policy section', async () => {
+    const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
+    const { getByText } = render(() => <PrivacyPolicy />);
+    expect(getByText('Changes to This Policy')).toBeTruthy();
+  });
+
   it('contains contact email', async () => {
     const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
     const { container } = render(() => <PrivacyPolicy />);
