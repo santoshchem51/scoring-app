@@ -44,3 +44,8 @@ screenshots/
 e2e-screenshots/
 design-protos/
 .worktrees/
+
+# Capacitor
+android/app/build/
+android/.gradle/
+*.keystore
