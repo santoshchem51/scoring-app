@@ -59,6 +59,16 @@ describe('logger', () => {
     expect(spy).toHaveBeenCalledWith('no data', undefined);
   });
 
+  it('removeSink removes a previously registered sink', async () => {
+    const { logger, registerSink, removeSink } = await import('../logger');
+    const sink = vi.fn();
+    registerSink(sink);
+    removeSink(sink);
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    logger.info('test');
+    expect(sink).not.toHaveBeenCalled();
+  });
+
   it('falls back to console.error if console[level] fails', async () => {
     const { logger } = await import('../logger');
     const fallbackSpy = vi

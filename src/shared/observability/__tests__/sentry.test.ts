@@ -8,6 +8,7 @@ const mockFlush = vi.fn().mockResolvedValue(true);
 const mockCaptureException = vi.fn();
 const mockAddBreadcrumb = vi.fn();
 const mockMakeFetchTransport = vi.fn();
+const mockClose = vi.fn().mockResolvedValue(true);
 const mockMakeBrowserOfflineTransport = vi.fn().mockReturnValue('offline-transport');
 
 vi.mock('@sentry/browser', () => ({
@@ -17,6 +18,7 @@ vi.mock('@sentry/browser', () => ({
   flush: mockFlush,
   captureException: mockCaptureException,
   addBreadcrumb: mockAddBreadcrumb,
+  close: mockClose,
   makeFetchTransport: mockMakeFetchTransport,
   makeBrowserOfflineTransport: mockMakeBrowserOfflineTransport,
 }));
@@ -32,6 +34,10 @@ const registeredSinks: Array<(level: string, msg: string, data?: unknown) => voi
 vi.mock('../logger', () => ({
   registerSink: (sink: (level: string, msg: string, data?: unknown) => void) => {
     registeredSinks.push(sink);
+  },
+  removeSink: (sink: (level: string, msg: string, data?: unknown) => void) => {
+    const idx = registeredSinks.indexOf(sink);
+    if (idx !== -1) registeredSinks.splice(idx, 1);
   },
 }));
 
@@ -58,6 +64,7 @@ describe('sentry', () => {
     mockFlush.mockClear().mockResolvedValue(true);
     mockCaptureException.mockClear();
     mockAddBreadcrumb.mockClear();
+    mockClose.mockClear().mockResolvedValue(true);
     mockMakeBrowserOfflineTransport.mockClear().mockReturnValue('offline-transport');
 
     mockConsent = 'accepted';
@@ -347,6 +354,55 @@ describe('sentry', () => {
       setSentryUser('user-123');
       // Should not attempt to import @sentry/browser for setUser
       expect(mockSetUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('teardownSentry', () => {
+    it('calls Sentry.close() and resets initialized flag', async () => {
+      const { initSentry, teardownSentry, setSentryUser } = await import('../sentry');
+      await initSentry();
+
+      await teardownSentry();
+
+      // After teardown, setSentryUser should be a no-op
+      mockSetUser.mockClear();
+      setSentryUser('uid-456');
+      expect(mockSetUser).not.toHaveBeenCalled();
+      expect(mockClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('deregisters the logger sink on teardown', async () => {
+      const { initSentry, teardownSentry } = await import('../sentry');
+      await initSentry();
+      expect(registeredSinks).toHaveLength(1);
+
+      await teardownSentry();
+      expect(registeredSinks).toHaveLength(0);
+    });
+
+    it('is a no-op when not initialized', async () => {
+      mockConsent = 'pending';
+      const { initSentry, teardownSentry } = await import('../sentry');
+      await initSentry(); // won't init
+      await expect(teardownSentry()).resolves.toBeUndefined();
+      expect(mockClose).not.toHaveBeenCalled();
+    });
+
+    it('sink stops sending after teardown', async () => {
+      const { initSentry, teardownSentry } = await import('../sentry');
+      await initSentry();
+      const sink = registeredSinks[0];
+
+      await teardownSentry();
+
+      // Even if the sink reference is still held externally, the guard stops it
+      mockAddBreadcrumb.mockClear();
+      mockCaptureException.mockClear();
+      if (sink) {
+        sink('error', 'should be ignored', new Error('ignored'));
+      }
+      expect(mockAddBreadcrumb).not.toHaveBeenCalled();
+      expect(mockCaptureException).not.toHaveBeenCalled();
     });
   });
 });

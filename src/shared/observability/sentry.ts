@@ -1,8 +1,10 @@
 import { settings } from '../../stores/settingsStore';
-import { registerSink } from './logger';
+import { registerSink, removeSink } from './logger';
 import { flushEarlyErrors } from './earlyErrors';
 
 let initialized = false;
+let SentryModule: typeof import('@sentry/browser') | null = null;
+let registeredSinkFn: ((level: string, msg: string, data?: unknown) => void) | null = null;
 
 const SENSITIVE_FIELDS = ['email', 'displayName', 'playerName', 'teamName'];
 
@@ -97,6 +99,7 @@ export async function initSentry() {
 
   try {
     const Sentry = await import('@sentry/browser');
+    SentryModule = Sentry;
     Sentry.init({
       dsn: import.meta.env.VITE_SENTRY_DSN,
       environment: import.meta.env.MODE,
@@ -122,7 +125,8 @@ export async function initSentry() {
     }
 
     // Register logger sink
-    registerSink((level, msg, data) => {
+    registeredSinkFn = (level, msg, data) => {
+      if (!initialized) return; // consent gate — stop after teardown
       const sentryLevel = level === 'warn' ? 'warning' : level;
       const rawData =
         typeof data === 'object' && data !== null && !(data instanceof Error)
@@ -140,7 +144,8 @@ export async function initSentry() {
             : new Error(typeof data === 'string' ? data : msg);
         Sentry.captureException(exception, { extra: { message: msg } });
       }
-    });
+    };
+    registerSink(registeredSinkFn);
 
     flushEarlyErrors((err) => Sentry.captureException(err));
     initialized = true;
@@ -149,17 +154,28 @@ export async function initSentry() {
   }
 }
 
+export async function teardownSentry() {
+  if (!initialized || !SentryModule) return;
+  initialized = false; // stop sink immediately
+  if (registeredSinkFn) {
+    removeSink(registeredSinkFn);
+    registeredSinkFn = null;
+  }
+  try {
+    await SentryModule.close();
+  } catch {
+    // best effort
+  }
+  SentryModule = null;
+}
+
 export function setSentryUser(uid: string | null) {
-  if (!initialized) return;
-  import('@sentry/browser')
-    .then((Sentry) => {
-      if (uid) {
-        Sentry.setUser({ id: uid });
-      } else {
-        Sentry.flush(2000)
-          .then(() => Sentry.setUser(null))
-          .catch(() => {});
-      }
-    })
-    .catch(() => {});
+  if (!initialized || !SentryModule) return;
+  if (uid) {
+    SentryModule.setUser({ id: uid });
+  } else {
+    SentryModule.flush(2000)
+      .then(() => SentryModule?.setUser(null))
+      .catch(() => {});
+  }
 }

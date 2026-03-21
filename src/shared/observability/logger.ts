@@ -5,6 +5,11 @@ export function registerSink(sink: Sink) {
   sinks.push(sink);
 }
 
+export function removeSink(sink: Sink) {
+  const idx = sinks.indexOf(sink);
+  if (idx !== -1) sinks.splice(idx, 1);
+}
+
 function emit(level: string, msg: string, data?: unknown) {
   try {
     const consoleFn = (console as Record<string, unknown>)[level];
