@@ -130,6 +130,26 @@ describe('sentry', () => {
       expect(mockCaptureException.mock.calls[0][0]).toBeInstanceOf(Error);
     });
 
+    it('scrubs sensitive fields from breadcrumb data objects', async () => {
+      const { initSentry } = await import('../sentry');
+      await initSentry();
+
+      const sink = registeredSinks[0];
+      sink('warn', 'sync failed', {
+        email: 'john@example.com',
+        playerName: 'John',
+        retryCount: 3,
+        teamName: 'Aces',
+      });
+
+      expect(mockAddBreadcrumb).toHaveBeenCalledTimes(1);
+      const breadcrumbData = mockAddBreadcrumb.mock.calls[0][0].data;
+      expect(breadcrumbData.email).toBeUndefined();
+      expect(breadcrumbData.playerName).toBeUndefined();
+      expect(breadcrumbData.teamName).toBeUndefined();
+      expect(breadcrumbData.retryCount).toBe(3);
+    });
+
     it('wraps non-string non-Error data in an Error using msg as fallback', async () => {
       const { initSentry } = await import('../sentry');
       await initSentry();

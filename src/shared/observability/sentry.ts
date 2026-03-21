@@ -57,6 +57,16 @@ export function scrubPII(event: any): any | null {
   return event;
 }
 
+function scrubDataFields(data: Record<string, unknown>): Record<string, unknown> {
+  const scrubbed = { ...data };
+  for (const key of Object.keys(scrubbed)) {
+    if (SENSITIVE_FIELDS.includes(key)) {
+      delete scrubbed[key];
+    }
+  }
+  return scrubbed;
+}
+
 export function filterBreadcrumb(breadcrumb: any): any | null {
   if (breadcrumb.category === 'ui.click') {
     if (breadcrumb.data) {
@@ -105,13 +115,14 @@ export async function initSentry() {
     // Register logger sink
     registerSink((level, msg, data) => {
       const sentryLevel = level === 'warn' ? 'warning' : level;
+      const rawData =
+        typeof data === 'object' && data !== null && !(data instanceof Error)
+          ? (data as Record<string, unknown>)
+          : undefined;
       Sentry.addBreadcrumb({
         message: sanitizeMessage(msg),
         level: sentryLevel as any,
-        data:
-          typeof data === 'object' && !(data instanceof Error)
-            ? (data as Record<string, unknown>)
-            : undefined,
+        data: rawData ? scrubDataFields(rawData) : undefined,
       });
       if (level === 'error') {
         const exception =
