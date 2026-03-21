@@ -780,12 +780,14 @@ const TournamentDashboardPage: Component = () => {
                       Share
                     </button>
                   </Show>
-                  <Show when={isAdminPlus() && nextStatus()}>
-                    <button type="button" onClick={handleStatusAdvance}
-                      disabled={advancing()}
-                      class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform whitespace-nowrap ${advancing() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
-                      {advancing() ? 'Advancing...' : `Advance to ${nextStatusLabel()}`}
-                    </button>
+                  <Show when={isAdminPlus()}>
+                    <div class={nextStatus() ? 'visible' : 'invisible'}>
+                      <button type="button" onClick={handleStatusAdvance}
+                        disabled={advancing() || !nextStatus()}
+                        class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform whitespace-nowrap ${advancing() || !nextStatus() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
+                        {advancing() ? 'Advancing...' : `Advance to ${nextStatusLabel()}`}
+                      </button>
+                    </div>
                   </Show>
                 </div>
               </div>
