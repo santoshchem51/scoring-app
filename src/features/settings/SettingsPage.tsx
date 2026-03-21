@@ -10,6 +10,8 @@ import { THEMES } from '../../shared/constants/themes';
 import { syncStatus, pendingCount, failedCount } from '../../data/firebase/useSyncStatus';
 import { wakeProcessor } from '../../data/firebase/syncProcessor';
 import { useAuth } from '../../shared/hooks/useAuth';
+import { shareApp } from '../../shared/utils/shareApp';
+import { Share2 } from 'lucide-solid';
 
 const SettingsPage: Component = () => {
   const { user } = useAuth();
@@ -482,6 +484,15 @@ const SettingsPage: Component = () => {
               </legend>
               <InstallPromptBanner />
             </fieldset>
+
+            {/* Share App */}
+            <button
+              onClick={() => shareApp()}
+              class="w-full flex items-center gap-3 p-3 bg-surface-light rounded-xl active:scale-[0.98] transition-transform"
+            >
+              <Share2 size={20} class="text-primary" />
+              <span class="font-medium text-on-surface">Share PickleScore</span>
+            </button>
           </div>
         </div>
 
