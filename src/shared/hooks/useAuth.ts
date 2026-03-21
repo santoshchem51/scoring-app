@@ -14,6 +14,7 @@ import { runAchievementMigration } from '../../features/achievements/engine/achi
 import { startNotificationListener, stopNotificationListener, cleanupExpiredNotifications, notifications, markNotificationRead } from '../../features/notifications/store/notificationStore';
 import { onToastDismissed } from '../../features/achievements/store/achievementStore';
 import { clearTournamentCache } from '../pwa/tournamentCacheUtils';
+import { setSentryUser } from '../observability/sentry';
 
 const [user, setUser] = createSignal<User | null>(null);
 const [loading, setLoading] = createSignal(true);
@@ -30,6 +31,10 @@ function initAuthListener() {
     const wasSignedOut = user() === null;
     setUser(firebaseUser);
     setLoading(false);
+
+    if (firebaseUser) {
+      setSentryUser(firebaseUser.uid);
+    }
 
     // Sync on sign-in
     if (firebaseUser && wasSignedOut) {
@@ -94,6 +99,7 @@ function initAuthListener() {
 
     // Clean up on sign-out
     if (!firebaseUser) {
+      setSentryUser(null);
       stopProcessor();
       stopNotificationListener();
     }
