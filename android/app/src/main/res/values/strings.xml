@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PickleScore</string>
+    <string name="title_activity_main">PickleScore</string>
+    <string name="package_name">co.picklescore.app</string>
+    <string name="custom_url_scheme">co.picklescore.app</string>
+</resources>

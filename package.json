@@ -12,9 +12,12 @@
     "test:e2e": "npx playwright test",
     "test:e2e:buddies": "firebase emulators:exec --only auth,firestore \"npx playwright test e2e/buddies*\"",
     "test:e2e:headed": "npx playwright test --headed",
-    "emulator:start": "firebase emulators:start --only firestore"
+    "emulator:start": "firebase emulators:start --only firestore",
+    "build:android": "npm run build && npx cap sync android",
+    "cap:open": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.2.0",
     "@capacitor/core": "^8.2.0",
     "@solidjs/router": "^0.15.4",
     "canvas-confetti": "^1.9.4",
