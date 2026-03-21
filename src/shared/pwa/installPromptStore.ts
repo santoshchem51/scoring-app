@@ -1,4 +1,5 @@
 import { createSignal } from 'solid-js';
+import { IS_NATIVE } from '../platform/platform';
 import { swUpdateVisible } from './swUpdateStore';
 
 // ── Types ──
@@ -123,6 +124,7 @@ export function markInstalled(): void {
 export const isInstalled = installed;
 
 export const showInstallBanner = (): boolean => {
+  if (IS_NATIVE) return false;
   if (installed()) return false;
   if (!promptEvent()) return false;
   if (isDismissed()) return false;
@@ -152,5 +154,6 @@ export function detectIOSSafari(): boolean {
 }
 
 export const iosInstallSupported = (): boolean => {
+  if (IS_NATIVE) return false;
   return detectIOSSafari() && !installed();
 };
