@@ -7,6 +7,9 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('../../../../data/firebase/config', () => ({ firestore: {} }));
 
+const mockLogger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock('../../../../shared/observability/logger', () => ({ logger: mockLogger }));
+
 import { doc, onSnapshot } from 'firebase/firestore';
 
 const mockDoc = vi.mocked(doc);
@@ -104,17 +107,15 @@ describe('useSpectatorProjection', () => {
   });
 
   it('handles snapshot error gracefully', () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { result } = renderHook(useSpectatorProjection, [() => 'match-123']);
 
     const errorCallback = mockOnSnapshot.mock.calls[0][2] as Function;
     errorCallback(new Error('permission-denied'));
 
     expect(result.loading()).toBe(false);
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(mockLogger.error).toHaveBeenCalledWith(
       'Spectator projection listener error',
       expect.any(Error),
     );
-    consoleSpy.mockRestore();
   });
 });

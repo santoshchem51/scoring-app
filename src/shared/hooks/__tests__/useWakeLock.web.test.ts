@@ -5,6 +5,9 @@ vi.mock('@capacitor-community/keep-awake', () => ({
   KeepAwake: { keepAwake: vi.fn(), allowSleep: vi.fn() },
 }));
 
+const mockLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+vi.mock('../../observability/logger', () => ({ logger: mockLogger }));
+
 const mockOnCleanup = vi.fn();
 vi.mock('solid-js', () => ({ onCleanup: mockOnCleanup }));
 
@@ -75,16 +78,14 @@ describe('useWakeLock (web)', () => {
     await expect(request()).resolves.toBeUndefined();
   });
 
-  it('request() when navigator.wakeLock.request() throws warns via console.warn', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('request() when navigator.wakeLock.request() throws warns via logger', async () => {
     mockRequest.mockRejectedValueOnce(new Error('NotAllowedError'));
 
     const { useWakeLock } = await import('../useWakeLock');
     const { request } = useWakeLock();
     await request();
 
-    expect(warnSpy).toHaveBeenCalledWith('Wake Lock request failed', expect.any(Error));
-    warnSpy.mockRestore();
+    expect(mockLogger.warn).toHaveBeenCalledWith('Wake Lock request failed', expect.any(Error));
   });
 
   it('onCleanup callback should be registered', async () => {
