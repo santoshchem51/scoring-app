@@ -349,6 +349,36 @@ describe('sentry', () => {
       // Should not attempt to import @sentry/browser for setUser
       expect(mockSetUser).not.toHaveBeenCalled();
     });
+
+    it('sets Sentry user when initialized', async () => {
+      const { initSentry, setSentryUser } = await import('../sentry');
+      await initSentry();
+      setSentryUser('uid-123');
+      // setSentryUser uses cached SentryModule (synchronous), so no await needed
+      expect(mockSetUser).toHaveBeenCalledWith({ id: 'uid-123' });
+    });
+
+    it('flushes then clears user on sign-out', async () => {
+      const { initSentry, setSentryUser } = await import('../sentry');
+      await initSentry();
+      setSentryUser(null);
+      // flush returns a promise, wait for it
+      await vi.waitFor(() => {
+        expect(mockFlush).toHaveBeenCalledWith(2000);
+      });
+      await vi.waitFor(() => {
+        expect(mockSetUser).toHaveBeenCalledWith(null);
+      });
+    });
+
+    it('does not throw when flush rejects during sign-out', async () => {
+      mockFlush.mockRejectedValueOnce(new Error('flush failed'));
+      const { initSentry, setSentryUser } = await import('../sentry');
+      await initSentry();
+      expect(() => setSentryUser(null)).not.toThrow();
+      // Wait a tick for the rejection to be handled
+      await new Promise(resolve => setTimeout(resolve, 10));
+    });
   });
 
   describe('teardownSentry', () => {
