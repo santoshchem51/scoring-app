@@ -24,7 +24,8 @@ const ShareTournamentModal: Component<Props> = (props) => {
 
   const shareUrl = () => {
     if (!props.shareCode) return '';
-    return `${window.location.origin}/t/${props.shareCode}`;
+    const baseUrl = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+    return `${baseUrl}/t/${props.shareCode}`;
   };
 
   const helpText = () => {

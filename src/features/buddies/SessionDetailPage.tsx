@@ -442,7 +442,8 @@ const SessionDetailPage: Component = () => {
     const s = session();
     if (!s) return;
 
-    const shareUrl = `${window.location.origin}/s/${s.shareCode}`;
+    const baseUrl = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+    const shareUrl = `${baseUrl}/s/${s.shareCode}`;
 
     if (navigator.share) {
       try {
