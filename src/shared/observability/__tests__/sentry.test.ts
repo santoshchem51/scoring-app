@@ -264,6 +264,26 @@ describe('sentry', () => {
       const result = scrubPII(event);
       expect(result).not.toBeNull();
     });
+
+    it('increments daily counter on each call', async () => {
+      const { scrubPII } = await import('../sentry');
+      scrubPII({ message: 'err1' });
+      scrubPII({ message: 'err2' });
+      const stored = JSON.parse(localStorage.getItem('sentry_daily_count')!);
+      expect(stored.count).toBe(2);
+    });
+
+    it('resets counter on new day', async () => {
+      const { scrubPII } = await import('../sentry');
+      localStorage.setItem(
+        'sentry_daily_count',
+        JSON.stringify({ count: 100, date: 'Mon Jan 01 2024' }),
+      );
+      scrubPII({ message: 'new day' });
+      const stored = JSON.parse(localStorage.getItem('sentry_daily_count')!);
+      expect(stored.count).toBe(1);
+      expect(stored.date).toBe(new Date().toDateString());
+    });
   });
 
   describe('filterBreadcrumb', () => {
@@ -336,6 +356,16 @@ describe('sentry', () => {
     it('leaves non-email text unchanged', async () => {
       const { sanitizeMessage } = await import('../sentry');
       expect(sanitizeMessage('No emails here')).toBe('No emails here');
+    });
+
+    it('strips multiple emails in one string', async () => {
+      const { sanitizeMessage } = await import('../sentry');
+      expect(sanitizeMessage('From a@b.com to c@d.org')).toBe('From [email] to [email]');
+    });
+
+    it('preserves email-like strings without valid TLD', async () => {
+      const { sanitizeMessage } = await import('../sentry');
+      expect(sanitizeMessage('Error for user@localhost')).toBe('Error for user@localhost');
     });
   });
 
