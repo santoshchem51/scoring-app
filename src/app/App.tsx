@@ -10,6 +10,9 @@ import SWUpdateToast from '../shared/pwa/SWUpdateToast';
 import InstallPromptBanner from '../shared/pwa/InstallPromptBanner';
 import { initSWUpdate } from '../shared/pwa/swUpdateStore';
 import { showInstallBanner } from '../shared/pwa/installPromptStore';
+import { initAppLifecycle } from '../shared/platform/appLifecycle';
+import { SplashScreen } from '@capacitor/splash-screen';
+import { IS_NATIVE } from '../shared/platform/platform';
 
 interface Props {
   children?: JSX.Element;
@@ -29,6 +32,10 @@ const App: Component<Props> = (props) => {
 
   onMount(() => {
     initSWUpdate();
+    initAppLifecycle();
+    if (IS_NATIVE) {
+      SplashScreen.hide().catch(() => {});
+    }
   });
 
   return (
