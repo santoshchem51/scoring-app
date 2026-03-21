@@ -4,8 +4,6 @@ import './shared/observability/earlyErrors';
 import AppRouter from './app/router';
 import { initPWAListeners } from './shared/pwa/pwaLifecycle';
 import { ObservableErrorBoundary } from './shared/observability/ErrorBoundary';
-import { initSentry } from './shared/observability/sentry';
-import { initWebVitals } from './shared/observability/webVitals';
 
 initPWAListeners();
 
@@ -20,5 +18,11 @@ render(() => (
 
 // Lazy-load Sentry after render (Web Vitals wired in Task 11)
 const scheduleIdle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
-scheduleIdle(() => { initSentry(); });
-scheduleIdle(() => { initWebVitals(); });
+scheduleIdle(async () => {
+  const { initSentry } = await import('./shared/observability/sentry');
+  initSentry();
+});
+scheduleIdle(async () => {
+  const { initWebVitals } = await import('./shared/observability/webVitals');
+  initWebVitals();
+});
