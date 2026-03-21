@@ -197,6 +197,29 @@ describe('sentry', () => {
       expect(result).toBeNull();
     });
 
+    it('removes sensitive field names from contexts', async () => {
+      const { scrubPII } = await import('../sentry');
+      const event = {
+        contexts: {
+          profile: {
+            email: 'a@b.com',
+            displayName: 'John',
+            safeKey: 'keep',
+          },
+          device: {
+            arch: 'x86',
+            playerName: 'Jane',
+          },
+        },
+      };
+      const result = scrubPII(event);
+      expect(result.contexts.profile.email).toBeUndefined();
+      expect(result.contexts.profile.displayName).toBeUndefined();
+      expect(result.contexts.profile.safeKey).toBe('keep');
+      expect(result.contexts.device.playerName).toBeUndefined();
+      expect(result.contexts.device.arch).toBe('x86');
+    });
+
     it('allows fatal errors to bypass rate limit', async () => {
       const { scrubPII } = await import('../sentry');
       localStorage.setItem(

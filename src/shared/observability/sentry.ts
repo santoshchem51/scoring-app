@@ -4,6 +4,8 @@ import { flushEarlyErrors } from './earlyErrors';
 
 let initialized = false;
 
+const SENSITIVE_FIELDS = ['email', 'displayName', 'playerName', 'teamName'];
+
 export function sanitizeMessage(msg: string): string {
   return msg.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]');
 }
@@ -17,8 +19,21 @@ export function scrubPII(event: any): any | null {
   // Walk extras for sensitive fields
   if (event.extra) {
     for (const key of Object.keys(event.extra)) {
-      if (['email', 'displayName', 'playerName', 'teamName'].includes(key)) {
+      if (SENSITIVE_FIELDS.includes(key)) {
         delete event.extra[key];
+      }
+    }
+  }
+  // Walk contexts for sensitive fields
+  if (event.contexts) {
+    for (const contextKey of Object.keys(event.contexts)) {
+      const ctx = event.contexts[contextKey];
+      if (typeof ctx === 'object' && ctx !== null) {
+        for (const key of Object.keys(ctx)) {
+          if (SENSITIVE_FIELDS.includes(key)) {
+            delete ctx[key];
+          }
+        }
       }
     }
   }
