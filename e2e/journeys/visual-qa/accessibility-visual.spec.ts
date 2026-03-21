@@ -210,12 +210,20 @@ test.describe('Session RSVP focus ring', () => {
   test('10 · focus ring on RSVP button — gold-dark', async ({ authenticatedPage: page, testUserUid }, testInfo) => {
     await setTheme(page, 'court-vision-gold', 'dark');
 
+    // Compute next Saturday so title matches the displayed date
+    const now = new Date();
+    const daysUntilSaturday = (6 - now.getDay() + 7) % 7 || 7;
+    const nextSaturday = new Date(now);
+    nextSaturday.setDate(now.getDate() + daysUntilSaturday);
+    nextSaturday.setHours(9, 0, 0, 0);
+
     const sessionSeed = await seedSessionWithRsvps(testUserUid, {
       rsvpCount: 4,
       sessionOverrides: {
         title: 'Saturday Morning Play',
         location: 'Central Park Courts',
         spotsTotal: 8,
+        scheduledDate: nextSaturday.getTime(),
       },
     });
 
