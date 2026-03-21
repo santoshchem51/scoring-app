@@ -78,7 +78,7 @@ export async function runAchievementMigration(): Promise<void> {
             triggerMatchId: 'retroactive-migration',
           });
         } catch (err) {
-          logger.warn('Migration: failed to write achievement', { achievementId: a.achievementId, error: err });
+          logger.warn('[achievementMigration] Failed to write achievement', { achievementId: a.achievementId, error: err });
         }
       }
 

@@ -339,7 +339,7 @@ async function pollLoop(): Promise<void> {
         lastStaleCheck = now;
         const reclaimed = await reclaimStaleJobs();
         if (reclaimed > 0) {
-          console.info(`[syncProcessor] Reclaimed ${reclaimed} stale job(s)`);
+          logger.info(`[syncProcessor] Reclaimed ${reclaimed} stale job(s)`);
         }
       }
 

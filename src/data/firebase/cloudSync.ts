@@ -22,7 +22,7 @@ export const cloudSync = {
       sharedWith,
       visibility,
     }).catch((err) => {
-      logger.warn('Failed to enqueue match sync', { id: match.id, error: err });
+      logger.warn('Failed to enqueue match sync', { matchId: match.id, error: err });
     });
   },
 
@@ -160,7 +160,7 @@ export const cloudSync = {
     enqueueJob('tournament', tournament.id, {
       type: 'tournament',
     }).catch((err) => {
-      logger.warn('Failed to enqueue tournament sync', { id: tournament.id, error: err });
+      logger.warn('Failed to enqueue tournament sync', { tournamentId: tournament.id, error: err });
     });
   },
 
@@ -191,7 +191,7 @@ export const cloudSync = {
       { type: 'playerStats', scorerUid: user.uid },
       [`match:${match.id}`],
     ).catch((err) => {
-      logger.warn('Failed to enqueue stats sync', { id: match.id, error: err });
+      logger.warn('Failed to enqueue stats sync', { matchId: match.id, error: err });
     });
   },
 };
