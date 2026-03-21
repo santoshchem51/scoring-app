@@ -298,7 +298,7 @@ test.describe('Buddies', () => {
     });
 
     await page.goto(`/buddies/${groupSeed.groupId}`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByText('Pickle Pals')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Pickle Pals' })).toBeVisible({ timeout: 15000 });
 
     // Grant clipboard permissions
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
