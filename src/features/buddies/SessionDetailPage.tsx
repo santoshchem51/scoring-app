@@ -559,7 +559,7 @@ const SessionDetailPage: Component = () => {
               {/* Who's playing */}
               <div>
                 <h2 class="text-on-surface font-bold text-sm mb-3">
-                  Who's Playing ({rsvps().length})
+                  Who's Playing ({rsvps().filter(r => r.response === 'in').length} of {rsvps().length})
                 </h2>
                 <Show when={rsvps().length > 0} fallback={
                   <p class="text-on-surface-muted text-sm text-center py-4">No RSVPs yet</p>
