@@ -1,4 +1,5 @@
 import { logger } from '../../shared/observability/logger';
+import { trackEvent } from '../../shared/observability/analytics';
 import { Show, createSignal, createResource, createEffect, onMount } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, useNavigate, A } from '@solidjs/router';
@@ -83,6 +84,7 @@ const GroupInvitePage: Component = () => {
         joinedAt: Date.now(),
       };
       await firestoreBuddyGroupRepository.addMember(g.id, member);
+      trackEvent('buddy_added', { source: 'invite' });
       navigate(`/buddies/${g.id}`);
     } catch (err) {
       logger.error('Failed to join group', err);

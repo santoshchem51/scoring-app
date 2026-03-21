@@ -296,6 +296,9 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
     if (!freshMatch) return;
     const completedMatch = { ...freshMatch, team1Color: props.match.team1Color, team2Color: props.match.team2Color };
     const result = await shareScoreCard(completedMatch);
+    if (result !== 'failed') {
+      trackEvent('match_shared', { method: result === 'shared' ? 'link' : result });
+    }
     setShareStatus(result === 'shared' ? 'Shared!' : result === 'copied' ? 'Copied to clipboard!' : result === 'downloaded' ? 'Downloaded!' : 'Share failed');
     setTimeout(() => setShareStatus(null), 2000);
   };
@@ -616,6 +619,12 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
         message="You have an active game in progress. Are you sure you want to leave?"
         confirmLabel="Leave"
         onConfirm={() => {
+          const durationSeconds = Math.round((Date.now() - props.match.startedAt) / 30000) * 30;
+          trackEvent('match_abandoned', {
+            format: props.match.config.matchFormat,
+            duration_seconds: durationSeconds,
+            trigger: 'user_initiated',
+          });
           setShowLeaveConfirm(false);
           pendingLeaveRetry?.();
           pendingLeaveRetry = null;

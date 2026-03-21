@@ -3,6 +3,7 @@ import type { Component } from 'solid-js';
 import type { Match } from '../../../data/types';
 import { Share2 } from 'lucide-solid';
 import { shareScoreCard } from '../../../shared/utils/shareScoreCard';
+import { trackEvent } from '../../../shared/observability/analytics';
 
 interface Props {
   match: Match;
@@ -17,7 +18,10 @@ const MatchCard: Component<Props> = (props) => {
 
   const handleShare = async () => {
     setSharing(true);
-    await shareScoreCard(props.match);
+    const result = await shareScoreCard(props.match);
+    if (result !== 'failed') {
+      trackEvent('match_shared', { method: result === 'shared' ? 'link' : result });
+    }
     setSharing(false);
   };
 

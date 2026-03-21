@@ -136,6 +136,7 @@ const GameSetupPage: Component = () => {
         format: config.matchFormat,
         scoring_type: config.scoringMode,
         game_to: config.pointsToWin,
+        game_type: config.gameType,
       });
       cloudSync.syncMatchToCloud(match, sharedWith);
       navigate(`/score/${match.id}`);
@@ -176,6 +177,7 @@ const GameSetupPage: Component = () => {
         format: config.matchFormat,
         scoring_type: config.scoringMode,
         game_to: config.pointsToWin,
+        game_type: config.gameType,
       });
       cloudSync.syncMatchToCloud(match);
       navigate(`/score/${match.id}`);

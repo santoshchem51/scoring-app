@@ -1,6 +1,7 @@
 import { Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { AppNotification } from '../../../data/types';
+import { trackEvent } from '../../../shared/observability/analytics';
 
 interface NotificationRowProps {
   notification: AppNotification;
@@ -22,6 +23,7 @@ function formatRelativeTime(timestamp: number): string {
 
 const NotificationRow: Component<NotificationRowProps> = (props) => {
   const handleClick = () => {
+    trackEvent('notification_opened', { type: props.notification.type });
     props.onRead(props.notification.id);
   };
 

@@ -1,5 +1,6 @@
 import { Show, For, createSignal, createMemo } from 'solid-js';
 import type { Component } from 'solid-js';
+import { trackFeatureUsed } from '../../../shared/observability/analytics';
 import type { StatsSummary, CachedAchievement, AchievementCategory } from '../../../data/types';
 import { ACHIEVEMENT_DEFINITIONS } from '../engine/badgeDefinitions';
 import { computeProgress } from '../engine/achievementHelpers';
@@ -75,6 +76,7 @@ const CategorySection: Component<CategorySectionProps> = (props) => {
 };
 
 const TrophyCase: Component<TrophyCaseProps> = (props) => {
+  trackFeatureUsed('achievements_viewed');
   const displayItems = createMemo(() => {
     const unlockedList = props.unlocked ?? [];
     const unlockedById = new Map(unlockedList.map(u => [u.achievementId, u]));

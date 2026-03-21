@@ -1,5 +1,6 @@
 import { Show } from 'solid-js';
 import type { Component } from 'solid-js';
+import { trackFeatureUsed } from '../../../shared/observability/analytics';
 import { Trophy } from 'lucide-solid';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { useLeaderboard } from '../hooks/useLeaderboard';
@@ -63,6 +64,7 @@ const LoadingSkeleton: Component = () => {
 /* ── Main component ──────────────────────────────────────── */
 
 const LeaderboardTab: Component = () => {
+  trackFeatureUsed('leaderboard_viewed');
   const { user } = useAuth();
   const leaderboard = useLeaderboard();
 

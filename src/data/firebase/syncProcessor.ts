@@ -1,5 +1,6 @@
 import type { SyncJob } from './syncQueue.types';
 import { logger } from '../../shared/observability/logger';
+import { trackEvent } from '../../shared/observability/analytics';
 import { db } from '../db';
 import { auth } from './config';
 import { matchRepository } from '../repositories/matchRepository';
@@ -205,6 +206,7 @@ async function handleJobError(job: SyncJob, err: unknown): Promise<void> {
     case 'retryable': {
       if (isMaxRetriesExceeded(job.type, job.retryCount)) {
         await failJob(job.id, `Max retries exceeded: ${errorMessage}`);
+        trackEvent('sync_failed', { error_category: 'max_retries', retry_count: job.retryCount });
       } else {
         const nextRetryAt = computeNextRetryAt(job.type, job.retryCount);
         await retryJob(job.id, nextRetryAt);
@@ -230,6 +232,7 @@ async function handleJobError(job: SyncJob, err: unknown): Promise<void> {
 
     case 'fatal': {
       await failJob(job.id, errorMessage);
+      trackEvent('sync_failed', { error_category: 'fatal', retry_count: job.retryCount });
       break;
     }
   }
@@ -277,6 +280,7 @@ async function processOnce(): Promise<void> {
       try {
         await executeJob(job);
         await completeJob(job.id);
+        trackEvent('sync_completed');
       } catch (err) {
         await handleJobError(job, err);
       } finally {

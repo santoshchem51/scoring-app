@@ -1,4 +1,5 @@
 import { logger } from '../../shared/observability/logger';
+import { trackEvent } from '../../shared/observability/analytics';
 import { createSignal, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
@@ -70,6 +71,7 @@ const CreateGroupPage: Component = () => {
       };
 
       await firestoreBuddyGroupRepository.addMember(groupId, member);
+      trackEvent('buddy_added', { source: 'group' });
 
       navigate(`/buddies/${groupId}`);
     } catch (err) {

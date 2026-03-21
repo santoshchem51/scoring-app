@@ -15,6 +15,7 @@ import { Share2 } from 'lucide-solid';
 import { DeleteAccountButton } from './DeleteAccountButton';
 import { initSentry } from '../../shared/observability/sentry';
 import { revokeObservabilityConsent } from '../../shared/observability/consentCleanup';
+import { trackFeatureUsed } from '../../shared/observability/analytics';
 
 const SettingsPage: Component = () => {
   const { user } = useAuth();
@@ -60,7 +61,7 @@ const SettingsPage: Component = () => {
                     return (
                       <button
                         type="button"
-                        onClick={() => setSettings({ theme: key })}
+                        onClick={() => { setSettings({ theme: key }); trackFeatureUsed('theme_changed', key); }}
                         aria-pressed={settings().theme === key}
                         class={`w-full p-4 rounded-xl text-left active:scale-[0.97] ${
                           settings().theme === key
@@ -211,17 +212,17 @@ const SettingsPage: Component = () => {
                 <OptionCard
                   label="Off"
                   selected={settings().voiceAnnouncements === 'off'}
-                  onClick={() => setSettings({ voiceAnnouncements: 'off' })}
+                  onClick={() => { setSettings({ voiceAnnouncements: 'off' }); trackFeatureUsed('voice_announcements', 'off'); }}
                 />
                 <OptionCard
                   label="Scores"
                   selected={settings().voiceAnnouncements === 'scores'}
-                  onClick={() => setSettings({ voiceAnnouncements: 'scores' })}
+                  onClick={() => { setSettings({ voiceAnnouncements: 'scores' }); trackFeatureUsed('voice_announcements', 'scores'); }}
                 />
                 <OptionCard
                   label="Full"
                   selected={settings().voiceAnnouncements === 'full'}
-                  onClick={() => setSettings({ voiceAnnouncements: 'full' })}
+                  onClick={() => { setSettings({ voiceAnnouncements: 'full' }); trackFeatureUsed('voice_announcements', 'full'); }}
                 />
               </div>
 
