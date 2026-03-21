@@ -108,7 +108,7 @@ Add reCAPTCHA directives for App Check:
 - `npx cap init PickleScore co.picklescore.app --web-dir dist`
 - `npx cap add android`
 - **Min SDK: API 26 (Android 8.0)** — covers 99%+ of active devices, required for proper haptic patterns
-- **Target SDK: API 35** (current Play Store requirement)
+- **Target SDK: API 35** (actual: 36, Capacitor 8 default)
 
 ### Plugin Strategy
 
