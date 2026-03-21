@@ -70,20 +70,18 @@ describe('earlyErrors', () => {
     expect(getEarlyErrorCount()).toBe(0);
   });
 
-  it('captures unhandled promise rejections', async () => {
+  const hasPromiseRejectionEvent = typeof PromiseRejectionEvent !== 'undefined';
+
+  it.skipIf(!hasPromiseRejectionEvent)('captures unhandled promise rejections', async () => {
     const { getEarlyErrorCount } = await import('../earlyErrors');
     const before = getEarlyErrorCount();
-    // PromiseRejectionEvent may not be available in jsdom — use a fallback
-    try {
-      const event = new PromiseRejectionEvent('unhandledrejection', {
-        reason: new Error('rejected'),
-        promise: Promise.reject(new Error('rejected')),
-      });
-      window.dispatchEvent(event);
-      expect(getEarlyErrorCount()).toBe(before + 1);
-    } catch {
-      // PromiseRejectionEvent not supported in jsdom — skip gracefully
-      console.warn('PromiseRejectionEvent not supported in test env, skipping');
-    }
+    const rejectedPromise = Promise.reject(new Error('rejected'));
+    rejectedPromise.catch(() => {}); // prevent unhandled rejection warning
+    const event = new PromiseRejectionEvent('unhandledrejection', {
+      reason: new Error('rejected'),
+      promise: rejectedPromise,
+    });
+    window.dispatchEvent(event);
+    expect(getEarlyErrorCount()).toBe(before + 1);
   });
 });
