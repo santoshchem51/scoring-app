@@ -335,9 +335,8 @@ test.describe('Modals', () => {
   });
 
   // ── 15. ScoreEditModal — gold-dark, 393 ───────────────────────────
-  // Note: ScoreEditModal requires a completed match to edit. This needs a pool-play
-  // tournament with a completed match, then clicking the edit button on that match.
-  // If the edit button is not accessible in the seeded state, this test will be skipped.
+  // ScoreEditModal reads match data from Dexie (IndexedDB) via matchRepository.getById().
+  // The seeder only writes to Firestore, so we must inject the match into Dexie manually.
   test('15 · score edit modal — gold dark', async ({ authenticatedPage: page, testUserUid }, testInfo) => {
     await setTheme(page, 'court-vision-gold', 'dark');
 
@@ -350,23 +349,42 @@ test.describe('Modals', () => {
     await page.goto(`/tournaments/${seed.tournamentId}`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByText('Pool Standings')).toBeVisible({ timeout: 15000 });
 
-    // Look for an Edit button in the pool table — if the match has been completed
-    // and the user is organizer (moderator+), Edit should be visible
-    const editButton = page.getByRole('button', { name: /edit/i }).first();
-    const editVisible = await editButton.isVisible().catch(() => false);
+    // The Edit button is visible (seeder creates matchId) but clicking it calls
+    // matchRepository.getById() which reads from Dexie. Inject a match into Dexie.
+    const matchId = (seed.pools[0] as any).schedule[0].matchId;
+    await page.evaluate(async (data) => {
+      const { db } = await import('/src/data/db.ts');
+      await db.matches.put({
+        id: data.matchId,
+        team1Name: 'Alpha',
+        team2Name: 'Bravo',
+        team1PlayerIds: [],
+        team2PlayerIds: [],
+        config: {
+          gameType: 'singles',
+          scoringMode: 'rally',
+          matchFormat: 'single',
+          pointsToWin: 11,
+        },
+        games: [{ gameNumber: 1, team1Score: 11, team2Score: 7, winningSide: 1 }],
+        winningSide: 1,
+        status: 'completed',
+        startedAt: Date.now() - 3600000,
+        completedAt: Date.now() - 3500000,
+        lastSnapshot: null,
+      });
+    }, { matchId });
 
-    if (editVisible) {
-      await editButton.click();
-      await page.waitForTimeout(1000);
-      await captureScreen(page, testInfo, screenshotName(
-        'tournament', 'modal', 'score-edit', '393', 'court-vision-gold', 'dark',
-      ));
-    } else {
-      // ScoreEditModal not triggerable — attach a note screenshot instead
-      testInfo.annotations.push({ type: 'skip', description: 'ScoreEditModal not triggerable — no completed match with edit button in seeded state' });
-      await captureScreen(page, testInfo, screenshotName(
-        'tournament', 'modal', 'score-edit-skipped', '393', 'court-vision-gold', 'dark',
-      ));
-    }
+    // Click Edit button on the completed match
+    const editButton = page.getByRole('button', { name: /edit/i }).first();
+    await expect(editButton).toBeVisible({ timeout: 5000 });
+    await editButton.click();
+
+    // Wait for ScoreEditModal to render
+    await page.waitForTimeout(1000);
+
+    await captureScreen(page, testInfo, screenshotName(
+      'tournament', 'modal', 'score-edit', '393', 'court-vision-gold', 'dark',
+    ));
   });
 });
