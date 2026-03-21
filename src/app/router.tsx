@@ -23,6 +23,7 @@ const SessionDetailPage = lazy(() => import('../features/buddies/SessionDetailPa
 const PublicSessionPage = lazy(() => import('../features/buddies/PublicSessionPage'));
 const GroupInvitePage = lazy(() => import('../features/buddies/GroupInvitePage'));
 const OpenPlayPage = lazy(() => import('../features/buddies/OpenPlayPage'));
+const PrivacyPolicy = lazy(() => import('../features/legal/PrivacyPolicy'));
 
 function NotFoundPage() {
   return (
@@ -71,6 +72,7 @@ export default function AppRouter() {
         <Route path="/" component={ProfilePage} />
       </Route>
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="*" component={NotFoundPage} />
     </Router>
   );
