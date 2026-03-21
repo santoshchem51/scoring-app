@@ -48,4 +48,5 @@ design-protos/
 # Capacitor
 android/app/build/
 android/.gradle/
+android/app/google-services.json
 *.keystore
