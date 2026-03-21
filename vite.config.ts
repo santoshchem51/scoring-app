@@ -85,7 +85,7 @@ export default defineConfig(({ mode }) => ({
     })] : []),
   ],
   build: {
-    sourcemap: true,
+    sourcemap: !!process.env.SENTRY_AUTH_TOKEN,
     rollupOptions: {
       output: {
         manualChunks(id) {
