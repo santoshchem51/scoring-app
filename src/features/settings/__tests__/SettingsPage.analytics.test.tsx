@@ -59,6 +59,8 @@ import SettingsPage from '../SettingsPage';
 
 describe('SettingsPage analytics toggle', () => {
   beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
     localStorage.clear();
     setSettings({ analyticsConsent: 'accepted', analyticsConsentTimestamp: Date.now() });
   });

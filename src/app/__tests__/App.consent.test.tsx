@@ -56,6 +56,8 @@ import App from '../App';
 
 describe('App consent dialog wiring', () => {
   beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
     localStorage.clear();
   });
 
