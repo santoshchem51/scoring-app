@@ -1,0 +1,130 @@
+import { settings } from '../../stores/settingsStore';
+import { registerSink } from './logger';
+import { flushEarlyErrors } from './earlyErrors';
+
+let initialized = false;
+
+export function sanitizeMessage(msg: string): string {
+  return msg.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]');
+}
+
+export function scrubPII(event: any): any | null {
+  // Strip user PII
+  if (event.user) {
+    delete event.user.ip_address;
+    delete event.user.email;
+  }
+  // Walk extras for sensitive fields
+  if (event.extra) {
+    for (const key of Object.keys(event.extra)) {
+      if (['email', 'displayName', 'playerName', 'teamName'].includes(key)) {
+        delete event.extra[key];
+      }
+    }
+  }
+  // Scrub Firestore paths
+  if (event.message) {
+    event.message = event.message.replace(/users\/[^/\s]+/g, 'users/[redacted]');
+  }
+  // Rate limiting
+  try {
+    const key = 'sentry_daily_count';
+    const stored = localStorage.getItem(key);
+    const today = new Date().toDateString();
+    let daily = stored ? JSON.parse(stored) : { count: 0, date: today };
+    if (daily.date !== today) daily = { count: 0, date: today };
+    if (daily.count >= 200 && event.tags?.error_type !== 'fatal') return null;
+    daily.count++;
+    localStorage.setItem(key, JSON.stringify(daily));
+  } catch {
+    /* localStorage unavailable */
+  }
+  return event;
+}
+
+export function filterBreadcrumb(breadcrumb: any): any | null {
+  if (breadcrumb.category === 'ui.click') {
+    if (breadcrumb.data) {
+      delete breadcrumb.data.textContent;
+      delete breadcrumb.data['target.innerText'];
+    }
+    return breadcrumb;
+  }
+  if (
+    breadcrumb.category === 'xhr' &&
+    breadcrumb.data?.url?.includes('firestore')
+  )
+    return null;
+  if (breadcrumb.category === 'console') return null;
+  return breadcrumb;
+}
+
+export async function initSentry() {
+  if (initialized) return;
+  if (settings().analyticsConsent !== 'accepted') return;
+
+  try {
+    const Sentry = await import('@sentry/browser');
+    Sentry.init({
+      dsn: import.meta.env.VITE_SENTRY_DSN,
+      environment: import.meta.env.MODE,
+      release: import.meta.env.VITE_APP_VERSION,
+      transport: Sentry.makeBrowserOfflineTransport(Sentry.makeFetchTransport),
+      sendDefaultPii: false,
+      maxBreadcrumbs: 30,
+      sampleRate: 1.0,
+      autoSessionTracking: true,
+      beforeSend: scrubPII,
+      beforeBreadcrumb: filterBreadcrumb,
+    });
+
+    // Connectivity tags
+    Sentry.setTag('connectivity', navigator.onLine ? 'online' : 'offline');
+    if ((navigator as any).connection?.effectiveType) {
+      Sentry.setTag(
+        'connection_type',
+        (navigator as any).connection.effectiveType,
+      );
+    }
+
+    // Register logger sink
+    registerSink((level, msg, data) => {
+      const sentryLevel = level === 'warn' ? 'warning' : level;
+      Sentry.addBreadcrumb({
+        message: sanitizeMessage(msg),
+        level: sentryLevel as any,
+        data:
+          typeof data === 'object' && !(data instanceof Error)
+            ? (data as Record<string, unknown>)
+            : undefined,
+      });
+      if (level === 'error') {
+        const exception =
+          data instanceof Error
+            ? data
+            : new Error(typeof data === 'string' ? data : msg);
+        Sentry.captureException(exception, { extra: { message: msg } });
+      }
+    });
+
+    flushEarlyErrors((err) => Sentry.captureException(err));
+    initialized = true;
+  } catch {
+    // Sentry blocked/failed — app continues with console-only logging
+  }
+}
+
+export function setSentryUser(uid: string | null) {
+  if (!initialized) return;
+  import('@sentry/browser')
+    .then((Sentry) => {
+      if (uid) {
+        Sentry.setUser({ id: uid });
+      } else {
+        Sentry.flush(2000)
+          .then(() => Sentry.setUser(null))
+          .catch(() => {});
+      }
+    })
+    .catch(() => {});
+}
