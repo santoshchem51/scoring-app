@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@solidjs/testing-library';
-import { ObservableErrorBoundary } from '../ErrorBoundary';
-import { logger } from '../logger';
 
 function ThrowingComponent(): never {
   throw new Error('render crash');
@@ -13,7 +11,8 @@ describe('ObservableErrorBoundary', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders children when no error', () => {
+  it('renders children when no error', async () => {
+    const { ObservableErrorBoundary } = await import('../ErrorBoundary');
     render(() => (
       <ObservableErrorBoundary feature="test">
         <div>hello</div>
@@ -22,8 +21,9 @@ describe('ObservableErrorBoundary', () => {
     expect(screen.getByText('hello')).toBeTruthy();
   });
 
-  it('renders fallback UI when child throws', () => {
+  it('renders fallback UI when child throws', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ObservableErrorBoundary } = await import('../ErrorBoundary');
     render(() => (
       <ObservableErrorBoundary feature="test">
         <ThrowingComponent />
@@ -32,9 +32,11 @@ describe('ObservableErrorBoundary', () => {
     expect(screen.getByText(/something went wrong/i)).toBeTruthy();
   });
 
-  it('calls logger.error when child throws', () => {
+  it('calls logger.error when child throws', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { logger } = await import('../logger');
     const errorSpy = vi.spyOn(logger, 'error');
+    const { ObservableErrorBoundary } = await import('../ErrorBoundary');
     render(() => (
       <ObservableErrorBoundary feature="scoring">
         <ThrowingComponent />
@@ -46,8 +48,9 @@ describe('ObservableErrorBoundary', () => {
     );
   });
 
-  it('uses custom fallback when provided', () => {
+  it('uses custom fallback when provided', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ObservableErrorBoundary } = await import('../ErrorBoundary');
     render(() => (
       <ObservableErrorBoundary
         feature="test"
@@ -59,8 +62,9 @@ describe('ObservableErrorBoundary', () => {
     expect(screen.getByText(/Custom:/)).toBeTruthy();
   });
 
-  it('Try Again button resets the error boundary', () => {
+  it('Try Again button resets the error boundary', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ObservableErrorBoundary } = await import('../ErrorBoundary');
     let thrown = false;
     function ThrowOnce(): any {
       if (!thrown) {
