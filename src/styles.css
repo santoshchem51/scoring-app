@@ -414,6 +414,22 @@ html.outdoor body::after {
   display: none;
 }
 
+/* Scroll hint — right-edge fade for horizontal scroll containers */
+.scroll-hint-right {
+  position: relative;
+}
+.scroll-hint-right::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2rem;
+  background: linear-gradient(to right, transparent, var(--color-surface));
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* Windows High Contrast Mode support */
 @media (forced-colors: active) {
   .text-gradient,
