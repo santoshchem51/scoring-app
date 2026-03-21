@@ -24,6 +24,29 @@ export class ScoringPage {
     }
   }
 
+  /** Score a point using the team's actual display name (for tournament matches). */
+  async scorePointByName(teamName: string) {
+    await this.page.getByRole('button', { name: `Score point for ${teamName}` }).click();
+  }
+
+  async scorePointsByName(teamName: string, count: number) {
+    for (let i = 0; i < count; i++) {
+      await this.scorePointByName(teamName);
+    }
+  }
+
+  /** Score a point for the first enabled score button (works with any team name). */
+  async scoreFirstTeam() {
+    const btn = this.page.locator('button[aria-label^="Score point for"]').first();
+    await btn.click();
+  }
+
+  async scoreFirstTeamPoints(count: number) {
+    for (let i = 0; i < count; i++) {
+      await this.scoreFirstTeam();
+    }
+  }
+
   async undoLastAction() {
     await this.undoBtn.click();
   }
@@ -82,5 +105,69 @@ export class ScoringPage {
 
   async expectNoTeamIndicator() {
     await expect(this.page.locator('text=/You\'re on/')).not.toBeVisible();
+  }
+
+  // --- Score assertion using aria-label on scoreboard panels ---
+  // The Scoreboard renders each team panel with aria-label like:
+  //   "Team 1: 5, serving, game point"  or  "Team 2: 3"
+  // Use this instead of expectScore('X - Y') which doesn't match the DOM.
+  async expectTeamScore(team: 'Team 1' | 'Team 2', score: number) {
+    const scoreboard = this.page.locator('[aria-label="Scoreboard"]');
+    await expect(scoreboard.locator(`[aria-label*="${team}: ${score}"]`)).toBeVisible({ timeout: 10000 });
+  }
+
+  async expectScores(team1Score: number, team2Score: number) {
+    await this.expectTeamScore('Team 1', team1Score);
+    await this.expectTeamScore('Team 2', team2Score);
+  }
+
+  // --- Game flow methods ---
+  async startNextGame() {
+    await this.page.getByRole('button', { name: /start (next )?game/i }).click();
+  }
+
+  async getMatchIdFromUrl(): Promise<string> {
+    const url = this.page.url();
+    const match = url.match(/\/score\/(.+)$/);
+    if (!match) throw new Error(`Could not extract match ID from URL: ${url}`);
+    return match[1];
+  }
+
+  async expectBetweenGames(gamesWon?: string) {
+    await expect(this.page.getByText(/game complete/i)).toBeVisible({ timeout: 10000 });
+    await expect(this.page.getByRole('button', { name: /start (next )?game/i })).toBeVisible();
+    if (gamesWon) {
+      await expect(this.page.getByText(gamesWon)).toBeVisible();
+    }
+  }
+
+  async expectServingIndicator(team: 1 | 2) {
+    await expect(this.page.getByTestId(`serving-indicator-${team}`)).toBeVisible();
+  }
+
+  async expectGameNumber(n: number) {
+    await expect(this.page.getByText(`Game ${n}`)).toBeVisible();
+  }
+
+  async expectScoreCall(call: string) {
+    await expect(this.page.getByTestId('score-call')).toContainText(call);
+  }
+
+  /** Read actual team names from the scoring button aria-labels. */
+  async getTeamNames(): Promise<{ team1: string; team2: string }> {
+    const buttons = this.page.locator('button[aria-label^="Score point for"]');
+    const label1 = await buttons.nth(0).getAttribute('aria-label');
+    const label2 = await buttons.nth(1).getAttribute('aria-label');
+    return {
+      team1: label1!.replace('Score point for ', ''),
+      team2: label2!.replace('Score point for ', ''),
+    };
+  }
+
+  /** Assert match is over and click Save & Finish. */
+  async expectMatchCompleteAndSave() {
+    await this.expectMatchOver();
+    await expect(this.saveFinishBtn).toBeEnabled({ timeout: 5000 });
+    await this.saveAndFinish();
   }
 }

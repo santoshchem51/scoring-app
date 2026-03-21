@@ -8,6 +8,23 @@ export const statusLabels: Record<string, string> = {
   paused: 'Paused',
 };
 
+/** Short labels for use in action buttons to prevent text wrapping */
+export const shortStatusLabels: Record<string, string> = {
+  setup: 'Setup',
+  registration: 'Registration',
+  'pool-play': 'Pools',
+  bracket: 'Bracket',
+  completed: 'Complete',
+  cancelled: 'Cancelled',
+  paused: 'Paused',
+};
+
+/**
+ * Tournament status badge colors.
+ * Color coding: yellow=setup, blue=registration, green=pool-play,
+ * purple=bracket, gray=completed, red=cancelled, orange=paused.
+ * Audited for WCAG 4.5:1 contrast across all 9 theme/mode combos (2026-03-20).
+ */
 export const statusColors: Record<string, string> = {
   setup: 'bg-yellow-500/20 text-yellow-400',
   registration: 'bg-blue-500/20 text-blue-400',

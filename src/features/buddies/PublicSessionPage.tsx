@@ -256,7 +256,7 @@ const PublicSessionPage: Component = () => {
               {/* Who's playing */}
               <div class="bg-surface-light rounded-2xl p-5">
                 <h2 class="text-on-surface font-bold text-sm mb-3">
-                  Who's Playing ({rsvpList().length})
+                  Who's Playing ({rsvpList().filter(r => r.response === 'in').length} of {rsvpList().length})
                 </h2>
                 <Show when={rsvpList().length > 0} fallback={
                   <p class="text-on-surface-muted text-sm text-center py-3">No RSVPs yet — be the first!</p>

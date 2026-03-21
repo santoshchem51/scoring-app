@@ -21,7 +21,7 @@ const ScoreControls: Component<Props> = (props) => {
   const team2Active = () => props.scoringMode === 'rally' || props.servingTeam === 2;
 
   return (
-    <div class="flex flex-col gap-3 px-4" role="group" aria-label="Score controls">
+    <div class="flex flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+64px)]" role="group" aria-label="Score controls">
       {/* Score buttons row */}
       <div class="grid grid-cols-2 gap-3">
         <button

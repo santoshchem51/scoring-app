@@ -36,6 +36,7 @@ export function useCelebration() {
       origin: { x: 0.5, y: 1 },
       colors: [teamColor, '#facc15', '#ffffff'],
       disableForReducedMotion: true,
+      zIndex: 30,
     });
   };
 
@@ -82,9 +83,9 @@ export function useCelebration() {
 
     // Double confetti burst from both sides
     const colors = [team1Color, team2Color, '#facc15', '#ffffff'];
-    confetti({ particleCount: 80, spread: 60, origin: { x: 0.2, y: 0.9 }, colors, disableForReducedMotion: true });
+    confetti({ particleCount: 80, spread: 60, origin: { x: 0.2, y: 0.9 }, colors, disableForReducedMotion: true, zIndex: 30 });
     setTimeout(() => {
-      confetti({ particleCount: 80, spread: 60, origin: { x: 0.8, y: 0.9 }, colors, disableForReducedMotion: true });
+      confetti({ particleCount: 80, spread: 60, origin: { x: 0.8, y: 0.9 }, colors, disableForReducedMotion: true, zIndex: 30 });
     }, 200);
   };
 

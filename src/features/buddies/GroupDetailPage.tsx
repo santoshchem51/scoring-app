@@ -216,6 +216,7 @@ const GroupDetailPage: Component = () => {
                         onClick={handleShare}
                         class="ml-3 flex-shrink-0 p-2 rounded-lg bg-primary/10 text-primary active:scale-95 transition-transform"
                         title="Copy share link"
+                        aria-label="Copy share link"
                       >
                         <Show
                           when={!copied()}

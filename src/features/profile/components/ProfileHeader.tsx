@@ -54,13 +54,22 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
       </Show>
 
       <div class="flex items-center gap-2 flex-wrap justify-center">
-        <h1 class="text-xl font-bold text-on-surface">{props.displayName}</h1>
+        <h1 class="text-xl font-bold text-on-surface">
+          {props.displayName || props.email}
+        </h1>
         <Show when={props.hasStats && props.tier && props.tierConfidence}>
           <TierBadge tier={props.tier!} confidence={props.tierConfidence!} />
         </Show>
       </div>
 
-      <p class="text-sm text-on-surface-muted">{props.email}</p>
+      <Show when={!props.displayName}>
+        <a href="/settings" class="text-sm text-primary underline" aria-label="Set your display name">
+          Set your display name
+        </a>
+      </Show>
+      <Show when={props.displayName}>
+        <p class="text-sm text-on-surface-muted">{props.email}</p>
+      </Show>
       <p class="text-xs text-on-surface-muted">
         Member since {formatMemberSince(props.createdAt)}
       </p>

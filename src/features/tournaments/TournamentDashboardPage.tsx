@@ -25,7 +25,7 @@ import TournamentResults from './components/TournamentResults';
 import OrganizerControls from './components/OrganizerControls';
 import OrganizerPlayerManager from './components/OrganizerPlayerManager';
 import OrganizerPairingPanel from './components/OrganizerPairingPanel';
-import { statusLabels, statusColors, formatLabels } from './constants';
+import { statusLabels, statusColors, formatLabels, shortStatusLabels } from './constants';
 import { matchRepository } from '../../data/repositories/matchRepository';
 import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding, Match } from '../../data/types';
 import ScoreEditModal from './components/ScoreEditModal';
@@ -360,7 +360,7 @@ const TournamentDashboardPage: Component = () => {
   const nextStatusLabel = createMemo(() => {
     const next = nextStatus();
     if (!next) return '';
-    return statusLabels[next] ?? next;
+    return shortStatusLabels[next] ?? next;
   });
 
   const showPoolTables = createMemo(() => {
@@ -741,7 +741,7 @@ const TournamentDashboardPage: Component = () => {
 
   return (
     <PageLayout title={live.tournament()?.name ?? 'Tournament'}>
-      <div class="p-4 space-y-6">
+      <div class="p-4 pb-20 space-y-6">
         <Show when={!live.loading()} fallback={<p class="text-on-surface-muted">Loading...</p>}>
         <Show when={live.tournament()} fallback={<p class="text-on-surface-muted">Tournament not found.</p>}>
           {(t) => (
@@ -780,12 +780,14 @@ const TournamentDashboardPage: Component = () => {
                       Share
                     </button>
                   </Show>
-                  <Show when={isAdminPlus() && nextStatus()}>
-                    <button type="button" onClick={handleStatusAdvance}
-                      disabled={advancing()}
-                      class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform ${advancing() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
-                      {advancing() ? 'Advancing...' : `Advance to ${nextStatusLabel()}`}
-                    </button>
+                  <Show when={isAdminPlus()}>
+                    <div class={nextStatus() ? 'visible' : 'invisible'}>
+                      <button type="button" onClick={handleStatusAdvance}
+                        disabled={advancing() || !nextStatus()}
+                        class={`bg-primary text-surface text-sm font-semibold px-4 py-2 rounded-lg transition-transform whitespace-nowrap ${advancing() || !nextStatus() ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}>
+                        {advancing() ? 'Advancing...' : `Advance to ${nextStatusLabel()}`}
+                      </button>
+                    </div>
                   </Show>
                 </div>
               </div>
@@ -872,7 +874,7 @@ const TournamentDashboardPage: Component = () => {
               </Show>
 
               {/* Scorekeeper Match List */}
-              <Show when={role() === 'scorekeeper' || (live.tournament() && user() && hasMinRole(live.tournament()!, user()!.uid, 'scorekeeper') && role() !== 'player')}>
+              <Show when={live.tournament() && live.tournament()!.status !== 'completed' && live.tournament()!.status !== 'cancelled' && (role() === 'scorekeeper' || (user() && hasMinRole(live.tournament()!, user()!.uid, 'scorekeeper') && role() !== 'player'))}>
                 <ScorekeeperMatchList
                   pools={live.pools()}
                   bracket={live.bracket()}

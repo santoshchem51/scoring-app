@@ -37,8 +37,8 @@ const BracketView: Component<Props> = (props) => {
   };
 
   return (
-    <div class="overflow-x-auto">
-      <div class="flex gap-6 min-w-max p-4">
+    <div class="overflow-x-auto scroll-hint-right" role="region" aria-label="Tournament bracket" tabindex="0">
+      <div class="flex gap-4 min-w-max p-4">
         <For each={rounds()}>
           {(roundSlots, roundIndex) => (
             <div class="flex flex-col gap-4">

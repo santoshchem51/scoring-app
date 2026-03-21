@@ -1,56 +1,21 @@
 import { test, expect } from '@playwright/test';
+import { clearEmulators, seedFirestoreDocAdmin } from '../helpers/emulator-auth';
 
 // These tests require:
 // - Dev server running on port 5199
 // - Firebase emulators running (Auth: 9099, Firestore: 8180)
 // Run with: npx playwright test e2e/spectator/
 
-const EMULATOR_PROJECT_ID = 'picklescore-b0a71';
-const FIRESTORE_URL = 'http://127.0.0.1:8180';
-
-async function clearEmulator() {
-  await fetch(
-    `${FIRESTORE_URL}/emulator/v1/projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents`,
-    { method: 'DELETE' },
-  );
-}
-
 async function seedDoc(path: string, data: Record<string, unknown>) {
   const parts = path.split('/');
-  const collectionPath = parts.slice(0, -1).join('/');
   const docId = parts[parts.length - 1];
-
-  await fetch(
-    `${FIRESTORE_URL}/v1/projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents/${collectionPath}?documentId=${docId}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: toFirestoreFields(data) }),
-    },
-  );
-}
-
-// Convert JS object to Firestore REST API field format
-function toFirestoreFields(obj: Record<string, unknown>): Record<string, unknown> {
-  const fields: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string') fields[key] = { stringValue: value };
-    else if (typeof value === 'number') fields[key] = { integerValue: String(value) };
-    else if (typeof value === 'boolean') fields[key] = { booleanValue: value };
-    else if (value === null) fields[key] = { nullValue: null };
-    else if (Array.isArray(value))
-      fields[key] = { arrayValue: { values: value.map((v) => ({ stringValue: String(v) })) } };
-    else if (typeof value === 'object')
-      fields[key] = {
-        mapValue: { fields: toFirestoreFields(value as Record<string, unknown>) },
-      };
-  }
-  return fields;
+  const collectionPath = parts.slice(0, -1).join('/');
+  await seedFirestoreDocAdmin(collectionPath, docId, data);
 }
 
 test.describe('Spectator Experience', () => {
   test.beforeAll(async () => {
-    await clearEmulator();
+    await clearEmulators();
   });
 
   test('spectator opens tournament hub via share code', async ({ page }) => {

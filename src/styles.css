@@ -32,6 +32,10 @@
   src: url('/fonts/Oswald-Medium.woff2') format('woff2');
 }
 
+body {
+  background-color: var(--color-surface) !important;
+}
+
 @theme {
   --color-primary: #22c55e;
   --color-primary-dark: #16a34a;
@@ -412,6 +416,22 @@ body::after {
 /* Disable noise in outdoor mode (light theme) */
 html.outdoor body::after {
   display: none;
+}
+
+/* Scroll hint — right-edge fade for horizontal scroll containers */
+.scroll-hint-right {
+  position: relative;
+}
+.scroll-hint-right::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2rem;
+  background: linear-gradient(to right, transparent, var(--color-surface));
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* Windows High Contrast Mode support */
