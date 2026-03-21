@@ -14,6 +14,7 @@ import BuddyPicker from './components/BuddyPicker';
 import { buildTeamArrays } from './helpers/buddyPickerHelpers';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { logger } from '../../shared/observability/logger';
+import { trackEvent } from '../../shared/observability/analytics';
 
 const GameSetupPage: Component = () => {
   const navigate = useNavigate();
@@ -131,6 +132,11 @@ const GameSetupPage: Component = () => {
 
     try {
       await matchRepository.save(match);
+      trackEvent('match_started', {
+        format: config.matchFormat,
+        scoring_type: config.scoringMode,
+        game_to: config.pointsToWin,
+      });
       cloudSync.syncMatchToCloud(match, sharedWith);
       navigate(`/score/${match.id}`);
     } catch (err) {
@@ -166,6 +172,11 @@ const GameSetupPage: Component = () => {
     };
     try {
       await matchRepository.save(match);
+      trackEvent('match_started', {
+        format: config.matchFormat,
+        scoring_type: config.scoringMode,
+        game_to: config.pointsToWin,
+      });
       cloudSync.syncMatchToCloud(match);
       navigate(`/score/${match.id}`);
     } catch (err) {

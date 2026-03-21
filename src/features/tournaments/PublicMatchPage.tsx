@@ -11,6 +11,7 @@ import PlayByPlayFeed from './components/PlayByPlayFeed';
 import MatchAnalytics from './components/MatchAnalytics';
 import { SegmentedControl } from '../../shared/components/SegmentedControl';
 import SpectatorFooter from '../../shared/components/SpectatorFooter';
+import { trackFeatureUsed } from '../../shared/observability/analytics';
 
 const TABS = [
   { id: 'play-by-play', label: 'Play-by-Play' },
@@ -18,6 +19,7 @@ const TABS = [
 ] as const;
 
 const PublicMatchPage: Component = () => {
+  trackFeatureUsed('spectator_view');
   const params = useParams();
   const [activeTab, setActiveTab] = createSignal<'play-by-play' | 'stats'>('play-by-play');
 

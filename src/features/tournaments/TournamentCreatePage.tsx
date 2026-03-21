@@ -1,4 +1,5 @@
 import { logger } from '../../shared/observability/logger';
+import { trackEvent } from '../../shared/observability/analytics';
 import { createSignal, createResource, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
@@ -149,6 +150,10 @@ const TournamentCreatePage: Component = () => {
       };
 
       await firestoreTournamentRepository.save(tournament);
+      trackEvent('tournament_created', {
+        format: tournament.format,
+        player_count: tournament.maxPlayers ?? 0,
+      });
 
       // Increment template usage count if one was used
       const templateId = usedTemplateId();

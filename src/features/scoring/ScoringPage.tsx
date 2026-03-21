@@ -23,6 +23,7 @@ import { firestoreBracketRepository } from '../../data/firebase/firestoreBracket
 import { calculateStandings } from '../tournaments/engine/standings';
 import { advanceBracketWinner } from '../tournaments/engine/bracketAdvancement';
 import { logger } from '../../shared/observability/logger';
+import { trackEvent } from '../../shared/observability/analytics';
 
 interface ScoringViewProps {
   match: MatchData;
@@ -202,6 +203,12 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
       lastSnapshot: null,
     };
     await matchRepository.save(updatedMatch);
+    const durationSeconds = Math.round(((updatedMatch.completedAt ?? Date.now()) - props.match.startedAt) / 30000) * 30;
+    trackEvent('match_completed', {
+      format: props.match.config.matchFormat,
+      duration_seconds: durationSeconds,
+      total_games: games.length,
+    });
     cloudSync.syncMatchToCloud(updatedMatch);
     cloudSync.syncPlayerStatsAfterMatch(updatedMatch);
 

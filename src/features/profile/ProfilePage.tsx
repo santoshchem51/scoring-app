@@ -14,6 +14,7 @@ import TrophyCase from '../achievements/components/TrophyCase';
 import { useAchievements } from '../achievements/hooks/useAchievements';
 import { firestoreUserRepository } from '../../data/firebase/firestoreUserRepository';
 import { logger } from '../../shared/observability/logger';
+import { trackFeatureUsed } from '../../shared/observability/analytics';
 
 const ProfileSkeleton: Component = () => (
   <div class="space-y-4" role="status" aria-label="Loading profile">
@@ -38,6 +39,7 @@ const ProfileSkeleton: Component = () => (
 );
 
 const ProfilePage: Component = () => {
+  trackFeatureUsed('profile_viewed');
   const { user } = useAuth();
   const { data, allMatches, hasMore, loadMore, loadingMore, refetch } = useProfileData(() => user()?.uid);
   const { unlocked } = useAchievements(() => user()?.uid);

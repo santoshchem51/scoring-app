@@ -5,6 +5,7 @@ import { firestoreTournamentRepository } from '../../../data/firebase/firestoreT
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { writeStatusAudit } from './OrganizerControls.audit';
 import type { Tournament } from '../../../data/types';
+import { trackEvent } from '../../../shared/observability/analytics';
 
 interface Props {
   tournament: Tournament;
@@ -67,6 +68,10 @@ const OrganizerControls: Component<Props> = (props) => {
     try {
       const oldStatus = props.tournament.status;
       await firestoreTournamentRepository.updateStatus(props.tournament.id, 'completed');
+      trackEvent('tournament_completed', {
+        format: props.tournament.format,
+        duration_minutes: Math.round((Date.now() - props.tournament.createdAt) / 300000) * 5,
+      });
       writeStatusAudit(props.tournament, user(), oldStatus, 'completed');
       props.onUpdated();
     } catch (e) {

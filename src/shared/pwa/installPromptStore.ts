@@ -1,6 +1,7 @@
 import { createSignal } from 'solid-js';
 import { IS_NATIVE } from '../platform/platform';
 import { swUpdateVisible } from './swUpdateStore';
+import { trackEvent } from '../observability/analytics';
 
 // ── Types ──
 
@@ -114,6 +115,7 @@ export function setCompletedMatchCount(count: number): void {
 
 export function captureInstallEvent(event: Event): void {
   setPromptEvent(event as BeforeInstallPromptEvent);
+  trackEvent('pwa_install_prompt_shown');
 }
 
 export function markInstalled(): void {
@@ -140,6 +142,7 @@ export async function triggerInstallPrompt(): Promise<'accepted' | 'dismissed' |
   setPromptEvent(null);
   if (result.outcome === 'accepted') {
     setInstalled(true);
+    trackEvent('pwa_install_accepted');
   }
   return result.outcome;
 }
