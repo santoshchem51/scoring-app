@@ -25,4 +25,30 @@ describe('PrivacyPolicy', () => {
     const { container } = render(() => <PrivacyPolicy />);
     expect(container.innerHTML).toContain('privacy@picklescore.co');
   });
+
+  it('contains Sentry disclosure', async () => {
+    const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
+    const { container } = render(() => <PrivacyPolicy />);
+    expect(container.innerHTML).toContain('Sentry');
+    expect(container.innerHTML).toContain('sentry.io/privacy');
+  });
+
+  it('contains Firebase Analytics disclosure', async () => {
+    const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
+    const { container } = render(() => <PrivacyPolicy />);
+    expect(container.innerHTML).toContain('Firebase Analytics');
+    expect(container.innerHTML).toContain('De-identified usage data');
+  });
+
+  it('contains Cookies & Local Storage section', async () => {
+    const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
+    const { getByText } = render(() => <PrivacyPolicy />);
+    expect(getByText('Cookies & Local Storage')).toBeTruthy();
+  });
+
+  it('contains Operational Logs section', async () => {
+    const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
+    const { getByText } = render(() => <PrivacyPolicy />);
+    expect(getByText('Operational Logs')).toBeTruthy();
+  });
 });

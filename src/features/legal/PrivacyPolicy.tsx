@@ -55,7 +55,52 @@ export default function PrivacyPolicy() {
               Google Privacy Policy
             </a>.
           </li>
+          <li>
+            <strong class="text-on-surface">Sentry</strong> — Error tracking and crash reporting.
+            When you consent to analytics, de-identified error reports are sent to Sentry to help
+            us identify and fix bugs. No personally identifiable information is included in error
+            reports. See{' '}
+            <a
+              href="https://sentry.io/privacy/"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-primary underline"
+            >
+              Sentry Privacy Policy
+            </a>.
+          </li>
+          <li>
+            <strong class="text-on-surface">Firebase Analytics</strong> — De-identified usage data
+            (e.g., which features are used, session counts). No user IDs, names, scores, or
+            match details are included. Analytics data is retained for 2 months. Collection
+            requires your explicit consent and can be disabled at any time in Settings.
+          </li>
         </ul>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-3">Cookies & Local Storage</h2>
+        <p class="mb-2 text-on-surface-muted">
+          PickleScore uses browser local storage (not cookies) to store:
+        </p>
+        <ul class="list-disc list-inside space-y-1 text-on-surface-muted">
+          <li>Your app preferences and settings</li>
+          <li>Your analytics consent choice</li>
+          <li>Offline match data (via IndexedDB)</li>
+        </ul>
+        <p class="mt-2 text-on-surface-muted">
+          No third-party tracking cookies are used. Firebase and Sentry may use
+          their own storage mechanisms as described in their respective privacy policies.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-3">Operational Logs</h2>
+        <p class="text-on-surface-muted">
+          Our server-side systems (Cloud Functions) generate operational logs that may
+          contain your user identifier for debugging purposes. These logs are automatically
+          deleted within 30 days and are not shared with third parties.
+        </p>
       </section>
 
       <section class="mb-8">
