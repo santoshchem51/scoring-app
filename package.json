@@ -1,7 +1,7 @@
 {
-  "name": "tempdir",
+  "name": "picklescore",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,7 @@
     "test:e2e:buddies": "firebase emulators:exec --only auth,firestore \"npx playwright test e2e/buddies*\"",
     "test:e2e:headed": "npx playwright test --headed",
     "emulator:start": "firebase emulators:start --only firestore",
-    "build:android": "npm run build && npx cap sync android",
+    "build:android": "vite build && npx cap sync android",
     "cap:open": "npx cap open android"
   },
   "dependencies": {
