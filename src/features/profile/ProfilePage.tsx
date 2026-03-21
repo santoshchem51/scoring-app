@@ -13,6 +13,7 @@ import { SyncErrorBanner } from '../../shared/components/SyncErrorBanner';
 import TrophyCase from '../achievements/components/TrophyCase';
 import { useAchievements } from '../achievements/hooks/useAchievements';
 import { firestoreUserRepository } from '../../data/firebase/firestoreUserRepository';
+import { logger } from '../../shared/observability/logger';
 
 const ProfileSkeleton: Component = () => (
   <div class="space-y-4" role="status" aria-label="Loading profile">
@@ -59,7 +60,7 @@ const ProfilePage: Component = () => {
       await firestoreUserRepository.updateProfileVisibility(uid, newVisibility);
       await refetch();
     } catch (err) {
-      console.warn('Failed to update profile visibility:', err);
+      logger.warn('Failed to update profile visibility', err);
     } finally {
       setVisibilitySaving(false);
     }

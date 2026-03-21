@@ -6,6 +6,7 @@ import {
 import { firestore } from '../../../data/firebase/config';
 import type { AppNotification, NotificationCategory } from '../../../data/types';
 import { settings } from '../../../stores/settingsStore';
+import { logger } from '../../../shared/observability/logger';
 
 // ── Module-level signals ──
 
@@ -60,7 +61,7 @@ export function startNotificationListener(uid: string): void {
       setNotificationsReady(true);
     },
     (err) => {
-      console.warn('Notification listener error:', err);
+      logger.warn('Notification listener error', err);
       setNotifications([]);
       setUnreadCount(0);
     },

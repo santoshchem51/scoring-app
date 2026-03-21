@@ -1,4 +1,5 @@
 import { createSignal } from 'solid-js';
+import { logger } from '../shared/observability/logger';
 
 export type ScoringUIMode = 'simple' | 'detailed';
 export type Theme = 'court-vision-gold' | 'classic' | 'ember';
@@ -67,7 +68,7 @@ function setSettings(update: Partial<Settings>) {
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
     } catch (err) {
-      console.error('Failed to save settings:', err);
+      logger.error('Failed to save settings', err);
     }
     return next;
   });

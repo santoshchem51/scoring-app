@@ -4,6 +4,7 @@ import { useLiveQuery } from '../../../data/useLiveQuery';
 import { db } from '../../../data/db';
 import { firestoreAchievementRepository } from '../repository/firestoreAchievementRepository';
 import type { CachedAchievement } from '../../../data/types';
+import { logger } from '../../../shared/observability/logger';
 
 export function useAchievements(userId: Accessor<string | undefined>) {
   const { data: unlocked, error } = useLiveQuery<CachedAchievement[]>(
@@ -15,7 +16,7 @@ export function useAchievements(userId: Accessor<string | undefined>) {
     const uid = userId();
     if (!uid) return;
     firestoreAchievementRepository.refreshForUser(uid).catch((err) => {
-      console.warn('Achievement refresh failed:', err);
+      logger.warn('Achievement refresh failed', err);
     });
   });
 

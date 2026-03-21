@@ -83,7 +83,7 @@ describe('useWakeLock (web)', () => {
     const { request } = useWakeLock();
     await request();
 
-    expect(warnSpy).toHaveBeenCalledWith('Wake Lock request failed:', expect.any(Error));
+    expect(warnSpy).toHaveBeenCalledWith('Wake Lock request failed', expect.any(Error));
     warnSpy.mockRestore();
   });
 

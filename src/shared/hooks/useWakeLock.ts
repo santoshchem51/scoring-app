@@ -1,6 +1,7 @@
 import { onCleanup } from 'solid-js';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { IS_NATIVE } from '../platform/platform';
+import { logger } from '../observability/logger';
 
 export function useWakeLock() {
   let wakeLock: WakeLockSentinel | null = null;
@@ -12,7 +13,7 @@ export function useWakeLock() {
     }
     if ('wakeLock' in navigator) {
       try { wakeLock = await navigator.wakeLock.request('screen'); }
-      catch (err) { console.warn('Wake Lock request failed:', err); }
+      catch (err) { logger.warn('Wake Lock request failed', err); }
     }
   };
 

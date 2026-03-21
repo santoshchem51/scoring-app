@@ -15,6 +15,7 @@ import { startNotificationListener, stopNotificationListener, cleanupExpiredNoti
 import { onToastDismissed } from '../../features/achievements/store/achievementStore';
 import { clearTournamentCache } from '../pwa/tournamentCacheUtils';
 import { setSentryUser } from '../observability/sentry';
+import { logger } from '../observability/logger';
 
 const [user, setUser] = createSignal<User | null>(null);
 const [loading, setLoading] = createSignal(true);
@@ -46,7 +47,7 @@ function initAuthListener() {
 
       // Step 2: non-blocking push — enqueue local matches
       cloudSync.enqueueLocalMatchPush().catch((err) => {
-        console.warn('Match push enqueue failed:', err);
+        logger.warn('Match push enqueue failed', err);
       });
 
       // Step 3: non-blocking pull — runs in background
@@ -59,7 +60,7 @@ function initAuthListener() {
 
       // Step 4: non-blocking achievement migration — retroactive unlocks
       runAchievementMigration().catch((err) => {
-        console.warn('Achievement migration failed:', err);
+        logger.warn('Achievement migration failed', err);
       });
 
       // Start the sync processor
@@ -84,7 +85,7 @@ function initAuthListener() {
 
       // Clean up expired notifications (non-blocking)
       cleanupExpiredNotifications(firebaseUser.uid).catch((err) => {
-        console.warn('Notification cleanup failed:', err);
+        logger.warn('Notification cleanup failed', err);
       });
 
       // Resume awaitingAuth jobs with fresh token

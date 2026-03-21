@@ -1,6 +1,7 @@
 import { createSignal } from 'solid-js';
 import { registerSW } from 'virtual:pwa-register';
 import { IS_NATIVE } from '../platform/platform';
+import { logger } from '../observability/logger';
 
 const DISMISS_KEY = 'sw-update-dismissed-at';
 const SNOOZE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -20,7 +21,7 @@ export function initSWUpdate(): void {
       setSwWaiting(true);
     },
     onRegisterError(error: unknown) {
-      console.error('SW registration failed:', error);
+      logger.error('SW registration failed', error);
     },
   });
 

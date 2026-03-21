@@ -3,6 +3,7 @@ import type { Accessor } from 'solid-js';
 import type { BuddyGroupMember } from '../../../data/types';
 import { firestoreBuddyGroupRepository } from '../../../data/firebase/firestoreBuddyGroupRepository';
 import { deduplicateBuddies, filterValidMembers, excludeSelf } from '../helpers/buddyPickerHelpers';
+import { logger } from '../../../shared/observability/logger';
 
 interface BuddyPickerData {
   buddies: Accessor<BuddyGroupMember[]>;
@@ -33,7 +34,7 @@ export function useBuddyPickerData(currentUid: Accessor<string | undefined>): Bu
       setBuddies(processed);
       loaded = true;
     } catch (err) {
-      console.warn('Failed to load buddy picker data:', err);
+      logger.warn('Failed to load buddy picker data', err);
       setError('Failed to load buddies');
     } finally {
       setLoading(false);

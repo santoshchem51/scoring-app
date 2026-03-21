@@ -3,6 +3,7 @@ import type { Accessor } from 'solid-js';
 import type { UserProfile, StatsSummary, MatchRef } from '../../../data/types';
 import { firestoreUserRepository } from '../../../data/firebase/firestoreUserRepository';
 import { firestorePlayerStatsRepository } from '../../../data/firebase/firestorePlayerStatsRepository';
+import { logger } from '../../../shared/observability/logger';
 
 export interface ProfileBundle {
   profile: UserProfile | null;
@@ -89,7 +90,7 @@ export function useProfileData(userId: Accessor<string | undefined>) {
         setHasMorePages(false);
       }
     } catch (err) {
-      console.warn('Failed to load more matches:', err);
+      logger.warn('Failed to load more matches', err);
     } finally {
       setLoadingMore(false);
     }

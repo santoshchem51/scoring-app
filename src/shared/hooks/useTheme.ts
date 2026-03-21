@@ -1,6 +1,7 @@
 import { createMemo, createRenderEffect } from 'solid-js';
 import { settings } from '../../stores/settingsStore';
 import { THEMES } from '../constants/themes';
+import { logger } from '../observability/logger';
 
 /** Track which CSS custom properties we've set so we can clean them up on switch */
 const appliedKeys = new Set<string>();
@@ -13,7 +14,7 @@ let initialized = false;
 export function useTheme(): void {
   if (initialized) {
     if (import.meta.env.DEV) {
-      console.warn('useTheme() called multiple times — only the first call is effective');
+      logger.warn('useTheme() called multiple times — only the first call is effective');
     }
     return;
   }
