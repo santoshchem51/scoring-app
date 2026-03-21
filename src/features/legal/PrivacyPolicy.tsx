@@ -98,7 +98,7 @@ export default function PrivacyPolicy() {
         <h2 class="text-xl font-semibold mb-3">Operational Logs</h2>
         <p class="text-on-surface-muted">
           Our server-side systems (Cloud Functions) generate operational logs that may
-          contain your user identifier for debugging purposes. These logs are automatically
+          contain your internal account identifier (not your name or email) for debugging purposes. These logs are automatically
           deleted within 30 days and are not shared with third parties.
         </p>
       </section>
@@ -124,6 +124,25 @@ export default function PrivacyPolicy() {
           PickleScore is not directed at children under 13. We do not knowingly collect
           personal information from children under 13. If you believe a child under 13
           has provided us with personal data, please contact us so we can remove it.
+        </p>
+      </section>
+
+      <section class="mb-8">
+        <h2 class="text-xl font-semibold mb-3">Your Rights</h2>
+        <p class="mb-2 text-on-surface-muted">
+          Depending on your location, you may have certain rights regarding your personal data,
+          including:
+        </p>
+        <ul class="list-disc list-inside space-y-1 text-on-surface-muted">
+          <li>The right to access the personal data we hold about you</li>
+          <li>The right to request correction of inaccurate data</li>
+          <li>The right to request deletion of your data</li>
+          <li>The right to data portability</li>
+          <li>The right to object to or restrict processing of your data</li>
+        </ul>
+        <p class="mt-2 text-on-surface-muted">
+          To exercise any of these rights, please contact us at the email address below.
+          We will respond to your request within 30 days.
         </p>
       </section>
 

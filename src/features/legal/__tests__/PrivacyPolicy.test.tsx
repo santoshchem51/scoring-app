@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render } from '@solidjs/testing-library';
+import { render, screen } from '@solidjs/testing-library';
 
 describe('PrivacyPolicy', () => {
   it('renders the privacy policy heading', async () => {
@@ -50,5 +50,11 @@ describe('PrivacyPolicy', () => {
     const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
     const { getByText } = render(() => <PrivacyPolicy />);
     expect(getByText('Operational Logs')).toBeTruthy();
+  });
+
+  it('renders Your Rights section', async () => {
+    const { default: PrivacyPolicy } = await import('../PrivacyPolicy');
+    render(() => <PrivacyPolicy />);
+    expect(screen.getByText('Your Rights')).toBeTruthy();
   });
 });
