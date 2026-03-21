@@ -36,6 +36,9 @@ jobs:
             if (!entry) { console.error('Package not found in assetlinks.json'); process.exit(1); }
             console.log('assetlinks.json OK: package_name =', entry.target.package_name);
           "
+      - name: Update deploy manifest
+        run: |
+          echo '{"version":"1.0.0","commit":"'"${{ github.sha }}"'","deployed":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > dist/deploy.json
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@0cbcac4740c2bfb00d632f0b863b57713124eb5a # v0.9.0
         with:
@@ -43,3 +46,19 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
           projectId: picklescore-b0a71
+      - name: Verify deploy manifest
+        if: success()
+        run: |
+          sleep 10
+          MANIFEST=$(curl -sf "https://picklescore.co/deploy.json" || echo '{}')
+          DEPLOYED_COMMIT=$(echo "$MANIFEST" | jq -r '.commit // empty')
+          if [ "$DEPLOYED_COMMIT" != "${{ github.sha }}" ]; then
+            echo "::warning::Deploy manifest commit mismatch: expected ${{ github.sha }}, got $DEPLOYED_COMMIT"
+          fi
+      - name: Verify no source maps served
+        if: success()
+        run: |
+          if curl -sf "https://picklescore.co/assets/" | grep -q 'sourceMappingURL=.*\.map'; then
+            echo "::error::Source maps detected in production bundles!"
+            exit 1
+          fi
