@@ -1,6 +1,7 @@
-import { Show } from 'solid-js';
+import { Show, createSignal } from 'solid-js';
 import type { Component } from 'solid-js';
 import { IS_NATIVE } from '../platform/platform';
+import IOSInstallSheet from '../pwa/IOSInstallSheet';
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=co.picklescore.app&utm_source=picklescore_web&utm_medium=landing_page&utm_campaign=install_cta';
 
@@ -12,6 +13,8 @@ const isAlreadyInstalled = () =>
 
 export const AppInstallCTA: Component = () => {
   if (IS_NATIVE || isAlreadyInstalled()) return null;
+
+  const [showIOSSheet, setShowIOSSheet] = createSignal(false);
 
   return (
     <>
@@ -27,10 +30,13 @@ export const AppInstallCTA: Component = () => {
       </Show>
       <Show when={isIOS()}>
         <button
+          type="button"
+          onClick={() => setShowIOSSheet(true)}
           class="inline-flex items-center gap-2 px-5 py-3 bg-primary text-surface font-semibold rounded-xl active:scale-95 transition-transform"
         >
           Install PickleScore
         </button>
+        <IOSInstallSheet open={showIOSSheet()} onClose={() => setShowIOSSheet(false)} />
       </Show>
     </>
   );

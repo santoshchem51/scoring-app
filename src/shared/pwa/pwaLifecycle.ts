@@ -1,10 +1,11 @@
 import { captureInstallEvent, markInstalled, incrementVisitCount, setCompletedMatchCount } from './installPromptStore';
 import { db } from '../../data/db';
+import { IS_NATIVE } from '../platform/platform';
 
 let _initialized = false;
 
 export function initPWAListeners(): void {
-  if (_initialized) return;
+  if (_initialized || IS_NATIVE) return;
   _initialized = true;
 
   incrementVisitCount();

@@ -7,18 +7,27 @@ const SHARE_DATA = {
   url: 'https://picklescore.co',
 };
 
-export async function shareApp(): Promise<void> {
-  if (IS_NATIVE) {
-    await Share.share(SHARE_DATA).catch(() => {});
-    return;
-  }
+export async function shareApp(): Promise<'shared' | 'copied' | 'failed'> {
+  try {
+    if (IS_NATIVE) {
+      await Share.share(SHARE_DATA);
+      return 'shared';
+    }
 
-  if (navigator.share) {
-    await navigator.share(SHARE_DATA).catch(() => {});
-    return;
-  }
+    if (navigator.share) {
+      await navigator.share(SHARE_DATA);
+      return 'shared';
+    }
 
-  await navigator.clipboard.writeText(
-    'Score your pickleball games with PickleScore! https://picklescore.co'
-  ).catch(() => {});
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(
+        'Score your pickleball games with PickleScore! https://picklescore.co'
+      );
+      return 'copied';
+    }
+
+    return 'failed';
+  } catch {
+    return 'failed';
+  }
 }
