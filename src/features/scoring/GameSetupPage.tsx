@@ -13,6 +13,7 @@ import { Zap } from 'lucide-solid';
 import BuddyPicker from './components/BuddyPicker';
 import { buildTeamArrays } from './helpers/buddyPickerHelpers';
 import { useAuth } from '../../shared/hooks/useAuth';
+import { logger } from '../../shared/observability/logger';
 
 const GameSetupPage: Component = () => {
   const navigate = useNavigate();
@@ -133,7 +134,7 @@ const GameSetupPage: Component = () => {
       cloudSync.syncMatchToCloud(match, sharedWith);
       navigate(`/score/${match.id}`);
     } catch (err) {
-      console.error('Failed to save match:', err);
+      logger.error('Failed to save match', err);
       alert('Failed to start game. Please try again.');
     }
   };
@@ -168,7 +169,7 @@ const GameSetupPage: Component = () => {
       cloudSync.syncMatchToCloud(match);
       navigate(`/score/${match.id}`);
     } catch (err) {
-      console.error('Failed to start quick game:', err);
+      logger.error('Failed to start quick game', err);
     }
   };
 

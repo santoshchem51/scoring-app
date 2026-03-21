@@ -6,6 +6,7 @@ import { scoreEventRepository } from '../../../data/repositories/scoreEventRepos
 import { matchRepository } from '../../../data/repositories/matchRepository';
 import type { MatchConfig, ScoreEvent, GameResult } from '../../../data/types';
 import { cloudSync } from '../../../data/firebase/cloudSync';
+import { logger } from '../../../shared/observability/logger';
 
 export interface ResumeState {
   team1Score: number;
@@ -119,7 +120,7 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
       try {
         await scoreEventRepository.save(event);
       } catch (err) {
-        console.error('Failed to save score event:', err);
+        logger.error('Failed to save score event', err);
       }
       persistSnapshot(matchId, after);
 
@@ -147,7 +148,7 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
     try {
       await scoreEventRepository.save(event);
     } catch (err) {
-      console.error('Failed to save score event:', err);
+      logger.error('Failed to save score event', err);
     }
     persistSnapshot(matchId, after);
   };
@@ -172,7 +173,7 @@ export function useScoringActor(matchId: string, config: MatchConfig, initialSta
       try {
         await scoreEventRepository.save(event);
       } catch (err) {
-        console.error('Failed to save score event:', err);
+        logger.error('Failed to save score event', err);
       }
       persistSnapshot(matchId, after);
     }

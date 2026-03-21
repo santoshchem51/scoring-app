@@ -22,6 +22,7 @@ import { firestorePoolRepository } from '../../data/firebase/firestorePoolReposi
 import { firestoreBracketRepository } from '../../data/firebase/firestoreBracketRepository';
 import { calculateStandings } from '../tournaments/engine/standings';
 import { advanceBracketWinner } from '../tournaments/engine/bracketAdvancement';
+import { logger } from '../../shared/observability/logger';
 
 interface ScoringViewProps {
   match: MatchData;
@@ -240,7 +241,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           );
         }
       } catch (err) {
-        console.error('Failed to update tournament pool:', err);
+        logger.error('Failed to update tournament pool', err);
       }
     }
 
@@ -272,7 +273,7 @@ const ScoringView: Component<ScoringViewProps> = (props) => {
           }
         }
       } catch (err) {
-        console.error('Failed to update bracket:', err);
+        logger.error('Failed to update bracket', err);
       }
     }
 
