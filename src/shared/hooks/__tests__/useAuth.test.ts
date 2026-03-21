@@ -18,6 +18,11 @@ const {
   mockStopNotificationListener,
   mockCleanupExpiredNotifications,
   mockClearTournamentCache,
+  mockSetSentryUser,
+  mockOnToastDismissed,
+  mockNotifications,
+  mockMarkNotificationRead,
+  mockLogger,
 } = vi.hoisted(() => ({
   mockOnAuthStateChanged: vi.fn(),
   mockSignInWithPopup: vi.fn(),
@@ -34,6 +39,11 @@ const {
   mockStopNotificationListener: vi.fn(),
   mockCleanupExpiredNotifications: vi.fn().mockResolvedValue(undefined),
   mockClearTournamentCache: vi.fn().mockResolvedValue(undefined),
+  mockSetSentryUser: vi.fn(),
+  mockOnToastDismissed: vi.fn(),
+  mockNotifications: vi.fn().mockReturnValue([]),
+  mockMarkNotificationRead: vi.fn().mockResolvedValue(undefined),
+  mockLogger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock('../../../data/firebase/config', () => ({
@@ -74,10 +84,24 @@ vi.mock('../../../features/notifications/store/notificationStore', () => ({
   startNotificationListener: (...args: unknown[]) => mockStartNotificationListener(...args),
   stopNotificationListener: (...args: unknown[]) => mockStopNotificationListener(...args),
   cleanupExpiredNotifications: (...args: unknown[]) => mockCleanupExpiredNotifications(...args),
+  notifications: (...args: unknown[]) => mockNotifications(...args),
+  markNotificationRead: (...args: unknown[]) => mockMarkNotificationRead(...args),
+}));
+
+vi.mock('../../../features/achievements/store/achievementStore', () => ({
+  onToastDismissed: (...args: unknown[]) => mockOnToastDismissed(...args),
 }));
 
 vi.mock('../../pwa/tournamentCacheUtils', () => ({
   clearTournamentCache: (...args: unknown[]) => mockClearTournamentCache(...args),
+}));
+
+vi.mock('../../observability/sentry', () => ({
+  setSentryUser: (...args: unknown[]) => mockSetSentryUser(...args),
+}));
+
+vi.mock('../../observability/logger', () => ({
+  logger: mockLogger,
 }));
 
 function resetAllMocks() {
@@ -96,6 +120,14 @@ function resetAllMocks() {
   mockStopNotificationListener.mockReset();
   mockCleanupExpiredNotifications.mockReset().mockResolvedValue(undefined);
   mockClearTournamentCache.mockReset().mockResolvedValue(undefined);
+  mockSetSentryUser.mockReset();
+  mockOnToastDismissed.mockReset();
+  mockNotifications.mockReset().mockReturnValue([]);
+  mockMarkNotificationRead.mockReset().mockResolvedValue(undefined);
+  mockLogger.debug.mockReset();
+  mockLogger.info.mockReset();
+  mockLogger.warn.mockReset();
+  mockLogger.error.mockReset();
 }
 
 describe('useAuth', () => {
@@ -221,5 +253,82 @@ describe('useAuth — notification lifecycle', () => {
     await authCallback(null);
 
     expect(mockStopNotificationListener).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useAuth — error path logging', () => {
+  let useAuth: typeof import('../useAuth')['useAuth'];
+
+  beforeEach(async () => {
+    vi.resetModules();
+    resetAllMocks();
+
+    const mod = await import('../useAuth');
+    useAuth = mod.useAuth;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function getAuthCallback() {
+    return mockOnAuthStateChanged.mock.calls[0][1] as (
+      user: unknown,
+    ) => Promise<void>;
+  }
+
+  const fakeUser = {
+    uid: 'test-uid',
+    getIdToken: vi.fn().mockResolvedValue('token'),
+  };
+
+  it('logs warning when match push enqueue fails', async () => {
+    mockEnqueueLocalMatchPush.mockRejectedValueOnce(new Error('push failed'));
+
+    useAuth();
+    const authCallback = getAuthCallback();
+    await authCallback(fakeUser);
+
+    // Let .catch() handlers settle
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Match push enqueue failed',
+      expect.any(Error),
+    );
+  });
+
+  it('logs warning when achievement migration fails', async () => {
+    mockRunAchievementMigration.mockRejectedValueOnce(
+      new Error('migration failed'),
+    );
+
+    useAuth();
+    const authCallback = getAuthCallback();
+    await authCallback(fakeUser);
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Achievement migration failed',
+      expect.any(Error),
+    );
+  });
+
+  it('logs warning when notification cleanup fails', async () => {
+    mockCleanupExpiredNotifications.mockRejectedValueOnce(
+      new Error('cleanup failed'),
+    );
+
+    useAuth();
+    const authCallback = getAuthCallback();
+    await authCallback(fakeUser);
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Notification cleanup failed',
+      expect.any(Error),
+    );
   });
 });
