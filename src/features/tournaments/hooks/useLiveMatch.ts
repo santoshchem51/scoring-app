@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { createSignal, createEffect, onCleanup } from 'solid-js';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { firestore } from '../../../data/firebase/config';
@@ -42,7 +43,7 @@ export function useLiveMatch(matchId: () => string | null | undefined): LiveMatc
         setLoading(false);
       },
       (err) => {
-        console.error('Match listener error:', err);
+        logger.error('Match listener error', err);
         setLoading(false);
       },
     );

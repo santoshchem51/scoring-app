@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { For, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { firestoreRegistrationRepository } from '../../../data/firebase/firestoreRegistrationRepository';
@@ -22,7 +23,7 @@ const FeeTracker: Component<Props> = (props) => {
       await firestoreRegistrationRepository.updatePayment(props.tournamentId, regId, status);
       props.onUpdated();
     } catch (err) {
-      console.error('Failed to update payment:', err);
+      logger.error('Failed to update payment', err);
     }
   };
 

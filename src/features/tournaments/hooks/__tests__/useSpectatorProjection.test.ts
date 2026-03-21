@@ -112,7 +112,7 @@ describe('useSpectatorProjection', () => {
 
     expect(result.loading()).toBe(false);
     expect(consoleSpy).toHaveBeenCalledWith(
-      'Spectator projection listener error:',
+      'Spectator projection listener error',
       expect.any(Error),
     );
     consoleSpy.mockRestore();

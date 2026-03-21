@@ -1,3 +1,4 @@
+import { logger } from '../../shared/observability/logger';
 import { Show, For, createSignal, createResource } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, useNavigate } from '@solidjs/router';
@@ -178,7 +179,7 @@ const CreateSessionPage: Component = () => {
 
       navigate(`/session/${sessionId}`);
     } catch (err) {
-      console.error('Failed to create session:', err);
+      logger.error('Failed to create session', err);
       setError('Failed to create session. Please try again.');
     } finally {
       setSaving(false);

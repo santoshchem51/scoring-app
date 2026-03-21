@@ -1,3 +1,4 @@
+import { logger } from '../../shared/observability/logger';
 import { createSignal, createResource, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
@@ -158,7 +159,7 @@ const TournamentCreatePage: Component = () => {
 
       navigate(`/tournaments/${tournament.id}`);
     } catch (err) {
-      console.error('Failed to create tournament:', err);
+      logger.error('Failed to create tournament', err);
       setError('Failed to create tournament. Please try again.');
     } finally {
       setSaving(false);

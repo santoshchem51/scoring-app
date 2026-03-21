@@ -1,3 +1,4 @@
+import { logger } from '../../shared/observability/logger';
 import { Show, createSignal, createResource, createEffect, onMount } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, useNavigate, A } from '@solidjs/router';
@@ -84,7 +85,7 @@ const GroupInvitePage: Component = () => {
       await firestoreBuddyGroupRepository.addMember(g.id, member);
       navigate(`/buddies/${g.id}`);
     } catch (err) {
-      console.error('Failed to join group:', err);
+      logger.error('Failed to join group', err);
       setJoinError('Something went wrong. Please try again.');
       setJoining(false);
     }

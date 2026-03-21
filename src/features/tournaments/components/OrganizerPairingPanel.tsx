@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { createSignal, createMemo, For, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import type { TournamentRegistration } from '../../../data/types';
@@ -46,7 +47,7 @@ const OrganizerPairingPanel: Component<Props> = (props) => {
       setSelectedId(null);
       props.onUpdated();
     } catch (err) {
-      console.error('Failed to pair players:', err);
+      logger.error('Failed to pair players', err);
     } finally {
       setSaving(false);
     }
@@ -61,7 +62,7 @@ const OrganizerPairingPanel: Component<Props> = (props) => {
       await firestoreRegistrationRepository.updatePartnerName(props.tournamentId, updates[1].regId, updates[1].partnerName);
       props.onUpdated();
     } catch (err) {
-      console.error('Failed to unpair team:', err);
+      logger.error('Failed to unpair team', err);
     } finally {
       setSaving(false);
     }
@@ -82,7 +83,7 @@ const OrganizerPairingPanel: Component<Props> = (props) => {
       setSelectedId(null);
       props.onUpdated();
     } catch (err) {
-      console.error('Failed to auto-pair:', err);
+      logger.error('Failed to auto-pair', err);
     } finally {
       setSaving(false);
     }

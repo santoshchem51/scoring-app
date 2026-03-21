@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { createSignal, createEffect, onCleanup } from 'solid-js';
 import { doc, collection, onSnapshot } from 'firebase/firestore';
 import { firestore } from '../../../data/firebase/config';
@@ -105,7 +106,7 @@ export function useTournamentLive(
           setLoading(false);
         },
         (err) => {
-          console.error('Tournament listener error:', err);
+          logger.error('Tournament listener error', err);
           setError(err.message);
           setLoading(false);
         },
@@ -122,7 +123,7 @@ export function useTournamentLive(
           setTeams(data);
           db.cachedTeams.bulkPut(data.map(t => ({ ...t, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
         },
-        (err) => console.error('Teams listener error:', err),
+        (err) => logger.error('Teams listener error', err),
       ),
     );
 
@@ -136,7 +137,7 @@ export function useTournamentLive(
           setPools(data);
           db.cachedPools.bulkPut(data.map(p => ({ ...p, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
         },
-        (err) => console.error('Pools listener error:', err),
+        (err) => logger.error('Pools listener error', err),
       ),
     );
 
@@ -150,7 +151,7 @@ export function useTournamentLive(
           setBracket(data);
           db.cachedBrackets.bulkPut(data.map(b => ({ ...b, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
         },
-        (err) => console.error('Bracket listener error:', err),
+        (err) => logger.error('Bracket listener error', err),
       ),
     );
 
@@ -165,7 +166,7 @@ export function useTournamentLive(
             setRegistrations(data);
             db.cachedRegistrations.bulkPut(data.map(r => ({ ...r, tournamentId: id, cachedAt: Date.now() }))).catch(() => {});
           },
-          (err) => console.error('Registrations listener error:', err),
+          (err) => logger.error('Registrations listener error', err),
         ),
       );
     }

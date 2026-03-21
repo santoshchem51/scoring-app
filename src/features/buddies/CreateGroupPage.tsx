@@ -1,3 +1,4 @@
+import { logger } from '../../shared/observability/logger';
 import { createSignal, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useNavigate } from '@solidjs/router';
@@ -72,7 +73,7 @@ const CreateGroupPage: Component = () => {
 
       navigate(`/buddies/${groupId}`);
     } catch (err) {
-      console.error('Failed to create group:', err);
+      logger.error('Failed to create group', err);
       setError('Failed to create group. Please try again.');
     } finally {
       setSaving(false);

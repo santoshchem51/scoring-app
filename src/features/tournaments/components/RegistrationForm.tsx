@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { createSignal, Show, Switch, Match } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useAuth } from '../../../shared/hooks/useAuth';
@@ -76,7 +77,7 @@ const RegistrationForm: Component<Props> = (props) => {
       );
       props.onRegistered();
     } catch (err) {
-      console.error('Withdraw failed:', err);
+      logger.error('Withdraw failed', err);
       setError('Failed to withdraw. Please try again.');
     } finally {
       setSaving(false);
@@ -111,7 +112,7 @@ const RegistrationForm: Component<Props> = (props) => {
       await firestoreRegistrationRepository.saveWithStatus(reg, props.tournament.id);
       props.onRegistered();
     } catch (err) {
-      console.error('Registration failed:', err);
+      logger.error('Registration failed', err);
       setError('Registration failed. Please try again.');
     } finally {
       setSaving(false);

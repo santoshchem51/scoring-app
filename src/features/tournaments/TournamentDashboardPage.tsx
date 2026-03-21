@@ -1,3 +1,4 @@
+import { logger } from '../../shared/observability/logger';
 import { createSignal, createResource, createMemo, Show, For } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, useNavigate } from '@solidjs/router';
@@ -233,7 +234,7 @@ const TournamentDashboardPage: Component = () => {
       });
       refetchDisputes();
     } catch (err) {
-      console.error('Failed to resolve dispute:', err);
+      logger.error('Failed to resolve dispute', err);
       setError(err instanceof Error ? err.message : 'Failed to resolve dispute.');
     }
   };
@@ -253,7 +254,7 @@ const TournamentDashboardPage: Component = () => {
         actorRole: role,
       });
     } catch (err) {
-      console.error('Failed to quick-add players:', err);
+      logger.error('Failed to quick-add players', err);
       setError(err instanceof Error ? err.message : 'Failed to add players.');
     }
   };
@@ -292,7 +293,7 @@ const TournamentDashboardPage: Component = () => {
       });
       setShowSaveTemplate(false);
     } catch (err) {
-      console.error('Failed to save template:', err);
+      logger.error('Failed to save template', err);
       setError(err instanceof Error ? err.message : 'Failed to save template.');
     }
   };
@@ -530,7 +531,7 @@ const TournamentDashboardPage: Component = () => {
       // Live data auto-updates via onSnapshot; only refetch user-specific resource
       refetchExistingReg();
     } catch (err) {
-      console.error('Failed to advance tournament status:', err);
+      logger.error('Failed to advance tournament status', err);
       setError(err instanceof Error ? err.message : 'Failed to advance tournament status. Please try again.');
     } finally {
       setAdvancing(false);
@@ -593,10 +594,10 @@ const TournamentDashboardPage: Component = () => {
         ).then((names) => {
           const projection = buildSpectatorProjection(match, names);
           writeSpectatorProjection(match.id, projection).catch((err) => {
-            console.warn('Failed to write spectator projection:', err);
+            logger.warn('Failed to write spectator projection', err);
           });
         }).catch((err) => {
-          console.warn('Failed to sanitize team names:', err);
+          logger.warn('Failed to sanitize team names', err);
         });
       }
       // Set matchId on bracket slot so BracketView shows LiveScoreCard
@@ -605,7 +606,7 @@ const TournamentDashboardPage: Component = () => {
       }
       navigate(`/score/${match.id}`);
     } catch (err) {
-      console.error('Failed to create match:', err);
+      logger.error('Failed to create match', err);
       alert('Failed to start match. Please try again.');
     }
   };
@@ -629,7 +630,7 @@ const TournamentDashboardPage: Component = () => {
       setEditingContext({ type: 'pool', poolId, team1Id, team2Id });
       setEditModalError('');
     } catch (err) {
-      console.error('Failed to load match for editing:', err);
+      logger.error('Failed to load match for editing', err);
       setError('Failed to load match data.');
     }
   };
@@ -645,7 +646,7 @@ const TournamentDashboardPage: Component = () => {
       setEditingContext({ type: 'bracket', slotId, team1Id, team2Id });
       setEditModalError('');
     } catch (err) {
-      console.error('Failed to load match for editing:', err);
+      logger.error('Failed to load match for editing', err);
       setError('Failed to load match data.');
     }
   };
@@ -732,7 +733,7 @@ const TournamentDashboardPage: Component = () => {
       setEditingContext(null);
       setEditModalError('');
     } catch (err) {
-      console.error('Failed to save edited score:', err);
+      logger.error('Failed to save edited score', err);
       setEditModalError(err instanceof Error ? err.message : 'Failed to save score.');
     }
   };

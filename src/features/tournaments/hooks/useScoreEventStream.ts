@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { createSignal, createEffect, onCleanup, onMount } from 'solid-js';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { firestore } from '../../../data/firebase/config';
@@ -38,7 +39,7 @@ export function useScoreEventStream(matchId: () => string | null | undefined): S
       },
       (err) => {
         if (thisGen !== generation) return;
-        console.error('ScoreEvent listener error:', err);
+        logger.error('ScoreEvent listener error', err);
         setLoading(false);
       },
     );

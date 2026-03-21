@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { createSignal, createEffect, Show, For } from 'solid-js';
 import type { Component } from 'solid-js';
 import { setDoc } from 'firebase/firestore';
@@ -65,7 +66,7 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
       }
       props.onUpdated();
     } catch (err) {
-      console.error('Failed to approve registration:', err);
+      logger.error('Failed to approve registration', err);
     }
   };
 
@@ -91,7 +92,7 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
       }
       props.onUpdated();
     } catch (err) {
-      console.error('Failed to decline registration:', err);
+      logger.error('Failed to decline registration', err);
     }
   };
 
@@ -103,7 +104,7 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
       );
       props.onUpdated();
     } catch (err) {
-      console.error('Failed to approve all:', err);
+      logger.error('Failed to approve all', err);
     }
   };
 
@@ -115,7 +116,7 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
       );
       props.onUpdated();
     } catch (err) {
-      console.error('Failed to decline all:', err);
+      logger.error('Failed to decline all', err);
     }
   };
 
@@ -151,7 +152,7 @@ const OrganizerPlayerManager: Component<Props> = (props) => {
       setPartnerName('');
       props.onUpdated();
     } catch (err) {
-      console.error('Failed to add player:', err);
+      logger.error('Failed to add player', err);
       setError('Failed to add player. Please try again.');
     } finally {
       setSaving(false);

@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { createSignal, createEffect, onCleanup } from 'solid-js';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { firestore } from '../../../data/firebase/config';
@@ -31,7 +32,7 @@ export function useSpectatorProjection(matchId: () => string | null | undefined)
         setLoading(false);
       },
       (err) => {
-        console.error('Spectator projection listener error:', err);
+        logger.error('Spectator projection listener error', err);
         setLoading(false);
       },
     );

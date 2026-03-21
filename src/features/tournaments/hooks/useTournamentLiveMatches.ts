@@ -1,3 +1,4 @@
+import { logger } from '../../../shared/observability/logger';
 import { createSignal, createEffect, onCleanup } from 'solid-js';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { firestore } from '../../../data/firebase/config';
@@ -47,7 +48,7 @@ export function useTournamentLiveMatches(tournamentId: () => string | undefined)
         setLoading(false);
       },
       (err) => {
-        console.error('Tournament live matches listener error:', err);
+        logger.error('Tournament live matches listener error', err);
         setLoading(false);
       },
     );
