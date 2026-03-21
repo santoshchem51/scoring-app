@@ -1,3 +1,11 @@
+# Required GitHub Secrets:
+# KEYSTORE_BASE64 - Base64-encoded release keystore
+# KEYSTORE_PASSWORD - Keystore password
+# KEY_ALIAS - Signing key alias
+# KEY_PASSWORD - Signing key password
+# GOOGLE_PLAY_SERVICE_ACCOUNT_JSON - Play Console API service account JSON
+# FIREBASE_SERVICE_ACCOUNT - Firebase Hosting deploy service account
+
 name: Android Release
 
 concurrency:
@@ -52,17 +60,23 @@ jobs:
       - name: Capacitor sync
         run: npx cap sync android
       - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > /tmp/release.keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/release.keystore
       - name: Build signed AAB
         working-directory: android
+        env:
+          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file=/tmp/release.keystore \
-            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
-            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
+            -Pandroid.injected.signing.store.password="$STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
       - name: Upload to Play Store
-        uses: r0adkll/upload-google-play@v1.1.3
+        uses: r0adkll/upload-google-play@935ef9c68bb393a8e6116b1575626a7f5be3a7fb # v1.1.3
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: co.picklescore.app
