@@ -22,7 +22,10 @@ vi.mock('../renderScoreCard', () => ({
 }));
 
 describe('shareScoreCard (native)', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
 
   it('writes PNG to cache and shares file URI on native', async () => {
     const { shareScoreCard } = await import('../shareScoreCard');
@@ -43,5 +46,27 @@ describe('shareScoreCard (native)', () => {
       directory: 'CACHE',
     });
     expect(result).toBe('shared');
+  });
+
+  it('returns failed when Filesystem.writeFile rejects', async () => {
+    vi.doMock('@capacitor/filesystem', () => ({
+      Filesystem: {
+        writeFile: vi.fn().mockRejectedValue(new Error('disk full')),
+        deleteFile: vi.fn().mockResolvedValue(undefined),
+      },
+      Directory: { Cache: 'CACHE' },
+    }));
+    const { shareScoreCard } = await import('../shareScoreCard');
+    const result = await shareScoreCard({ id: 'test12345678' } as any);
+    expect(result).toBe('failed');
+  });
+
+  it('returns failed when Share.share rejects', async () => {
+    vi.doMock('@capacitor/share', () => ({
+      Share: { share: vi.fn().mockRejectedValue(new Error('share cancelled')) },
+    }));
+    const { shareScoreCard } = await import('../shareScoreCard');
+    const result = await shareScoreCard({ id: 'test12345678' } as any);
+    expect(result).toBe('failed');
   });
 });
