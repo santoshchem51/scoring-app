@@ -323,16 +323,30 @@ test.describe('Loading and error states', () => {
   test('12 · loading state — gold dark', async ({ authenticatedPage: page }, testInfo) => {
     await setTheme(page, 'court-vision-gold', 'dark');
 
-    // Navigate to a match URL that will show loading spinner before resolving
-    // Use a seeded match so the page attempts to load it
-    await page.goto('/score/loading-test-nonexistent', { waitUntil: 'domcontentloaded' });
+    // Navigate with 'commit' to capture as early as possible.
+    // The loading state text "Loading match..." renders as the Switch fallback
+    // before the Dexie resource resolves (near-instantly).
+    await page.goto('/score/loading-test-nonexistent', { waitUntil: 'commit' });
 
-    // Capture immediately while loading/error state renders
-    // Wait briefly for the page to show something
-    await page.waitForTimeout(1000);
-    await captureScreen(page, testInfo, screenshotName(
-      'scoring', 'scoreboard', 'loading', '393', 'court-vision-gold', 'dark',
-    ));
+    // Try to capture the brief loading state
+    const loadingText = page.getByText('Loading match...');
+    const sawLoading = await loadingText.isVisible({ timeout: 3000 }).catch(() => false);
+
+    if (sawLoading) {
+      await captureScreen(page, testInfo, screenshotName(
+        'scoring', 'scoreboard', 'loading', '393', 'court-vision-gold', 'dark',
+      ));
+    } else {
+      // Dexie resolved too fast — capture the error state instead and annotate
+      await expect(page.getByText('Match not found')).toBeVisible({ timeout: 5000 });
+      testInfo.annotations.push({
+        type: 'info',
+        description: 'Loading state too brief to capture — Dexie resolves near-instantly. Captured error state instead.',
+      });
+      await captureScreen(page, testInfo, screenshotName(
+        'scoring', 'scoreboard', 'loading-fallback-error', '393', 'court-vision-gold', 'dark',
+      ));
+    }
   });
 
   // ── 13. Error state (match not found) ────────────────────────────
