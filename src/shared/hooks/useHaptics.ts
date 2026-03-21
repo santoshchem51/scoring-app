@@ -1,6 +1,13 @@
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { IS_NATIVE } from '../platform/platform';
 import { settings } from '../../stores/settingsStore';
 
-function vibrate(pattern: number | number[]) {
+function vibrateNative(style: ImpactStyle) {
+  if (!settings().hapticFeedback) return;
+  Haptics.impact({ style }).catch(() => {});
+}
+
+function vibrateWeb(pattern: number | number[]) {
   if (!settings().hapticFeedback) return;
   if (!navigator.vibrate) return;
   try {
@@ -11,10 +18,17 @@ function vibrate(pattern: number | number[]) {
 }
 
 export function useHaptics() {
-  const light = () => vibrate(10);
-  const medium = () => vibrate(25);
-  const heavy = () => vibrate(50);
-  const double = () => vibrate([15, 50, 15]);
+  const light = () => IS_NATIVE ? vibrateNative(ImpactStyle.Light) : vibrateWeb(10);
+  const medium = () => IS_NATIVE ? vibrateNative(ImpactStyle.Medium) : vibrateWeb(25);
+  const heavy = () => IS_NATIVE ? vibrateNative(ImpactStyle.Heavy) : vibrateWeb(50);
+  const double = async () => {
+    if (IS_NATIVE) {
+      await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+    } else {
+      vibrateWeb([15, 50, 15]);
+    }
+  };
 
   return { light, medium, heavy, double };
 }
