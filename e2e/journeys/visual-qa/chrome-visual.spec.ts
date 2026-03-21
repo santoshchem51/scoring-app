@@ -198,34 +198,40 @@ test.describe('Dialogs and overlays', () => {
 test.describe('PWA states', () => {
 
   // ── 8. IOSInstallSheet — 393, gold-dark ────────────────────────────
-  // The IOSInstallSheet requires iOS Safari detection (detectIOSSafari).
-  // In a desktop Playwright browser this won't trigger naturally.
-  // We inject the component's open state directly via evaluate.
+  // ERRATA E9: InstallPromptBanner is mounted in App.tsx inside
+  // <Show when={showInstallBanner() && ...}>. On iOS, showInstallBanner()
+  // returns false because beforeinstallprompt never fires. The iOS
+  // instructions section has its own condition but is INSIDE the component
+  // that never mounts. The test gracefully skips when unreachable.
   baseTest('8 · ios install sheet — gold dark 393', async ({ page }, testInfo) => {
     await setTheme(page, 'court-vision-gold', 'dark');
 
-    // Override detectIOSSafari to return true + set standalone to false
     await page.addInitScript(() => {
       Object.defineProperty(navigator, 'userAgent', {
         get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
       });
       Object.defineProperty(navigator, 'platform', { get: () => 'iPhone' });
+      Object.defineProperty(navigator, 'standalone', { get: () => false });
     });
 
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
 
-    // Check if iOS install instruction text appeared (from InstallPromptBanner's iOS fallback)
-    const iosText = page.getByText('Add to Home Screen');
-    const isVisible = await iosText.isVisible().catch(() => false);
+    // iOS install instructions text from InstallPromptBanner line 65
+    const iosText = page.getByText('Tap the share button');
+    const isVisible = await iosText.isVisible({ timeout: 10000 }).catch(() => false);
 
     if (isVisible) {
       await captureScreen(page, testInfo, screenshotName(
         'chrome', 'pwa', 'ios-install-sheet', '393', 'court-vision-gold', 'dark',
       ));
     } else {
-      // Skip — iOS detection didn't trigger in this environment
-      testInfo.annotations.push({ type: 'skip', description: 'iOS install sheet not triggerable in Chromium' });
+      // App.tsx guards InstallPromptBanner behind showInstallBanner() which
+      // requires beforeinstallprompt event — iOS never fires this.
+      // The iOS instructions are inside a component that never mounts.
+      testInfo.annotations.push({
+        type: 'skip',
+        description: 'App.tsx guards InstallPromptBanner behind showInstallBanner() which requires beforeinstallprompt — iOS never fires this. iOS install instructions are unreachable in current architecture.',
+      });
     }
   });
 
