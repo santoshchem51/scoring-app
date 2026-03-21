@@ -164,6 +164,37 @@ describe('sentry', () => {
       expect(breadcrumbData.retryCount).toBe(3);
     });
 
+    it('scrubs uid field from breadcrumb data objects', async () => {
+      const { initSentry } = await import('../sentry');
+      await initSentry();
+
+      const sink = registeredSinks[0];
+      sink('warn', 'duplicate detected', { uid: 'abc123', error: 'conflict' });
+
+      expect(mockAddBreadcrumb).toHaveBeenCalledTimes(1);
+      const breadcrumbData = mockAddBreadcrumb.mock.calls[0][0].data;
+      expect(breadcrumbData.uid).toBeUndefined();
+      expect(breadcrumbData.error).toBe('conflict');
+    });
+
+    it('sanitizes Error objects in breadcrumb data for Firestore paths and emails', async () => {
+      const { initSentry } = await import('../sentry');
+      await initSentry();
+
+      const sink = registeredSinks[0];
+      sink('warn', 'fetch failed', {
+        error: new Error('Cannot read users/xyz789/stats for john@example.com'),
+        retryCount: 1,
+      });
+
+      expect(mockAddBreadcrumb).toHaveBeenCalledTimes(1);
+      const breadcrumbData = mockAddBreadcrumb.mock.calls[0][0].data;
+      expect(breadcrumbData.error).toBe(
+        'Cannot read users/[redacted]/stats for [email]',
+      );
+      expect(breadcrumbData.retryCount).toBe(1);
+    });
+
     it('wraps non-string non-Error data in an Error using msg as fallback', async () => {
       const { initSentry } = await import('../sentry');
       await initSentry();
@@ -286,6 +317,21 @@ describe('sentry', () => {
       const result = scrubPII(event);
       expect(result.exception.values[0].value).toBe('Error for [email] in handler');
       expect(result.exception.values[1].value).toBe('No email here');
+    });
+
+    it('scrubs Firestore paths from exception values', async () => {
+      const { scrubPII } = await import('../sentry');
+      const event = {
+        exception: {
+          values: [
+            { value: 'Failed to read users/abc123def/stats/summary' },
+          ],
+        },
+      };
+      const result = scrubPII(event);
+      expect(result.exception.values[0].value).toBe(
+        'Failed to read users/[redacted]/stats/summary',
+      );
     });
 
     it('resets counter on new day', async () => {

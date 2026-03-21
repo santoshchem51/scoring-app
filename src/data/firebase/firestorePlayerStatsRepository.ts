@@ -212,7 +212,7 @@ async function resolveParticipantUids(
   const deduped: typeof participants = [];
   for (const p of participants) {
     if (seen.has(p.uid)) {
-      logger.warn('Duplicate UID across teams, skipping', p.uid);
+      logger.warn('Duplicate UID across teams, skipping');
       continue;
     }
     seen.add(p.uid);

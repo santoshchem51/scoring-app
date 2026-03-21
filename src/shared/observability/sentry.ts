@@ -6,7 +6,7 @@ let initialized = false;
 let SentryModule: typeof import('@sentry/browser') | null = null;
 let registeredSinkFn: ((level: string, msg: string, data?: unknown) => void) | null = null;
 
-const SENSITIVE_FIELDS = ['email', 'displayName', 'playerName', 'teamName'];
+const SENSITIVE_FIELDS = ['email', 'displayName', 'playerName', 'teamName', 'uid'];
 
 export function sanitizeMessage(msg: string): string {
   return msg.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]');
@@ -39,11 +39,12 @@ export function scrubPII(event: any): any | null {
       }
     }
   }
-  // Scrub email patterns from exception messages
+  // Scrub email patterns and Firestore paths from exception messages
   if (event.exception?.values) {
     for (const ex of event.exception.values) {
       if (ex.value) {
         ex.value = sanitizeMessage(ex.value);
+        ex.value = ex.value.replace(/users\/[^/\s]+/g, 'users/[redacted]');
       }
     }
   }
@@ -73,6 +74,12 @@ function scrubDataFields(data: Record<string, unknown>): Record<string, unknown>
     if (SENSITIVE_FIELDS.includes(key)) {
       delete scrubbed[key];
     }
+  }
+  // Sanitize error objects — their messages may contain Firestore paths/UIDs
+  if (scrubbed.error instanceof Error) {
+    scrubbed.error = scrubbed.error.message
+      .replace(/users\/[^/\s]+/g, 'users/[redacted]')
+      .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]');
   }
   return scrubbed;
 }
