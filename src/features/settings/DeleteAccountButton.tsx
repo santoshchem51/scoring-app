@@ -1,8 +1,8 @@
 import { createSignal, Show } from 'solid-js';
-import { auth, firestore } from '../../data/firebase/config';
-import { doc, deleteDoc, collection, getDocs } from 'firebase/firestore';
+import { auth } from '../../data/firebase/config';
 import { reauthenticateWithPopup, GoogleAuthProvider, deleteUser } from 'firebase/auth';
 import { db } from '../../data/db';
+import { deleteAllUserData } from '../../data/firebase/accountDeletion';
 
 export function DeleteAccountButton() {
   const [confirming, setConfirming] = createSignal(false);
@@ -19,22 +19,14 @@ export function DeleteAccountButton() {
     try {
       const uid = user.uid;
 
-      // Delete Firestore user data
-      const docsToDelete = [
-        doc(firestore, 'users', uid),
-        doc(firestore, 'tiers', uid),
-        doc(firestore, 'leaderboard', uid),
-      ];
+      // 1. Delete all Firestore user data first
+      await deleteAllUserData(uid);
 
-      // Delete notifications subcollection
-      const notifSnap = await getDocs(collection(firestore, 'users', uid, 'notifications'));
-      const notifDeletes = notifSnap.docs.map((d) => deleteDoc(d.ref));
-      await Promise.all(notifDeletes);
+      // 2. Clear local data
+      await db.delete();
+      localStorage.clear();
 
-      // Delete top-level docs
-      await Promise.all(docsToDelete.map((ref) => deleteDoc(ref)));
-
-      // Delete Firebase Auth account (may require reauthentication)
+      // 3. Delete Firebase Auth account LAST (irreversible, triggers signout)
       try {
         await deleteUser(user);
       } catch (e: any) {
@@ -45,10 +37,6 @@ export function DeleteAccountButton() {
           throw e;
         }
       }
-
-      // Clear local data
-      await db.delete();
-      localStorage.clear();
 
       // Redirect to home
       window.location.href = '/';
