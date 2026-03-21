@@ -21,6 +21,8 @@ interface Settings {
   notifyAchievement: boolean;
   notifyStats: boolean;
   theme: Theme;
+  analyticsConsent: 'pending' | 'accepted' | 'declined';
+  analyticsConsentTimestamp: number | null;
 }
 
 const SETTINGS_KEY = 'pickle-score-settings';
@@ -43,6 +45,8 @@ const DEFAULTS: Settings = {
   notifyAchievement: true,
   notifyStats: true,
   theme: 'court-vision-gold',
+  analyticsConsent: 'pending',
+  analyticsConsentTimestamp: null,
 };
 
 function loadSettings(): Settings {
