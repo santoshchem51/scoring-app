@@ -81,6 +81,7 @@ describe('sentry', () => {
         }),
       );
       expect(mockMakeBrowserOfflineTransport).toHaveBeenCalledWith(mockMakeFetchTransport);
+      expect(mockFlushEarlyErrors).toHaveBeenCalledTimes(1);
     });
 
     it('skips initialization when consent is pending', async () => {
@@ -101,6 +102,46 @@ describe('sentry', () => {
       sink('error', 'something failed', testError);
 
       expect(mockCaptureException).toHaveBeenCalledWith(testError, { extra: { message: 'something failed' } });
+    });
+
+    it('maps warn level to warning for Sentry breadcrumbs', async () => {
+      const { initSentry } = await import('../sentry');
+      await initSentry();
+
+      const sink = registeredSinks[0];
+      sink('warn', 'test warning');
+
+      expect(mockAddBreadcrumb).toHaveBeenCalledWith(
+        expect.objectContaining({ level: 'warning' }),
+      );
+    });
+
+    it('wraps string data in an Error for captureException', async () => {
+      const { initSentry } = await import('../sentry');
+      await initSentry();
+
+      const sink = registeredSinks[0];
+      sink('error', 'msg', 'string data');
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'string data' }),
+        { extra: { message: 'msg' } },
+      );
+      expect(mockCaptureException.mock.calls[0][0]).toBeInstanceOf(Error);
+    });
+
+    it('wraps non-string non-Error data in an Error using msg as fallback', async () => {
+      const { initSentry } = await import('../sentry');
+      await initSentry();
+
+      const sink = registeredSinks[0];
+      sink('error', 'msg', { some: 'object' });
+
+      expect(mockCaptureException).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'msg' }),
+        { extra: { message: 'msg' } },
+      );
+      expect(mockCaptureException.mock.calls[0][0]).toBeInstanceOf(Error);
     });
   });
 
