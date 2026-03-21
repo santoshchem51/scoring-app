@@ -1,75 +1,69 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock @sentry/browser before any imports
-const mockInit = vi.fn();
-const mockSetTag = vi.fn();
-const mockSetUser = vi.fn();
-const mockFlush = vi.fn().mockResolvedValue(true);
-const mockCaptureException = vi.fn();
-const mockAddBreadcrumb = vi.fn();
-const mockMakeFetchTransport = vi.fn();
-const mockClose = vi.fn().mockResolvedValue(true);
-const mockMakeBrowserOfflineTransport = vi.fn().mockReturnValue('offline-transport');
-
-vi.mock('@sentry/browser', () => ({
-  init: mockInit,
-  setTag: mockSetTag,
-  setUser: mockSetUser,
-  flush: mockFlush,
-  captureException: mockCaptureException,
-  addBreadcrumb: mockAddBreadcrumb,
-  close: mockClose,
-  makeFetchTransport: mockMakeFetchTransport,
-  makeBrowserOfflineTransport: mockMakeBrowserOfflineTransport,
-}));
-
-// Mock settingsStore
-let mockConsent = 'accepted';
-vi.mock('../../../stores/settingsStore', () => ({
-  settings: () => ({ analyticsConsent: mockConsent }),
-}));
-
-// Mock logger
-const registeredSinks: Array<(level: string, msg: string, data?: unknown) => void> = [];
-vi.mock('../logger', () => ({
-  registerSink: (sink: (level: string, msg: string, data?: unknown) => void) => {
-    registeredSinks.push(sink);
-  },
-  removeSink: (sink: (level: string, msg: string, data?: unknown) => void) => {
-    const idx = registeredSinks.indexOf(sink);
-    if (idx !== -1) registeredSinks.splice(idx, 1);
-  },
-}));
-
-// Mock earlyErrors
-const mockFlushEarlyErrors = vi.fn();
-vi.mock('../earlyErrors', () => ({
-  flushEarlyErrors: mockFlushEarlyErrors,
-}));
-
-// Mock import.meta.env
-vi.stubEnv('VITE_SENTRY_DSN', 'https://test@sentry.io/123');
-vi.stubEnv('MODE', 'test');
-vi.stubEnv('VITE_APP_VERSION', '1.0.0');
-
 describe('sentry', () => {
+  let mockInit: ReturnType<typeof vi.fn>;
+  let mockSetTag: ReturnType<typeof vi.fn>;
+  let mockSetUser: ReturnType<typeof vi.fn>;
+  let mockFlush: ReturnType<typeof vi.fn>;
+  let mockClose: ReturnType<typeof vi.fn>;
+  let mockCaptureException: ReturnType<typeof vi.fn>;
+  let mockAddBreadcrumb: ReturnType<typeof vi.fn>;
+  let mockMakeFetchTransport: ReturnType<typeof vi.fn>;
+  let mockMakeBrowserOfflineTransport: ReturnType<typeof vi.fn>;
+  let mockConsent: string;
+  let registeredSinks: Array<(level: string, msg: string, data?: unknown) => void>;
+  let mockFlushEarlyErrors: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
 
-    // Re-apply stubs after reset
-    mockInit.mockClear();
-    mockSetTag.mockClear();
-    mockSetUser.mockClear();
-    mockFlush.mockClear().mockResolvedValue(true);
-    mockCaptureException.mockClear();
-    mockAddBreadcrumb.mockClear();
-    mockClose.mockClear().mockResolvedValue(true);
-    mockMakeBrowserOfflineTransport.mockClear().mockReturnValue('offline-transport');
-
+    mockInit = vi.fn();
+    mockSetTag = vi.fn();
+    mockSetUser = vi.fn();
+    mockFlush = vi.fn().mockResolvedValue(true);
+    mockClose = vi.fn().mockResolvedValue(true);
+    mockCaptureException = vi.fn();
+    mockAddBreadcrumb = vi.fn();
+    mockMakeFetchTransport = vi.fn();
+    mockMakeBrowserOfflineTransport = vi.fn().mockReturnValue('offline-transport');
     mockConsent = 'accepted';
-    registeredSinks.length = 0;
-    mockFlushEarlyErrors.mockClear();
+    registeredSinks = [];
+    mockFlushEarlyErrors = vi.fn();
+
+    vi.doMock('@sentry/browser', () => ({
+      init: mockInit,
+      setTag: mockSetTag,
+      setUser: mockSetUser,
+      flush: mockFlush,
+      close: mockClose,
+      captureException: mockCaptureException,
+      addBreadcrumb: mockAddBreadcrumb,
+      makeFetchTransport: mockMakeFetchTransport,
+      makeBrowserOfflineTransport: mockMakeBrowserOfflineTransport,
+    }));
+
+    vi.doMock('../../../stores/settingsStore', () => ({
+      settings: () => ({ analyticsConsent: mockConsent }),
+    }));
+
+    vi.doMock('../logger', () => ({
+      registerSink: (sink: (level: string, msg: string, data?: unknown) => void) => {
+        registeredSinks.push(sink);
+      },
+      removeSink: (sink: (level: string, msg: string, data?: unknown) => void) => {
+        const idx = registeredSinks.indexOf(sink);
+        if (idx !== -1) registeredSinks.splice(idx, 1);
+      },
+    }));
+
+    vi.doMock('../earlyErrors', () => ({
+      flushEarlyErrors: mockFlushEarlyErrors,
+    }));
+
+    vi.stubEnv('VITE_SENTRY_DSN', 'https://test@sentry.io/123');
+    vi.stubEnv('MODE', 'test');
+    vi.stubEnv('VITE_APP_VERSION', '1.0.0');
 
     localStorage.clear();
   });
