@@ -1,5 +1,6 @@
 import { createSignal } from 'solid-js';
 import { registerSW } from 'virtual:pwa-register';
+import { IS_NATIVE } from '../platform/platform';
 
 const DISMISS_KEY = 'sw-update-dismissed-at';
 const SNOOZE_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -11,7 +12,7 @@ let _updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
 let _initialized = false;
 
 export function initSWUpdate(): void {
-  if (_initialized) return;
+  if (_initialized || IS_NATIVE) return;
   _initialized = true;
 
   _updateSW = registerSW({

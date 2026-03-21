@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js';
-import { Show, onMount, onCleanup } from 'solid-js';
+import { Show, createEffect, onCleanup } from 'solid-js';
 
 interface Props {
   open?: boolean;
@@ -30,9 +30,11 @@ const IOSInstallSheet: Component<Props> = (props) => {
     }
   };
 
-  onMount(() => {
+  createEffect(() => {
     if (props.open) {
       document.addEventListener('keydown', handleKeyDown);
+    } else {
+      document.removeEventListener('keydown', handleKeyDown);
     }
   });
 
