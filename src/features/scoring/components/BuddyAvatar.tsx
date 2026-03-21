@@ -20,6 +20,7 @@ const BuddyAvatar: Component<BuddyAvatarProps> = (props) => {
   return (
     <button
       type="button"
+      data-testid="buddy-avatar"
       class="flex flex-col items-center gap-1 flex-shrink-0 active:scale-95 transition-transform"
       style={{ width: '56px' }}
       onClick={props.onClick}

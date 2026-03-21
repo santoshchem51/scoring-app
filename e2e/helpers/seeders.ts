@@ -455,6 +455,7 @@ export async function seedBuddyGroupWithMember(userUid: string, opts: BuddyGroup
   await seedFirestoreDocAdmin(PATHS.buddyGroups, groupId, group);
 
   await seedFirestoreDocAdmin(PATHS.buddyMembers(groupId), userUid, {
+    userId: userUid,
     displayName: opts.displayName ?? 'Test Player',
     photoURL: null,
     role: 'admin',
@@ -462,6 +463,16 @@ export async function seedBuddyGroupWithMember(userUid: string, opts: BuddyGroup
   });
 
   return { groupId, group, shareCode: code };
+}
+
+export async function addMemberToGroup(groupId: string, opts: { userId: string; displayName: string }): Promise<void> {
+  await seedFirestoreDocAdmin(PATHS.buddyMembers(groupId), opts.userId, {
+    userId: opts.userId,
+    displayName: opts.displayName,
+    photoURL: null,
+    role: 'member',
+    joinedAt: Date.now(),
+  });
 }
 
 /**

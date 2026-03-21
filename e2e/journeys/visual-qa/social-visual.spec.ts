@@ -8,6 +8,7 @@ import {
 } from '../../helpers/visual-qa';
 import {
   seedBuddyGroupWithMember,
+  addMemberToGroup,
   seedGameSessionWithAccess,
   seedSessionWithRsvps,
   seedProfileWithHistory,
@@ -240,29 +241,35 @@ test.describe('Buddies', () => {
   test('12 · buddy action sheet — gold dark', async ({ authenticatedPage: page, testUserUid }, testInfo) => {
     await setTheme(page, 'court-vision-gold', 'dark');
 
+    // BuddyActionSheet lives on GameSetupPage (/new), triggered by clicking
+    // a buddy avatar in BuddyPicker.
     const groupSeed = await seedBuddyGroupWithMember(testUserUid, {
       name: 'Pickle Pals',
       description: 'Weekly crew',
+      displayName: 'Test User',
+    });
+    await addMemberToGroup(groupSeed.groupId, {
+      userId: 'buddy-user-1',
+      displayName: 'Jane Doe',
     });
 
-    await page.goto(`/buddies/${groupSeed.groupId}`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await page.goto('/new', { waitUntil: 'domcontentloaded' });
 
-    // Try to trigger the action sheet via a menu/more button
-    const moreButton = page.getByRole('button', { name: /more|menu|options|actions/i }).first();
-    const moreVisible = await moreButton.isVisible().catch(() => false);
-    if (moreVisible) {
-      await moreButton.click();
-      await page.waitForTimeout(500);
-    } else {
-      // Try an ellipsis or kebab icon button
-      const kebab = page.locator('[aria-label*="menu"], [aria-label*="More"], [aria-label*="actions"], button:has(svg)').first();
-      const kebabVisible = await kebab.isVisible().catch(() => false);
-      if (kebabVisible) {
-        await kebab.click();
-        await page.waitForTimeout(500);
-      }
-    }
+    // Expand the buddy picker section (ERRATA E8: text is "Add Players", not "Add Buddies")
+    const buddySection = page.getByText('Add Players');
+    await expect(buddySection).toBeVisible({ timeout: 5000 });
+    await buddySection.click();
+
+    // Wait for buddy data to load from Firestore (ERRATA E12: use content assertion not timeout)
+    await expect(page.getByText('Jane Doe')).toBeVisible({ timeout: 15000 });
+
+    // Click buddy avatar to trigger BuddyActionSheet
+    const avatar = page.locator('[data-testid="buddy-avatar"]').first();
+    await expect(avatar).toBeVisible({ timeout: 5000 });
+    await avatar.click();
+
+    // Wait for action sheet backdrop
+    await expect(page.locator('[data-testid="sheet-backdrop"]')).toBeVisible({ timeout: 5000 });
 
     await captureScreen(page, testInfo, screenshotName(
       'social', 'buddy-action-sheet', 'overlay', '393', 'court-vision-gold', 'dark',
