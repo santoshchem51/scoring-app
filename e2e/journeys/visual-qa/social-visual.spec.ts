@@ -276,8 +276,7 @@ test.describe('Buddies', () => {
     ));
   });
 
-  // ── 13. ShareSheet (buddy) overlay — 393, gold-dark ────────────────
-  test('13 · share sheet buddy — gold dark', async ({ authenticatedPage: page, testUserUid }, testInfo) => {
+  test('13 · share link copied — gold dark', async ({ authenticatedPage: page, testUserUid }, testInfo) => {
     await setTheme(page, 'court-vision-gold', 'dark');
 
     const groupSeed = await seedBuddyGroupWithMember(testUserUid, {
@@ -286,18 +285,21 @@ test.describe('Buddies', () => {
     });
 
     await page.goto(`/buddies/${groupSeed.groupId}`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(2000);
+    await expect(page.getByText('Pickle Pals')).toBeVisible({ timeout: 15000 });
 
-    // Try to trigger the share sheet
-    const shareButton = page.getByRole('button', { name: /share|invite/i }).first();
-    const shareVisible = await shareButton.isVisible().catch(() => false);
-    if (shareVisible) {
-      await shareButton.click();
-      await page.waitForTimeout(1000);
-    }
+    // Grant clipboard permissions
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+
+    // Click share button by aria-label
+    const shareButton = page.getByLabel('Copy share link');
+    await expect(shareButton).toBeVisible({ timeout: 5000 });
+    await shareButton.click();
+
+    // Wait for "Copied!" feedback
+    await expect(page.getByText('Copied!')).toBeVisible({ timeout: 3000 });
 
     await captureScreen(page, testInfo, screenshotName(
-      'social', 'share-sheet', 'buddy-overlay', '393', 'court-vision-gold', 'dark',
+      'social', 'share-link', 'copied-feedback', '393', 'court-vision-gold', 'dark',
     ));
   });
 });
