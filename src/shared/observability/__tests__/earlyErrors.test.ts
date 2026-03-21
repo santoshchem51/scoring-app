@@ -1,9 +1,27 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe('earlyErrors', () => {
+  const listeners: Array<{ type: string; handler: EventListenerOrEventListenerObject }> = [];
+  const originalAddEventListener = window.addEventListener.bind(window);
+
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
+    listeners.length = 0;
+
+    // Intercept addEventListener to track listeners for cleanup
+    vi.spyOn(window, 'addEventListener').mockImplementation(
+      (type: string, handler: EventListenerOrEventListenerObject, options?: any) => {
+        listeners.push({ type, handler });
+        originalAddEventListener(type, handler, options);
+      }
+    );
+  });
+
+  afterEach(() => {
+    for (const { type, handler } of listeners) {
+      window.removeEventListener(type, handler);
+    }
   });
 
   it('captures errors via simulateError', async () => {
