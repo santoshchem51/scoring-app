@@ -1,7 +1,9 @@
 const MAX_BUFFER = 20;
 const earlyErrors: { error: unknown; timestamp: number }[] = [];
+let flushed = false;
 
 function onError(error: unknown) {
+  if (flushed) return;
   if (earlyErrors.length < MAX_BUFFER) {
     earlyErrors.push({ error, timestamp: Date.now() });
   }
@@ -17,6 +19,7 @@ export function flushEarlyErrors(captureException: (err: unknown) => void) {
     captureException(error);
   }
   earlyErrors.length = 0;
+  flushed = true;
 }
 
 export function getEarlyErrorCount() {

@@ -44,6 +44,14 @@ describe('earlyErrors', () => {
     expect(getEarlyErrorCount()).toBe(before + 1);
   });
 
+  it('stops buffering after flush', async () => {
+    const { flushEarlyErrors, getEarlyErrorCount, simulateError } = await import('../earlyErrors');
+    simulateError(new Error('before'));
+    flushEarlyErrors(vi.fn());
+    simulateError(new Error('after'));
+    expect(getEarlyErrorCount()).toBe(0);
+  });
+
   it('captures unhandled promise rejections', async () => {
     const { getEarlyErrorCount } = await import('../earlyErrors');
     const before = getEarlyErrorCount();
