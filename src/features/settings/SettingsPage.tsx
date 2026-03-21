@@ -13,6 +13,7 @@ import { useAuth } from '../../shared/hooks/useAuth';
 import { shareApp } from '../../shared/utils/shareApp';
 import { Share2 } from 'lucide-solid';
 import { DeleteAccountButton } from './DeleteAccountButton';
+import { revokeObservabilityConsent } from '../../shared/observability/consentCleanup';
 
 const SettingsPage: Component = () => {
   const { user } = useAuth();
@@ -484,6 +485,45 @@ const SettingsPage: Component = () => {
                 App Installation
               </legend>
               <InstallPromptBanner />
+            </fieldset>
+
+            {/* Privacy */}
+            <fieldset>
+              <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+                Privacy
+              </legend>
+              <button
+                type="button"
+                onClick={() => {
+                  const isAccepted = settings().analyticsConsent === 'accepted';
+                  if (isAccepted) {
+                    setSettings({ analyticsConsent: 'declined', analyticsConsentTimestamp: Date.now() });
+                    revokeObservabilityConsent();
+                  } else {
+                    setSettings({ analyticsConsent: 'accepted', analyticsConsentTimestamp: Date.now() });
+                  }
+                }}
+                class="w-full flex items-center justify-between bg-surface-light rounded-xl p-4"
+                role="switch"
+                aria-checked={settings().analyticsConsent === 'accepted'}
+                aria-label="Share usage data & crash reports"
+              >
+                <div>
+                  <div class="font-semibold text-on-surface text-left">Share usage data & crash reports</div>
+                  <div class="text-sm text-on-surface-muted text-left">De-identified, not linked to you</div>
+                </div>
+                <div
+                  class={`w-12 h-7 rounded-full transition-colors relative ${
+                    settings().analyticsConsent === 'accepted' ? 'bg-primary' : 'bg-surface-lighter'
+                  }`}
+                >
+                  <div
+                    class={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                      settings().analyticsConsent === 'accepted' ? 'translate-x-5' : 'translate-x-0.5'
+                    }`}
+                  />
+                </div>
+              </button>
             </fieldset>
 
             {/* Share App */}

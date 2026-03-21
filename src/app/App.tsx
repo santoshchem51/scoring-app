@@ -4,7 +4,9 @@ import { useLocation } from '@solidjs/router';
 import BottomNav from '../shared/components/BottomNav';
 import { useTheme } from '../shared/hooks/useTheme';
 import { PageSkeleton } from '../shared/components/Skeleton';
-import { settings } from '../stores/settingsStore';
+import { settings, setSettings } from '../stores/settingsStore';
+import { ConsentDialog } from '../shared/components/ConsentDialog';
+import { revokeObservabilityConsent } from '../shared/observability/consentCleanup';
 import AchievementToast from '../features/achievements/components/AchievementToast';
 import SWUpdateToast from '../shared/pwa/SWUpdateToast';
 import InstallPromptBanner from '../shared/pwa/InstallPromptBanner';
@@ -35,6 +37,21 @@ const App: Component<Props> = (props) => {
     initAppLifecycle();
     hideSplashScreen();
   });
+
+  function handleConsentAccept() {
+    setSettings({
+      analyticsConsent: 'accepted',
+      analyticsConsentTimestamp: Date.now(),
+    });
+  }
+
+  function handleConsentDecline() {
+    setSettings({
+      analyticsConsent: 'declined',
+      analyticsConsentTimestamp: Date.now(),
+    });
+    revokeObservabilityConsent();
+  }
 
   return (
     <div class="min-h-screen bg-surface text-on-surface">
@@ -76,6 +93,9 @@ const App: Component<Props> = (props) => {
       </ObservableErrorBoundary>
       <Show when={showBottomNav()}>
         <BottomNav />
+      </Show>
+      <Show when={settings().analyticsConsent === 'pending'}>
+        <ConsentDialog onAccept={handleConsentAccept} onDecline={handleConsentDecline} />
       </Show>
     </div>
   );
