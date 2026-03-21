@@ -37,6 +37,10 @@ export async function trackFeatureUsed(name: string, context?: string) {
   await trackEvent('feature_used', { feature_name: name, ...(context && { context }) });
 }
 
+export function analyticsWasInitialized(): boolean {
+  return analyticsInstance !== null;
+}
+
 // For testing
 export function _getTrackedFeatures() {
   return trackedThisSession;

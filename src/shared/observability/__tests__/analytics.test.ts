@@ -34,6 +34,11 @@ describe('analytics', () => {
     expect(spy).toHaveBeenCalledWith('[Analytics:dev]', 'test_event', { key: 'value' });
   });
 
+  it('analyticsWasInitialized returns false when never initialized', async () => {
+    const { analyticsWasInitialized } = await import('../analytics');
+    expect(analyticsWasInitialized()).toBe(false);
+  });
+
   it('deduplicates feature_used events per session', async () => {
     vi.doMock('../../../stores/settingsStore', () => ({
       settings: vi.fn(() => ({ analyticsConsent: 'accepted' })),
