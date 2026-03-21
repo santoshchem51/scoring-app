@@ -10,9 +10,36 @@
 
 **Design doc:** `docs/plans/2026-03-21-layer12-observability-design.md`
 
+**Specialist reviews:** 3 rounds (SolidJS Architecture, TDD/Testing Quality, Ops/Sequencing)
+
+### Key Fixes from Reviews
+
+1. **Sequencing fix:** CSP update moved from Wave E to Wave B (before Sentry init — events silently blocked without it)
+2. **Sequencing fix:** Web Vitals (Task 11) moved from Wave C to Wave A (Task 7 imports it)
+3. **Test isolation:** All test files must have `vi.resetModules()` in `beforeEach` (logger sinks leak otherwise)
+4. **Test quality:** `beforeSend`/`beforeBreadcrumb` PII scrubbing extracted as pure functions with dedicated tests
+5. **Test quality:** Early errors tests must dispatch real `window` events, not just `simulateError()`
+6. **Test quality:** App integration tests use behavioral assertions, not `readFileSync`
+7. **Missing tests added:** `setSentryUser`, consent wiring (Task 13), analytics consent gate verification
+8. **`setSentryUser` guard:** Must check `initialized` flag before loading Sentry bundle
+9. **Task 4:** Full test suite + build verification after npm install
+10. **Task 23:** Split into 3 sub-tasks by feature area
+
+### Test Standards (Apply to All Tasks)
+
+Every test file MUST include:
+```ts
+beforeEach(() => {
+  vi.resetModules();
+  vi.restoreAllMocks();
+});
+```
+
+Tasks that modify existing files MUST run `npx vitest run` before AND after changes. Search for existing `console.warn`/`console.error` spies that may break after migration.
+
 ---
 
-## Wave A: Foundation (Logger + Early Errors + Settings)
+## Wave A: Foundation (Logger + Early Errors + Settings + Web Vitals)
 
 ### Task 1: Add `analyticsConsent` field to settings store
 
@@ -90,6 +117,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 describe('logger', () => {
   beforeEach(() => {
+    vi.resetModules();
     vi.restoreAllMocks();
   });
 
@@ -108,17 +136,43 @@ describe('logger', () => {
     expect(sink).toHaveBeenCalledWith('warn', 'sink test', { key: 'value' });
   });
 
+  it('calls all registered sinks in order', async () => {
+    const { logger, registerSink } = await import('../logger');
+    const order: number[] = [];
+    registerSink(() => order.push(1));
+    registerSink(() => order.push(2));
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    logger.info('test');
+    expect(order).toEqual([1, 2]);
+  });
+
+  it('calls remaining sinks even when an earlier sink throws', async () => {
+    const { logger, registerSink } = await import('../logger');
+    const secondSink = vi.fn();
+    registerSink(() => { throw new Error('boom'); });
+    registerSink(secondSink);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    logger.error('test');
+    expect(secondSink).toHaveBeenCalled();
+  });
+
   it('never throws even if sink throws', async () => {
     const { logger, registerSink } = await import('../logger');
     registerSink(() => { throw new Error('sink exploded'); });
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => logger.error('should not throw')).not.toThrow();
+  });
+
+  it('handles undefined data gracefully', async () => {
+    const { logger } = await import('../logger');
+    const spy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    expect(() => logger.info('no data')).not.toThrow();
+    expect(spy).toHaveBeenCalledWith('no data', undefined);
   });
 
   it('falls back to console.error if console[level] fails', async () => {
     const { logger } = await import('../logger');
     const fallbackSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    // Force console.debug to throw
     vi.spyOn(console, 'debug').mockImplementation(() => { throw new Error('broken'); });
     expect(() => logger.debug('test')).not.toThrow();
     expect(fallbackSpy).toHaveBeenCalledWith('[logger-fallback]', 'test', undefined);
@@ -233,6 +287,23 @@ describe('earlyErrors', () => {
     }
     expect(getEarlyErrorCount()).toBe(20);
   });
+
+  it('captures errors from real window error events', async () => {
+    const { getEarlyErrorCount } = await import('../earlyErrors');
+    const before = getEarlyErrorCount();
+    window.dispatchEvent(new ErrorEvent('error', { error: new Error('real error') }));
+    expect(getEarlyErrorCount()).toBe(before + 1);
+  });
+
+  it('captures unhandled promise rejections', async () => {
+    const { getEarlyErrorCount } = await import('../earlyErrors');
+    const before = getEarlyErrorCount();
+    window.dispatchEvent(new PromiseRejectionEvent('unhandledrejection', {
+      reason: new Error('rejected'),
+      promise: Promise.reject(new Error('rejected')),
+    }));
+    expect(getEarlyErrorCount()).toBe(before + 1);
+  });
 });
 ```
 
@@ -302,16 +373,38 @@ git commit -m "feat(observability): add early error buffer for pre-Sentry errors
 
 Run: `npm install @sentry/browser && npm install -D @sentry/vite-plugin`
 
-**Step 2: Verify installation**
+**Step 2: Verify installation and no regressions**
 
-Run: `node -e "require('@sentry/browser'); console.log('ok')"`
-Expected: `ok`
+Run: `node -e "require('@sentry/browser'); console.log('ok')"` -> `ok`
+Run: `npx vitest run` -> all existing tests pass
+Run: `npx vite build` -> build succeeds
+Run: `npx tsc --noEmit` -> no type conflicts
 
 **Step 3: Commit**
 
 ```bash
 git add package.json package-lock.json
 git commit -m "build(observability): add @sentry/browser and @sentry/vite-plugin"
+```
+
+---
+
+### Task 4b: Update CSP headers for Sentry (MUST be before Sentry init)
+
+**Files:**
+- Modify: `firebase.json:33-46`
+
+**Step 1: Add Sentry domain to CSP connect-src**
+
+In the CSP header's `connect-src` directive, add `https://*.ingest.sentry.io` after the existing Firebase domains.
+
+Without this, Sentry events are silently blocked in production (dev mode has no CSP enforcement, so the failure is invisible during development).
+
+**Step 2: Commit**
+
+```bash
+git add firebase.json
+git commit -m "security(observability): add Sentry ingest domain to CSP connect-src"
 ```
 
 ---
@@ -508,6 +601,7 @@ export async function initSentry() {
 }
 
 export function setSentryUser(uid: string | null) {
+  if (!initialized) return; // Guard: don't load Sentry bundle without consent
   import('@sentry/browser').then((Sentry) => {
     if (uid) {
       Sentry.setUser({ id: uid });
@@ -516,6 +610,49 @@ export function setSentryUser(uid: string | null) {
     }
   }).catch(() => {});
 }
+
+// Export PII scrubbing functions for direct testing
+export { sanitizeMessage };
+```
+
+**Additional tests for `beforeSend` PII scrubbing (add to sentry.test.ts):**
+
+```ts
+describe('PII scrubbing', () => {
+  it('sanitizeMessage strips email addresses', async () => {
+    const { sanitizeMessage } = await import('../sentry');
+    expect(sanitizeMessage('Error for user@example.com')).toBe('Error for [email]');
+  });
+
+  it('beforeSend removes ip_address and email from user', () => {
+    const event = { user: { id: 'abc', ip_address: '1.2.3.4', email: 'a@b.com' } };
+    // Call scrubPII directly (extract as exported function)
+    // Verify ip_address and email are deleted, id remains
+  });
+
+  it('beforeSend scrubs Firestore document paths', () => {
+    const event = { message: 'Error in users/abc123/matches/xyz' };
+    // Verify becomes 'Error in users/[redacted]/matches/xyz'
+  });
+
+  it('rate limits at 200 errors per day', () => {
+    // Set localStorage counter to 200
+    // Verify beforeSend returns null for non-fatal events
+  });
+
+  it('allows fatal errors to bypass rate limit', () => {
+    // Set localStorage counter to 200
+    // Verify beforeSend returns event when tags.error_type === 'fatal'
+  });
+});
+
+describe('setSentryUser', () => {
+  it('does nothing when Sentry is not initialized', async () => {
+    const { setSentryUser } = await import('../sentry');
+    // Should not attempt to import @sentry/browser
+    expect(() => setSentryUser('uid123')).not.toThrow();
+  });
+});
 ```
 
 **Step 4: Run test to verify it passes**
@@ -666,35 +803,23 @@ git commit -m "feat(observability): add ObservableErrorBoundary with logger inte
 - Modify: `src/index.tsx:1-12`
 - Modify: `src/app/App.tsx:58-73`
 
-**Step 1: Write the failing test**
+**Step 1: Write the failing test (behavioral, not file-reading)**
 
 ```ts
 // src/shared/observability/__tests__/appIntegration.test.ts
-import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { describe, it, expect, vi } from 'vitest';
 
 describe('observability app integration', () => {
-  it('index.tsx imports earlyErrors before render', () => {
-    const content = readFileSync(resolve(__dirname, '../../../index.tsx'), 'utf-8');
-    const earlyImportIndex = content.indexOf('earlyErrors');
-    const renderIndex = content.indexOf('render(');
-    expect(earlyImportIndex).toBeGreaterThan(-1);
-    expect(earlyImportIndex).toBeLessThan(renderIndex);
+  it('ObservableErrorBoundary catches root-level render errors and logs them', async () => {
+    // Render a component that throws inside ObservableErrorBoundary
+    // Verify logger.error is called and fallback UI appears
+    // (uses same pattern as ErrorBoundary.test.tsx but at root level)
   });
 
-  it('index.tsx wraps AppRouter in RootErrorBoundary', () => {
-    const content = readFileSync(resolve(__dirname, '../../../index.tsx'), 'utf-8');
-    expect(content).toContain('ObservableErrorBoundary');
-    expect(content).toContain('<AppRouter />');
-  });
-
-  it('App.tsx wraps children in ErrorBoundary outside Suspense', () => {
-    const content = readFileSync(resolve(__dirname, '../../../app/App.tsx'), 'utf-8');
-    const errorBoundaryIndex = content.indexOf('ObservableErrorBoundary');
-    const suspenseIndex = content.indexOf('<Suspense');
-    expect(errorBoundaryIndex).toBeGreaterThan(-1);
-    expect(errorBoundaryIndex).toBeLessThan(suspenseIndex);
+  it('early error buffer captures errors before Sentry loads', async () => {
+    const { getEarlyErrorCount, simulateError } = await import('../earlyErrors');
+    simulateError(new Error('boot error'));
+    expect(getEarlyErrorCount()).toBeGreaterThan(0);
   });
 });
 ```
@@ -716,7 +841,6 @@ import AppRouter from './app/router';
 import { initPWAListeners } from './shared/pwa/pwaLifecycle';
 import { ObservableErrorBoundary } from './shared/observability/ErrorBoundary';
 import { initSentry } from './shared/observability/sentry';
-import { initWebVitals } from './shared/observability/webVitals';
 
 initPWAListeners();
 
@@ -729,10 +853,9 @@ render(() => (
   </ObservableErrorBoundary>
 ), root);
 
-// Lazy-load observability after render
+// Lazy-load Sentry after render (Web Vitals added in Task 11)
 const scheduleIdle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
 scheduleIdle(() => { initSentry(); });
-scheduleIdle(() => { initWebVitals(); });
 ```
 
 **Step 4: Modify App.tsx — wrap children in ErrorBoundary outside Suspense**
@@ -1061,10 +1184,19 @@ export function initWebVitals() {
 Run: `npx vitest run src/shared/observability/__tests__/webVitals.test.ts`
 Expected: PASS
 
-**Step 5: Commit**
+**Step 5: Wire into index.tsx**
+
+Add import and scheduleIdle call to `src/index.tsx`:
+```ts
+import { initWebVitals } from './shared/observability/webVitals';
+// ... after existing scheduleIdle for initSentry:
+scheduleIdle(() => { initWebVitals(); });
+```
+
+**Step 6: Commit**
 
 ```bash
-git add src/shared/observability/webVitals.ts src/shared/observability/__tests__/webVitals.test.ts
+git add src/shared/observability/webVitals.ts src/shared/observability/__tests__/webVitals.test.ts src/index.tsx
 git commit -m "feat(observability): add Web Vitals reporting via PerformanceObserver"
 ```
 
@@ -1301,18 +1433,18 @@ git commit -m "feat(observability): migrate Cloud Functions to structured loggin
 
 ---
 
-### Task 20: Update CSP headers in firebase.json
+### Task 20: Update CSP headers for Analytics domains
 
 **Files:**
 - Modify: `firebase.json:33-46`
 
-Add to `connect-src`:
+Add to `connect-src` (Sentry domain already added in Task 4b):
 ```
-https://*.ingest.sentry.io https://*.google-analytics.com https://*.analytics.google.com https://firebaseinstallations.googleapis.com
+https://*.google-analytics.com https://*.analytics.google.com https://firebaseinstallations.googleapis.com
 ```
 
 ```bash
-git commit -m "security(observability): add Sentry and Analytics domains to CSP connect-src"
+git commit -m "security(observability): add Analytics domains to CSP connect-src"
 ```
 
 ---
