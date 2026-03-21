@@ -12,7 +12,7 @@ export function useWakeLock() {
     }
     if ('wakeLock' in navigator) {
       try { wakeLock = await navigator.wakeLock.request('screen'); }
-      catch { /* silent */ }
+      catch (err) { console.warn('Wake Lock request failed:', err); }
     }
   };
 

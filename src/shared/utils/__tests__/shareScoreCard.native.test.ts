@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../platform/platform', () => ({ IS_NATIVE: true, PLATFORM: 'android' }));
 
-const mockWriteFile = vi.fn().mockResolvedValue({ uri: 'file:///cache/picklescore-test1234.png' });
+const mockWriteFile = vi.fn().mockResolvedValue({ uri: 'file:///cache/picklescore-share.png' });
+const mockDeleteFile = vi.fn().mockResolvedValue(undefined);
 vi.mock('@capacitor/filesystem', () => ({
-  Filesystem: { writeFile: mockWriteFile },
+  Filesystem: { writeFile: mockWriteFile, deleteFile: mockDeleteFile },
   Directory: { Cache: 'CACHE' },
 }));
 
@@ -28,14 +29,18 @@ describe('shareScoreCard (native)', () => {
     const result = await shareScoreCard({ id: 'test12345678' } as any);
 
     expect(mockWriteFile).toHaveBeenCalledWith({
-      path: 'picklescore-test1234.png',
+      path: 'picklescore-share.png',
       data: 'dGVzdA==',
       directory: 'CACHE',
     });
     expect(mockShare).toHaveBeenCalledWith({
       title: 'PickleScore Result',
       text: 'Check out my pickleball score!',
-      files: ['file:///cache/picklescore-test1234.png'],
+      files: ['file:///cache/picklescore-share.png'],
+    });
+    expect(mockDeleteFile).toHaveBeenCalledWith({
+      path: 'picklescore-share.png',
+      directory: 'CACHE',
     });
     expect(result).toBe('shared');
   });

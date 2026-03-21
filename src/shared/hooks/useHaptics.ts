@@ -22,8 +22,10 @@ export function useHaptics() {
   const medium = () => IS_NATIVE ? vibrateNative(ImpactStyle.Medium) : vibrateWeb(25);
   const heavy = () => IS_NATIVE ? vibrateNative(ImpactStyle.Heavy) : vibrateWeb(50);
   const double = async () => {
+    if (!settings().hapticFeedback) return;
     if (IS_NATIVE) {
       await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
+      await new Promise(r => setTimeout(r, 50));
       await Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
     } else {
       vibrateWeb([15, 50, 15]);

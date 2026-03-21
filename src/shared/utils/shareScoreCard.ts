@@ -18,18 +18,23 @@ export async function shareScoreCard(match: Match): Promise<'shared' | 'copied' 
     if (IS_NATIVE) {
       const dataUrl = canvas.toDataURL('image/png');
       const base64 = dataUrl.split(',')[1];
+      const cachePath = 'picklescore-share.png';
 
       const result = await Filesystem.writeFile({
-        path: fileName,
+        path: cachePath,
         data: base64,
         directory: Directory.Cache,
       });
 
-      await Share.share({
-        title: 'PickleScore Result',
-        text: 'Check out my pickleball score!',
-        files: [result.uri],
-      });
+      try {
+        await Share.share({
+          title: 'PickleScore Result',
+          text: 'Check out my pickleball score!',
+          files: [result.uri],
+        });
+      } finally {
+        Filesystem.deleteFile({ path: cachePath, directory: Directory.Cache }).catch(() => {});
+      }
       return 'shared';
     }
 
