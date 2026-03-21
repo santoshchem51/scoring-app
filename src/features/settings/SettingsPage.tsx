@@ -13,6 +13,7 @@ import { useAuth } from '../../shared/hooks/useAuth';
 import { shareApp } from '../../shared/utils/shareApp';
 import { Share2 } from 'lucide-solid';
 import { DeleteAccountButton } from './DeleteAccountButton';
+import { initSentry } from '../../shared/observability/sentry';
 import { revokeObservabilityConsent } from '../../shared/observability/consentCleanup';
 
 const SettingsPage: Component = () => {
@@ -501,6 +502,7 @@ const SettingsPage: Component = () => {
                     revokeObservabilityConsent();
                   } else {
                     setSettings({ analyticsConsent: 'accepted', analyticsConsentTimestamp: Date.now() });
+                    initSentry();
                   }
                 }}
                 class="w-full flex items-center justify-between bg-surface-light rounded-xl p-4"

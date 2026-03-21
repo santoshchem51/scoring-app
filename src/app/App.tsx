@@ -15,6 +15,7 @@ import { showInstallBanner } from '../shared/pwa/installPromptStore';
 import { initAppLifecycle } from '../shared/platform/appLifecycle';
 import { hideSplashScreen } from '../shared/platform/splashScreen';
 import { ObservableErrorBoundary } from '../shared/observability/ErrorBoundary';
+import { initSentry } from '../shared/observability/sentry';
 
 interface Props {
   children?: JSX.Element;
@@ -43,6 +44,7 @@ const App: Component<Props> = (props) => {
       analyticsConsent: 'accepted',
       analyticsConsentTimestamp: Date.now(),
     });
+    initSentry();
   }
 
   function handleConsentDecline() {

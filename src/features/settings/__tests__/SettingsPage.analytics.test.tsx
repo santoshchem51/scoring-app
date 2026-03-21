@@ -43,6 +43,10 @@ vi.mock('../../../shared/observability/consentCleanup', () => ({
   revokeObservabilityConsent: vi.fn(() => Promise.resolve()),
 }));
 
+vi.mock('../../../shared/observability/sentry', () => ({
+  initSentry: vi.fn(() => Promise.resolve()),
+}));
+
 vi.mock('../DeleteAccountButton', () => ({
   DeleteAccountButton: () => <button>Delete Account</button>,
 }));
@@ -100,5 +104,16 @@ describe('SettingsPage analytics toggle', () => {
     fireEvent.click(toggle);
     expect(settings().analyticsConsent).toBe('accepted');
     expect(settings().analyticsConsentTimestamp).toBeGreaterThan(1000);
+  });
+
+  it('toggling ON calls initSentry to activate error tracking', async () => {
+    const { initSentry } = await import('../../../shared/observability/sentry');
+    vi.mocked(initSentry).mockClear();
+
+    setSettings({ analyticsConsent: 'declined', analyticsConsentTimestamp: 1000 });
+    const { getByRole } = render(() => <SettingsPage />);
+    const toggle = getByRole('switch', { name: /share usage data/i });
+    fireEvent.click(toggle);
+    expect(initSentry).toHaveBeenCalledTimes(1);
   });
 });
