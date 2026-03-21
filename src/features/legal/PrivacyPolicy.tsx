@@ -142,7 +142,13 @@ export default function PrivacyPolicy() {
         </ul>
         <p class="mt-2 text-on-surface-muted">
           To exercise any of these rights, please contact us at the email address below.
-          We will respond to your request within 30 days.
+          We will respond to your request within 30 days. For complex requests, we may
+          extend this period by up to two additional months, in which case we will notify
+          you of the extension and the reasons for the delay.
+        </p>
+        <p class="mt-2 text-on-surface-muted">
+          If you are located in the European Economic Area, you also have the right to
+          lodge a complaint with your local data protection supervisory authority.
         </p>
       </section>
 

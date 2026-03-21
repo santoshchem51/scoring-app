@@ -71,7 +71,7 @@ const CreateGroupPage: Component = () => {
       };
 
       await firestoreBuddyGroupRepository.addMember(groupId, member);
-      trackEvent('buddy_added', { source: 'group' });
+      trackEvent('group_created');
 
       navigate(`/buddies/${groupId}`);
     } catch (err) {

@@ -55,10 +55,10 @@ jobs:
           if [ "$DEPLOYED_COMMIT" != "${{ github.sha }}" ]; then
             echo "::warning::Deploy manifest commit mismatch: expected ${{ github.sha }}, got $DEPLOYED_COMMIT"
           fi
-      - name: Verify no source maps served
+      - name: Verify no source maps in build
         if: success()
         run: |
-          if curl -sf "https://picklescore.co/assets/" | grep -q 'sourceMappingURL=.*\.map'; then
+          if grep -r 'sourceMappingURL=.*\.map' dist/assets/*.js 2>/dev/null; then
             echo "::error::Source maps detected in production bundles!"
             exit 1
           fi

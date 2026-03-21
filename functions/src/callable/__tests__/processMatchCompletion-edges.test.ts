@@ -187,6 +187,8 @@ describe('processMatchCompletion edge cases', () => {
   });
 
   it('logs error when participant processing fails', async () => {
+    // NOTE: This test relies on resolveParticipants returning exactly one participant.
+    // If the mock changes to return multiple, mockRejectedValueOnce only rejects the first.
     // Match doc: valid completed match
     mockGet.mockResolvedValue({
       exists: true,
