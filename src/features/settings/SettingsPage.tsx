@@ -12,6 +12,7 @@ import { wakeProcessor } from '../../data/firebase/syncProcessor';
 import { useAuth } from '../../shared/hooks/useAuth';
 import { shareApp } from '../../shared/utils/shareApp';
 import { Share2 } from 'lucide-solid';
+import { DeleteAccountButton } from './DeleteAccountButton';
 
 const SettingsPage: Component = () => {
   const { user } = useAuth();
@@ -493,6 +494,16 @@ const SettingsPage: Component = () => {
               <Share2 size={20} class="text-primary" />
               <span class="font-medium text-on-surface">Share PickleScore</span>
             </button>
+
+            {/* Delete Account (signed-in users only) */}
+            <Show when={user()}>
+              <fieldset>
+                <legend class="text-sm font-semibold text-on-surface-muted uppercase tracking-wider mb-3">
+                  Account
+                </legend>
+                <DeleteAccountButton />
+              </fieldset>
+            </Show>
           </div>
         </div>
 
