@@ -5,7 +5,7 @@ vi.mock('@capacitor-community/keep-awake', () => ({
   KeepAwake: { keepAwake: vi.fn(), allowSleep: vi.fn() },
 }));
 
-const mockLogger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+const mockLogger = vi.hoisted(() => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
 vi.mock('../../observability/logger', () => ({ logger: mockLogger }));
 
 const mockOnCleanup = vi.fn();

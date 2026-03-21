@@ -9,6 +9,8 @@ describe('ObservableErrorBoundary', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.restoreAllMocks();
+    // Suppress SolidJS framework console.error noise when components throw
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   it('renders children when no error', async () => {
@@ -22,7 +24,6 @@ describe('ObservableErrorBoundary', () => {
   });
 
   it('renders fallback UI when child throws', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
     const { ObservableErrorBoundary } = await import('../ErrorBoundary');
     render(() => (
       <ObservableErrorBoundary feature="test">
@@ -33,7 +34,6 @@ describe('ObservableErrorBoundary', () => {
   });
 
   it('calls logger.error when child throws', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
     const { logger } = await import('../logger');
     const errorSpy = vi.spyOn(logger, 'error');
     const { ObservableErrorBoundary } = await import('../ErrorBoundary');
@@ -49,7 +49,6 @@ describe('ObservableErrorBoundary', () => {
   });
 
   it('uses custom fallback when provided', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
     const { ObservableErrorBoundary } = await import('../ErrorBoundary');
     render(() => (
       <ObservableErrorBoundary
@@ -63,7 +62,6 @@ describe('ObservableErrorBoundary', () => {
   });
 
   it('Try Again button resets the error boundary', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
     const { ObservableErrorBoundary } = await import('../ErrorBoundary');
     let thrown = false;
     function ThrowOnce(): any {

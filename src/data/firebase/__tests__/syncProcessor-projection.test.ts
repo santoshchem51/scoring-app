@@ -4,6 +4,11 @@ import { db } from '../../db';
 import type { SyncJob } from '../syncQueue.types';
 import type { Match } from '../../types';
 
+// Mock logger to suppress output and avoid console coupling
+vi.mock('../../../shared/observability/logger', () => ({
+  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
 // ── Spectator repository mock ───────────────────────────────────────
 
 const mockBuildSpectatorProjection = vi.fn().mockReturnValue({
@@ -205,8 +210,6 @@ describe('syncProcessor — spectator projection piggybacking', () => {
     mockGetById.mockResolvedValue(match);
     mockWriteSpectatorProjection.mockRejectedValueOnce(new Error('Firestore offline'));
 
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
     const job = createTestJob({
       context: { type: 'match', ownerId: 'u1', sharedWith: [], visibility: 'public' },
     });
@@ -220,7 +223,5 @@ describe('syncProcessor — spectator projection piggybacking', () => {
     // Job completed despite projection failure
     const updated = await db.syncQueue.get(job.id);
     expect(updated!.status).toBe('completed');
-
-    warnSpy.mockRestore();
   }, 10_000);
 });
