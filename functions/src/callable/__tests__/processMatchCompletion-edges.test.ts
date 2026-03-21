@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // --- Mocks ---
 const mockTransaction = {
@@ -135,5 +135,136 @@ describe('processMatchCompletion edge cases', () => {
     expect(mockTransaction.set).not.toHaveBeenCalled();
     // Should still return ok with processed results
     expect(result.status).toBe('ok');
+
+    // Verify summary log includes sub-operation tracking
+    const { logger } = await import('firebase-functions');
+    expect(logger.info).toHaveBeenCalledWith('Match processed', expect.objectContaining({
+      matchId: 'match-1',
+      coldStart: expect.any(Boolean),
+      executionTimeMs: expect.any(Number),
+    }));
+  });
+
+  it('includes statsWritten and leaderboardUpdated in summary log on success', async () => {
+    // Match doc: valid completed match
+    mockGet.mockResolvedValue({
+      exists: true,
+      id: 'match-1',
+      data: () => ({
+        status: 'completed',
+        winningSide: 1,
+        ownerId: 'user-1',
+        sharedWith: [],
+        config: { gameType: 'singles' },
+      }),
+    });
+
+    // Inside transaction: matchRef does NOT exist (first processing)
+    mockTransaction.get.mockResolvedValue({
+      exists: false,
+      data: () => undefined,
+    });
+
+    const { processMatchCompletion } = await import('../processMatchCompletion');
+    const handler = processMatchCompletion as any;
+
+    const result = await handler({
+      data: { matchId: 'match-1' },
+      auth: { uid: 'user-1' },
+    });
+
+    expect(result.status).toBe('ok');
+    expect(result.processedCount).toBe(1);
+
+    const { logger } = await import('firebase-functions');
+    expect(logger.info).toHaveBeenCalledWith('Match processed', expect.objectContaining({
+      matchId: 'match-1',
+      coldStart: expect.any(Boolean),
+      executionTimeMs: expect.any(Number),
+      statsWritten: true,
+      leaderboardUpdated: false, // buildLeaderboardEntry mock returns null
+    }));
+  });
+
+  it('logs error when participant processing fails', async () => {
+    // Match doc: valid completed match
+    mockGet.mockResolvedValue({
+      exists: true,
+      id: 'match-1',
+      data: () => ({
+        status: 'completed',
+        winningSide: 1,
+        ownerId: 'user-1',
+        sharedWith: [],
+        config: { gameType: 'singles' },
+      }),
+    });
+
+    // Force transaction to throw
+    mockDb.runTransaction.mockRejectedValueOnce(new Error('Firestore write failed'));
+
+    const { processMatchCompletion } = await import('../processMatchCompletion');
+    const handler = processMatchCompletion as any;
+
+    const result = await handler({
+      data: { matchId: 'match-1' },
+      auth: { uid: 'user-1' },
+    });
+
+    expect(result.status).toBe('ok');
+    expect(result.errorCount).toBe(1);
+
+    const { logger } = await import('firebase-functions');
+    expect(logger.error).toHaveBeenCalledWith(
+      'Error processing participant',
+      expect.objectContaining({ matchId: 'match-1', userId: 'player-1' }),
+    );
+  });
+
+  it('tracks cold start: true on first call, false on second', async () => {
+    // Reset modules to get a fresh isColdStart = true
+    vi.resetModules();
+
+    const setupSuccessfulMocks = () => {
+      mockGet.mockResolvedValue({
+        exists: true,
+        id: 'match-1',
+        data: () => ({
+          status: 'completed',
+          winningSide: 1,
+          ownerId: 'user-1',
+          sharedWith: [],
+          config: { gameType: 'singles' },
+        }),
+      });
+      mockTransaction.get.mockResolvedValue({
+        exists: true,
+        data: () => ({}),
+      });
+      mockDb.set.mockResolvedValue(undefined);
+      mockDb.runTransaction.mockImplementation((fn: any) => fn(mockTransaction));
+    };
+
+    setupSuccessfulMocks();
+
+    const { processMatchCompletion } = await import('../processMatchCompletion');
+    const handler = processMatchCompletion as any;
+    const { logger } = await import('firebase-functions');
+
+    // First call — should be cold start
+    await handler({ data: { matchId: 'match-1' }, auth: { uid: 'user-1' } });
+    expect(logger.info).toHaveBeenCalledWith('Match processed', expect.objectContaining({
+      coldStart: true,
+    }));
+
+    // Clear mocks, set up again for second call
+    vi.clearAllMocks();
+    setupSuccessfulMocks();
+
+    // Second call — should NOT be cold start
+    await handler({ data: { matchId: 'match-1' }, auth: { uid: 'user-1' } });
+    expect(logger.info).toHaveBeenCalledWith('Match processed', expect.objectContaining({
+      coldStart: false,
+    }));
   });
 });

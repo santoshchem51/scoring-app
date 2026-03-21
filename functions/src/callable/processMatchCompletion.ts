@@ -130,6 +130,8 @@ export const processMatchCompletion = onCall(
 
     // 10. Process each participant in a transaction
     const results: Array<{ uid: string; status: string }> = [];
+    let statsWritten = false;
+    let leaderboardUpdated = false;
 
     for (const participant of participants) {
       try {
@@ -199,6 +201,7 @@ export const processMatchCompletion = onCall(
           // Atomic writes
           transaction.set(matchRefDoc, matchRef);
           transaction.set(statsDoc, updatedStats, { merge: true });
+          statsWritten = true;
 
           // Leaderboard
           const profile = profileMap.get(participant.uid);
@@ -215,6 +218,7 @@ export const processMatchCompletion = onCall(
               leaderboardEntry.createdAt = existingLeaderboard.data()!.createdAt as number;
             }
             transaction.set(leaderboardDoc, leaderboardEntry);
+            leaderboardUpdated = true;
           }
 
           return updatedStats.tier;
@@ -239,11 +243,13 @@ export const processMatchCompletion = onCall(
     }
 
     // 11. Update spectator projection status to 'completed'
+    let spectatorProjectionWritten = false;
     try {
       await db.doc(`matches/${matchId}/public/spectator`).set(
         { status: 'completed', updatedAt: Date.now() },
         { merge: true },
       );
+      spectatorProjectionWritten = true;
     } catch (err) {
       logger.warn('Failed to update spectator projection status', { matchId, error: (err as Error).message });
     }
@@ -254,8 +260,11 @@ export const processMatchCompletion = onCall(
       coldStart: wasColdStart,
       playerCount: participants.length,
       processed: results.length,
+      statsWritten,
+      leaderboardUpdated,
+      spectatorProjectionWritten,
     });
 
-    return { status: 'ok', processed: results };
+    return { status: 'ok', processedCount: results.filter(r => r.status === 'processed').length, errorCount: results.filter(r => r.status === 'error').length };
   },
 );
