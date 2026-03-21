@@ -28,9 +28,13 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
         <div class="text-sm text-on-surface-muted uppercase tracking-wide font-semibold mb-1">Win Rate</div>
         <div class="text-2xl font-bold text-green-400">{formatWinRate(props.stats.winRate)}</div>
         <div class="text-xs text-on-surface-muted mt-1">
-          Singles {props.stats.singles.wins}-{props.stats.singles.losses}
+          {props.stats.singles.matches > 0
+            ? <>Singles {props.stats.singles.wins}W{'\u2013'}{props.stats.singles.losses}L</>
+            : <>Singles —</>}
           {' · '}
-          Doubles {props.stats.doubles.wins}-{props.stats.doubles.losses}
+          {props.stats.doubles.matches > 0
+            ? <>Doubles {props.stats.doubles.wins}W{'\u2013'}{props.stats.doubles.losses}L</>
+            : <>Doubles —</>}
         </div>
       </div>
 

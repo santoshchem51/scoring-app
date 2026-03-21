@@ -62,7 +62,7 @@ describe('StatsOverview', () => {
 
   it('displays singles/doubles breakdown', () => {
     render(() => <StatsOverview stats={makeStats()} />);
-    expect(screen.getByText(/Singles 4-2/)).toBeTruthy();
-    expect(screen.getByText(/Doubles 3-1/)).toBeTruthy();
+    expect(screen.getByText(/Singles 4W/)).toBeTruthy();
+    expect(screen.getByText(/Doubles 3W/)).toBeTruthy();
   });
 });
