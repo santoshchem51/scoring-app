@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import path from 'path';
 
 export default defineConfig(({ mode }) => ({
@@ -76,7 +77,25 @@ export default defineConfig(({ mode }) => ({
         ],
       },
     }),
+    ...(process.env.SENTRY_AUTH_TOKEN ? [sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+    })] : []),
   ],
+  build: {
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('@sentry/')) return 'sentry';
+          if (id.includes('firebase/analytics') || id.includes('@firebase/analytics'))
+            return 'firebase-analytics';
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@testing-library/jest-dom/vitest': path.resolve(
