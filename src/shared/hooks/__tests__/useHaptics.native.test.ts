@@ -42,4 +42,34 @@ describe('useHaptics (native)', () => {
     await double();
     expect(mockImpact).toHaveBeenCalledTimes(2);
   });
+
+  it('double() uses ImpactStyle.Light for both calls', async () => {
+    const { useHaptics } = await import('../useHaptics');
+    const { double } = useHaptics();
+    await double();
+    expect(mockImpact).toHaveBeenNthCalledWith(1, { style: 'LIGHT' });
+    expect(mockImpact).toHaveBeenNthCalledWith(2, { style: 'LIGHT' });
+  });
+
+  it('suppresses all native haptic calls when hapticFeedback is false', async () => {
+    vi.doMock('../../../stores/settingsStore', () => ({
+      settings: () => ({ hapticFeedback: false }),
+    }));
+    const { useHaptics } = await import('../useHaptics');
+    const { light, medium, heavy } = useHaptics();
+    light();
+    medium();
+    heavy();
+    expect(mockImpact).not.toHaveBeenCalled();
+  });
+
+  it('suppresses double() when hapticFeedback is false', async () => {
+    vi.doMock('../../../stores/settingsStore', () => ({
+      settings: () => ({ hapticFeedback: false }),
+    }));
+    const { useHaptics } = await import('../useHaptics');
+    const { double } = useHaptics();
+    await double();
+    expect(mockImpact).not.toHaveBeenCalled();
+  });
 });
