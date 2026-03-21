@@ -1,11 +1,14 @@
 // functions/src/callable/processMatchCompletion.ts
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { logger } from 'firebase-functions';
 import { getFirestore } from 'firebase-admin/firestore';
 import type { CloudMatch, Tier, StatsSummary } from '../shared/types';
 import { resolveParticipants } from '../lib/participantResolution';
 import { computeUpdatedStats, buildMatchRefFromMatch } from '../lib/statsComputation';
 import { buildLeaderboardEntry } from '../shared/utils/leaderboardScoring';
 import { nearestTier, TIER_MULTIPLIER } from '../shared/utils/tierEngine';
+
+let isColdStart = true;
 
 export const processMatchCompletion = onCall(
   {
@@ -14,6 +17,10 @@ export const processMatchCompletion = onCall(
     concurrency: 16,
   },
   async (request) => {
+    const wasColdStart = isColdStart;
+    isColdStart = false;
+    const startTime = Date.now();
+
     // 1. Auth check
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Must be authenticated');
@@ -220,13 +227,13 @@ export const processMatchCompletion = onCall(
             { tier: computedTier, displayName: profile?.displayName },
             { merge: true },
           ).catch((err: unknown) => {
-            console.warn('Failed to write public tier for', participant.uid, err);
+            logger.warn('Failed to write public tier', { matchId, userId: participant.uid, error: (err as Error).message });
           });
         }
 
         results.push({ uid: participant.uid, status: 'processed' });
       } catch (err) {
-        console.error('Error processing participant:', participant.uid, err);
+        logger.error('Error processing participant', { matchId, userId: participant.uid, error: (err as Error).message });
         results.push({ uid: participant.uid, status: 'error' });
       }
     }
@@ -238,8 +245,16 @@ export const processMatchCompletion = onCall(
         { merge: true },
       );
     } catch (err) {
-      console.warn('Failed to update spectator projection status:', err);
+      logger.warn('Failed to update spectator projection status', { matchId, error: (err as Error).message });
     }
+
+    logger.info('Match processed', {
+      matchId,
+      executionTimeMs: Date.now() - startTime,
+      coldStart: wasColdStart,
+      playerCount: participants.length,
+      processed: results.length,
+    });
 
     return { status: 'ok', processed: results };
   },
