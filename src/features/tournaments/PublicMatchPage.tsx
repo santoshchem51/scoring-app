@@ -1,4 +1,4 @@
-import { createSignal, createResource, createMemo, Show, Suspense } from 'solid-js';
+import { createSignal, createResource, createMemo, Show } from 'solid-js';
 import type { Component } from 'solid-js';
 import { useParams, A } from '@solidjs/router';
 import { firestoreTournamentRepository } from '../../data/firebase/firestoreTournamentRepository';

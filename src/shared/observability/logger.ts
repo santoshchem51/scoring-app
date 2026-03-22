@@ -12,7 +12,7 @@ export function removeSink(sink: Sink) {
 
 function emit(level: string, msg: string, data?: unknown) {
   try {
-    const consoleFn = (console as Record<string, unknown>)[level];
+    const consoleFn = (console as unknown as Record<string, unknown>)[level];
     if (typeof consoleFn === 'function') {
       consoleFn.call(console, msg, data);
     } else {

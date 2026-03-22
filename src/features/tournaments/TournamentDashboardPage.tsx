@@ -28,7 +28,7 @@ import OrganizerPlayerManager from './components/OrganizerPlayerManager';
 import OrganizerPairingPanel from './components/OrganizerPairingPanel';
 import { statusLabels, statusColors, formatLabels, shortStatusLabels } from './constants';
 import { matchRepository } from '../../data/repositories/matchRepository';
-import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding, Match } from '../../data/types';
+import type { TournamentStatus, TournamentFormat, TournamentPool, PoolStanding, Match, TournamentRegistration } from '../../data/types';
 import ScoreEditModal from './components/ScoreEditModal';
 import type { ScoreEditData } from './components/ScoreEditModal';
 import { checkBracketRescoreSafety } from './engine/rescoring';
@@ -163,12 +163,6 @@ const TournamentDashboardPage: Component = () => {
 
   // --- Derived State ---
 
-  const isOrganizer = () => {
-    const t = live.tournament();
-    const u = user();
-    return !!t && !!u && t.organizerId === u.uid;
-  };
-
   const teamNames = createMemo<Record<string, string>>(() => {
     const t = live.teams();
     const map: Record<string, string> = {};
@@ -261,7 +255,7 @@ const TournamentDashboardPage: Component = () => {
 
   const handleExportCsv = () => {
     const regs = live.registrations();
-    const csv = registrationsToCsv(regs);
+    const csv = registrationsToCsv(regs as (TournamentRegistration & Record<string, unknown>)[]);
     const t = live.tournament();
     const safeName = (t?.name ?? 'tournament').replace(/[^a-zA-Z0-9_-]/g, '_');
     downloadCsv(csv, `${safeName}-registrations.csv`);

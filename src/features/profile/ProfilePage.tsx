@@ -1,4 +1,4 @@
-import { Show, createMemo, createSignal, createEffect } from 'solid-js';
+import { Show, createMemo, createSignal } from 'solid-js';
 import type { Component } from 'solid-js';
 import { BarChart3 } from 'lucide-solid';
 import { useAuth } from '../../shared/hooks/useAuth';

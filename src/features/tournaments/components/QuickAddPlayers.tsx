@@ -1,5 +1,5 @@
 import { createSignal, createMemo } from 'solid-js';
-import { Show, For } from 'solid-js/web';
+import { Show } from 'solid-js/web';
 
 interface QuickAddPlayersProps {
   onSubmit: (names: string[]) => void;

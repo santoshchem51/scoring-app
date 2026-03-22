@@ -1,7 +1,7 @@
 import { Show } from 'solid-js';
 import type { Component, JSX } from 'solid-js';
 import { useLiveMatch } from '../hooks/useLiveMatch';
-import { extractLiveScore, extractGameCount } from '../engine/scoreExtraction';
+import { extractLiveScore } from '../engine/scoreExtraction';
 
 export interface LiveMatchCardProps {
   matchId: string;
@@ -22,12 +22,6 @@ const LiveMatchCard: Component<LiveMatchCardProps> = (props): JSX.Element => {
     const m = match();
     if (!m) return null;
     return extractLiveScore(m);
-  };
-
-  const gameCount = () => {
-    const m = match();
-    if (!m) return null;
-    return extractGameCount(m);
   };
 
   const borderClass = () =>

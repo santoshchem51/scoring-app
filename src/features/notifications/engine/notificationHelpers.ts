@@ -129,7 +129,7 @@ export function createMatchResultRecordedNotif(
 // ── Achievement ──
 
 export function createAchievementUnlockedNotif(
-  userId: string, achievementName: string, description: string, achievementId: string,
+  userId: string, achievementName: string, _description: string, achievementId: string,
 ): AppNotification {
   return makeNotif(userId, 'achievement', 'achievement_unlocked',
     `Achievement unlocked: ${achievementName}`,

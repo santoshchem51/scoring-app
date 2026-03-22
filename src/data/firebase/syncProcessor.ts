@@ -414,8 +414,8 @@ export function startProcessor(lockProvider?: LockProvider): void {
 /** Returns the default Web Locks provider, or null if unavailable. */
 function getDefaultLockProvider(): LockProvider | null {
   if (typeof navigator !== 'undefined' && navigator.locks) {
-    return (name, options, callback) =>
-      navigator.locks.request(name, options, callback as (lock: any) => Promise<any>);
+    return <T>(name: string, options: { mode: 'exclusive' }, callback: (lock: unknown) => Promise<T>): Promise<T> =>
+      navigator.locks.request(name, options, callback as (lock: any) => Promise<any>) as Promise<T>;
   }
   return null;
 }

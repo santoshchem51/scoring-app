@@ -1,6 +1,6 @@
 import type { Component } from 'solid-js';
 import { createSignal, Show, For } from 'solid-js';
-import type { BuddyGroupMember, GameType } from '../../../data/types';
+import type { GameType } from '../../../data/types';
 import type { SearchUserResult } from '../hooks/useUserSearch';
 import { useBuddyPickerData } from '../hooks/useBuddyPickerData';
 import { useUserSearch } from '../hooks/useUserSearch';

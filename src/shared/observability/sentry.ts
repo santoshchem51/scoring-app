@@ -118,13 +118,10 @@ export async function initSentry() {
       dsn: import.meta.env.VITE_SENTRY_DSN,
       environment: import.meta.env.MODE,
       release: import.meta.env.VITE_APP_VERSION,
-      transport: Sentry.makeBrowserOfflineTransport(Sentry.makeFetchTransport, {
-        maxQueueSize: 50,
-      }),
+      transport: Sentry.makeBrowserOfflineTransport(Sentry.makeFetchTransport),
       sendDefaultPii: false,
       maxBreadcrumbs: 30,
       sampleRate: 1.0,
-      autoSessionTracking: true,
       beforeSend: scrubPII,
       beforeBreadcrumb: filterBreadcrumb,
     });

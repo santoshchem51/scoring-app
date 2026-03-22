@@ -83,18 +83,16 @@ describe('sentry', () => {
       );
       expect(mockMakeBrowserOfflineTransport).toHaveBeenCalledWith(
         mockMakeFetchTransport,
-        { maxQueueSize: 50 },
       );
       expect(mockFlushEarlyErrors).toHaveBeenCalledTimes(1);
     });
 
-    it('configures offline transport with maxQueueSize of 50', async () => {
+    it('configures offline transport wrapping fetch transport', async () => {
       const { initSentry } = await import('../sentry');
       await initSentry();
 
       expect(mockMakeBrowserOfflineTransport).toHaveBeenCalledWith(
         mockMakeFetchTransport,
-        { maxQueueSize: 50 },
       );
     });
 

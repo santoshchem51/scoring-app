@@ -5,8 +5,8 @@ import type { TournamentRegistration } from '../../data/types';
 
 export async function clearTournamentCache(): Promise<void> {
   await db.transaction('rw',
-    db.cachedTournaments, db.cachedTeams, db.cachedPools,
-    db.cachedBrackets, db.cachedRegistrations,
+    [db.cachedTournaments, db.cachedTeams, db.cachedPools,
+    db.cachedBrackets, db.cachedRegistrations],
     async () => {
       await Promise.all([
         db.cachedTournaments.clear(),
@@ -36,8 +36,8 @@ export async function pruneStaleTournamentCache(): Promise<void> {
   const staleIds = staleTournaments.map(t => t.id);
 
   await db.transaction('rw',
-    db.cachedTournaments, db.cachedTeams, db.cachedPools,
-    db.cachedBrackets, db.cachedRegistrations,
+    [db.cachedTournaments, db.cachedTeams, db.cachedPools,
+    db.cachedBrackets, db.cachedRegistrations],
     async () => {
       await db.cachedTournaments.where('cachedAt').below(cutoff).delete();
       for (const tid of staleIds) {

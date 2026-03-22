@@ -50,7 +50,7 @@ export const firestoreLeaderboardRepository = {
   },
 
   async getUserRank(
-    uid: string,
+    _uid: string,
     userScore: number,
     timeframe: LeaderboardTimeframe,
   ): Promise<number> {

@@ -220,7 +220,7 @@ const PublicTournamentPage: Component = () => {
                 {/* Live Now Section */}
                 <LiveNowSection
                   matches={allVisibleMatches()}
-                  tournamentCode={params.code}
+                  tournamentCode={params.code ?? ''}
                   upcomingMatches={upcomingMatches()}
                 />
 

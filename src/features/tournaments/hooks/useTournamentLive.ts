@@ -87,8 +87,8 @@ export function useTournamentLive(
             } else {
               // Completed/cancelled — clean up cache
               db.transaction('rw',
-                db.cachedTournaments, db.cachedTeams, db.cachedPools,
-                db.cachedBrackets, db.cachedRegistrations,
+                [db.cachedTournaments, db.cachedTeams, db.cachedPools,
+                db.cachedBrackets, db.cachedRegistrations],
                 async () => {
                   await Promise.all([
                     db.cachedTournaments.delete(id),

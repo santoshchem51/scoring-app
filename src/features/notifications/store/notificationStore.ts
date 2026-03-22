@@ -26,7 +26,7 @@ const CATEGORY_PREF_MAP: Record<NotificationCategory, string> = {
 };
 
 export const filteredNotifications = createMemo(() => {
-  const prefs = settings() as Record<string, boolean>;
+  const prefs = settings() as unknown as Record<string, boolean>;
   return notifications().filter((n) => {
     const prefKey = CATEGORY_PREF_MAP[n.category];
     return prefs[prefKey] !== false;
