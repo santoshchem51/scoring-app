@@ -39,6 +39,14 @@ export function scrubPII(event: any): any | null {
       }
     }
   }
+  // Drop benign auth errors (user-initiated, not bugs)
+  const BENIGN_AUTH_CODES = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+  if (event.exception?.values?.some((ex: any) =>
+    BENIGN_AUTH_CODES.some(code => ex.value?.includes(`(${code})`))
+  )) {
+    return null;
+  }
+
   // Scrub email patterns and Firestore paths from exception messages
   if (event.exception?.values) {
     for (const ex of event.exception.values) {

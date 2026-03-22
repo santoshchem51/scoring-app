@@ -332,3 +332,46 @@ describe('useAuth — error path logging', () => {
     );
   });
 });
+
+describe('useAuth — signIn error handling', () => {
+  let useAuth: typeof import('../useAuth')['useAuth'];
+
+  beforeEach(async () => {
+    vi.resetModules();
+    resetAllMocks();
+
+    const mod = await import('../useAuth');
+    useAuth = mod.useAuth;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('silently handles auth/popup-closed-by-user', async () => {
+    const popupError = new Error('Firebase: Error (auth/popup-closed-by-user).');
+    (popupError as any).code = 'auth/popup-closed-by-user';
+    mockSignInWithPopup.mockRejectedValueOnce(popupError);
+
+    const authState = useAuth();
+    await expect(authState.signIn()).resolves.not.toThrow();
+  });
+
+  it('silently handles auth/cancelled-popup-request', async () => {
+    const cancelError = new Error('Firebase: Error (auth/cancelled-popup-request).');
+    (cancelError as any).code = 'auth/cancelled-popup-request';
+    mockSignInWithPopup.mockRejectedValueOnce(cancelError);
+
+    const authState = useAuth();
+    await expect(authState.signIn()).resolves.not.toThrow();
+  });
+
+  it('re-throws unexpected auth errors', async () => {
+    const unexpectedError = new Error('Firebase: Error (auth/network-request-failed).');
+    (unexpectedError as any).code = 'auth/network-request-failed';
+    mockSignInWithPopup.mockRejectedValueOnce(unexpectedError);
+
+    const authState = useAuth();
+    await expect(authState.signIn()).rejects.toThrow();
+  });
+});

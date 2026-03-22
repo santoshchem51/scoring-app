@@ -343,6 +343,36 @@ describe('sentry', () => {
       expect(stored.count).toBe(1);
       expect(stored.date).toBe(new Date().toDateString());
     });
+
+    it('drops auth/popup-closed-by-user events', async () => {
+      const { scrubPII } = await import('../sentry');
+      const event = {
+        exception: {
+          values: [{ type: 'FirebaseError', value: 'Firebase: Error (auth/popup-closed-by-user).' }],
+        },
+      };
+      expect(scrubPII(event)).toBeNull();
+    });
+
+    it('drops auth/cancelled-popup-request events', async () => {
+      const { scrubPII } = await import('../sentry');
+      const event = {
+        exception: {
+          values: [{ type: 'FirebaseError', value: 'Firebase: Error (auth/cancelled-popup-request).' }],
+        },
+      };
+      expect(scrubPII(event)).toBeNull();
+    });
+
+    it('does NOT drop unexpected auth errors', async () => {
+      const { scrubPII } = await import('../sentry');
+      const event = {
+        exception: {
+          values: [{ type: 'FirebaseError', value: 'Firebase: Error (auth/network-request-failed).' }],
+        },
+      };
+      expect(scrubPII(event)).not.toBeNull();
+    });
   });
 
   describe('filterBreadcrumb', () => {
