@@ -18,19 +18,23 @@ const DiscoverPage: Component = () => {
     async (uid) => {
       if (!uid) return 'browse' as TabId;
 
-      // Check pending invitations first
-      const pending = await firestoreInvitationRepository.getPendingForUser(uid);
-      if (pending.length > 0) return 'my' as TabId;
+      try {
+        // Check pending invitations first
+        const pending = await firestoreInvitationRepository.getPendingForUser(uid);
+        if (pending.length > 0) return 'my' as TabId;
 
-      // Check if user has any tournaments (any role)
-      const [organized, participantResult, scorekeeping] = await Promise.all([
-        firestoreTournamentRepository.getByOrganizer(uid),
-        firestoreTournamentRepository.getByParticipant(uid),
-        firestoreTournamentRepository.getByStaff(uid),
-      ]);
+        // Check if user has any tournaments (any role)
+        const [organized, participantResult, scorekeeping] = await Promise.all([
+          firestoreTournamentRepository.getByOrganizer(uid),
+          firestoreTournamentRepository.getByParticipant(uid),
+          firestoreTournamentRepository.getByStaff(uid),
+        ]);
 
-      if (organized.length > 0 || participantResult.tournamentIds.length > 0 || scorekeeping.length > 0) {
-        return 'my' as TabId;
+        if (organized.length > 0 || participantResult.tournamentIds.length > 0 || scorekeeping.length > 0) {
+          return 'my' as TabId;
+        }
+      } catch {
+        // Firestore permissions/network error — fall back gracefully
       }
 
       return 'browse' as TabId;

@@ -59,6 +59,8 @@ vi.mock('../engine/discoveryFilters', () => ({
 
 // Import component after all mocks
 import DiscoverPage from '../DiscoverPage';
+import { firestoreInvitationRepository } from '../../../data/firebase/firestoreInvitationRepository';
+import { firestoreTournamentRepository } from '../../../data/firebase/firestoreTournamentRepository';
 
 describe('DiscoverPage', () => {
   beforeEach(() => {
@@ -89,5 +91,27 @@ describe('DiscoverPage', () => {
     expect(screen.getByRole('tablist')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Browse' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'My Tournaments' })).toBeInTheDocument();
+  });
+
+  it('falls back to browse tab when invitation query throws permissions error', async () => {
+    mockUser.mockReturnValue({ uid: 'user1', displayName: 'Test User', email: 'test@example.com' });
+    vi.mocked(firestoreInvitationRepository.getPendingForUser).mockRejectedValue(
+      new Error('Missing or insufficient permissions.'),
+    );
+    render(() => <DiscoverPage />);
+    const input = await screen.findByPlaceholderText('Search name or location...');
+    expect(input).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Browse' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('falls back to browse tab when tournament query throws permissions error', async () => {
+    mockUser.mockReturnValue({ uid: 'user1', displayName: 'Test User', email: 'test@example.com' });
+    vi.mocked(firestoreTournamentRepository.getByOrganizer).mockRejectedValue(
+      new Error('Missing or insufficient permissions.'),
+    );
+    render(() => <DiscoverPage />);
+    const input = await screen.findByPlaceholderText('Search name or location...');
+    expect(input).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Browse' })).toHaveAttribute('aria-selected', 'true');
   });
 });

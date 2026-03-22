@@ -44,7 +44,7 @@ describe('ObservableErrorBoundary', () => {
     ));
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalledWith(
-      'ErrorBoundary caught error',
+      'ErrorBoundary caught error in scoring: render crash',
       expect.any(Error)
     );
     // The second argument must be the Error itself, not an object wrapping it

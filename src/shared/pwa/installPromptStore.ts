@@ -39,6 +39,7 @@ const [installed, setInstalled] = createSignal(
   ),
 );
 const [matchCount, setMatchCount] = createSignal(0);
+const [dismissed, setDismissed] = createSignal(false);
 
 // ── Dismiss Logic ──
 
@@ -53,6 +54,8 @@ function readDismiss(): DismissData {
 }
 
 function isDismissed(): boolean {
+  // Read the signal to create reactive dependency
+  if (dismissed()) return true;
   const data = readDismiss();
   if (data.tier === 'none') return false;
   if (data.tier === 'never') return true;
@@ -67,16 +70,19 @@ export function getDismissState(): DismissState {
 export function softDismiss(): void {
   const data: DismissData = { tier: 'soft', until: Date.now() + SOFT_MS };
   localStorage.setItem(DISMISS_KEY, JSON.stringify(data));
+  setDismissed(true);
 }
 
 export function hardDismiss(): void {
   const data: DismissData = { tier: 'hard', until: Date.now() + HARD_MS };
   localStorage.setItem(DISMISS_KEY, JSON.stringify(data));
+  setDismissed(true);
 }
 
 export function neverDismiss(): void {
   const data: DismissData = { tier: 'never' };
   localStorage.setItem(DISMISS_KEY, JSON.stringify(data));
+  setDismissed(true);
 }
 
 /**
