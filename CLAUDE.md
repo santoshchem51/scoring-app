@@ -27,3 +27,11 @@ SolidJS 1.9 + TypeScript + Vite 6 + Tailwind CSS v4 + XState v5 + Dexie.js
 - **Dev server**: `npx vite --port 5199`
 - **Build**: `npx vite build`
 - **Type check**: `npx tsc --noEmit`
+
+## Error Monitoring
+- **Check errors now:** `/monitor-errors`
+- **Start hourly cron:** `/loop 1h /monitor-errors`
+- **Config:** `.env.local` (SENTRY_AUTH_TOKEN_READ, SENTRY_ORG, SENTRY_PROJECT)
+- **State:** `scripts/monitor/.last-check.json` (gitignored)
+- **PII audit:** `scripts/monitor/.pii-audit.log` (gitignored)
+- **Design:** `docs/plans/2026-03-22-error-monitor-design.md`
