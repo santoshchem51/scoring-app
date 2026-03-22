@@ -3,6 +3,12 @@ import { render, screen } from '@solidjs/testing-library';
 import type { JSX } from 'solid-js';
 import SettingsPage from '../SettingsPage';
 
+vi.mock('../../../data/firebase/config', () => ({
+  auth: { currentUser: null, onAuthStateChanged: vi.fn() },
+  firestore: {},
+  functions: {},
+}));
+
 vi.mock('../../../data/firebase/useSyncStatus', () => ({
   syncStatus: () => 'idle',
   pendingCount: () => 0,

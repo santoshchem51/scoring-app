@@ -1,5 +1,19 @@
 import { render, screen } from '@solidjs/testing-library';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../../../../data/firebase/config', () => ({
+  auth: { currentUser: null, onAuthStateChanged: vi.fn() },
+  firestore: {},
+  functions: {},
+}));
+
+vi.mock('../../hooks/useLiveMatch', () => ({
+  useLiveMatch: () => ({
+    match: () => undefined,
+    loading: () => false,
+  }),
+}));
+
 import LiveNowSection from '../LiveNowSection';
 import type { LiveNowMatch, UpcomingMatch } from '../LiveNowSection';
 

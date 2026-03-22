@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // --- Mocks (must be before component imports) ---
 
+vi.mock('../../../data/firebase/config', () => ({
+  auth: { currentUser: null, onAuthStateChanged: vi.fn() },
+  firestore: {},
+  functions: {},
+}));
+
 // Auth mock — default: logged out (user returns null)
 const mockUser = vi.fn(() => null as any);
 vi.mock('../../../shared/hooks/useAuth', () => ({

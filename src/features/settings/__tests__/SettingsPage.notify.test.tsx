@@ -4,6 +4,12 @@ import { settings, setSettings } from '../../../stores/settingsStore';
 
 // ── Mock dependencies ──
 
+vi.mock('../../../data/firebase/config', () => ({
+  auth: { currentUser: null, onAuthStateChanged: vi.fn() },
+  firestore: {},
+  functions: {},
+}));
+
 vi.mock('../../../shared/hooks/useAuth', () => ({
   useAuth: () => ({
     user: () => ({ uid: 'u1', displayName: 'Test', email: 'test@test.com', photoURL: null }),
