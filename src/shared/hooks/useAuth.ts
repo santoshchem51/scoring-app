@@ -110,9 +110,19 @@ function initAuthListener() {
 export function useAuth() {
   initAuthListener();
 
+  const BENIGN_AUTH_ERRORS = ['auth/popup-closed-by-user', 'auth/cancelled-popup-request'];
+
   const signIn = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err: unknown) {
+      const code = (err as any)?.code;
+      if (BENIGN_AUTH_ERRORS.includes(code)) {
+        return; // User-initiated, not an error
+      }
+      throw err;
+    }
   };
 
   const signOut = async () => {

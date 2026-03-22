@@ -1,0 +1,4 @@
+.last-check.json
+.last-check.json.bak
+.last-check.json.tmp
+.pii-audit.log

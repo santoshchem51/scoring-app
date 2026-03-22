@@ -33,7 +33,7 @@ describe('ObservableErrorBoundary', () => {
     expect(screen.getByText(/something went wrong/i)).toBeTruthy();
   });
 
-  it('calls logger.error when child throws', async () => {
+  it('passes original error directly to logger.error (not wrapped in object)', async () => {
     const { logger } = await import('../logger');
     const errorSpy = vi.spyOn(logger, 'error');
     const { ObservableErrorBoundary } = await import('../ErrorBoundary');
@@ -42,10 +42,42 @@ describe('ObservableErrorBoundary', () => {
         <ThrowingComponent />
       </ObservableErrorBoundary>
     ));
+    expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalledWith(
       'ErrorBoundary caught error',
-      expect.objectContaining({ feature: 'scoring' })
+      expect.any(Error)
     );
+    // The second argument must be the Error itself, not an object wrapping it
+    const passedData = errorSpy.mock.calls[0][1];
+    expect(passedData).toBeInstanceOf(Error);
+    expect((passedData as Error).message).toBe('render crash');
+  });
+
+  it('logs feature context as info breadcrumb before the error', async () => {
+    const { logger } = await import('../logger');
+    const callOrder: string[] = [];
+    vi.spyOn(logger, 'info').mockImplementation(() => { callOrder.push('info'); });
+    vi.spyOn(logger, 'error').mockImplementation(() => { callOrder.push('error'); });
+    const { ObservableErrorBoundary } = await import('../ErrorBoundary');
+    render(() => (
+      <ObservableErrorBoundary feature="scoring">
+        <ThrowingComponent />
+      </ObservableErrorBoundary>
+    ));
+    // Verify info breadcrumb fires BEFORE error
+    expect(callOrder).toEqual(['info', 'error']);
+  });
+
+  it('calls logger.error exactly once per catch (no double-reporting)', async () => {
+    const { logger } = await import('../logger');
+    const errorSpy = vi.spyOn(logger, 'error');
+    const { ObservableErrorBoundary } = await import('../ErrorBoundary');
+    render(() => (
+      <ObservableErrorBoundary feature="scoring">
+        <ThrowingComponent />
+      </ObservableErrorBoundary>
+    ));
+    expect(errorSpy).toHaveBeenCalledTimes(1);
   });
 
   it('uses custom fallback when provided', async () => {
