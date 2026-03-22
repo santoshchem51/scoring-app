@@ -108,7 +108,7 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
-    exclude: ['e2e/**', '**/node_modules/**', 'test/rules/**', 'test/integration/**', '.worktrees/**'],
+    exclude: ['e2e/**', '**/node_modules/**', 'test/rules/**', 'test/integration/**', '.worktrees/**', 'functions/**'],
     deps: {
       optimizer: {
         web: {
