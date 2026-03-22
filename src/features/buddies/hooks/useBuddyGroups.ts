@@ -1,6 +1,7 @@
 import { createSignal, createEffect, onCleanup } from 'solid-js';
 import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { firestore } from '../../../data/firebase/config';
+import { logger } from '../../../shared/observability/logger';
 import type { BuddyGroup } from '../../../data/types';
 
 export function useBuddyGroups(userId: () => string | undefined) {
@@ -38,6 +39,10 @@ export function useBuddyGroups(userId: () => string | undefined) {
         .filter((d) => d.exists())
         .map((d) => ({ id: d.id, ...d.data() }) as BuddyGroup);
       setGroups(result);
+      setLoading(false);
+    }, (err) => {
+      logger.warn('Failed to listen to buddy group memberships', err);
+      setGroups([]);
       setLoading(false);
     });
   });

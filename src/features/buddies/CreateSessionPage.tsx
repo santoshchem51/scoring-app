@@ -170,7 +170,7 @@ const CreateSessionPage: Component = () => {
       try {
         const creatorName = currentUser.displayName ?? 'Someone';
         const members = await firestoreBuddyGroupRepository.getMembers(params.groupId);
-        await Promise.all(
+        await Promise.allSettled(
           members
             .filter((m) => m.userId !== currentUser.uid)
             .map((m) =>

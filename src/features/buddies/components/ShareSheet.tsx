@@ -12,9 +12,13 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
   const [copied, setCopied] = createSignal(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(props.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(props.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard write failed (e.g., permissions denied)
+    }
   };
 
   const handleWhatsApp = () => {

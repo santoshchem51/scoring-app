@@ -4,6 +4,7 @@ import { A, useParams } from '@solidjs/router';
 import { Calendar, MapPin, Users, Share2, ChevronRight, Plus } from 'lucide-solid';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { firestore } from '../../data/firebase/config';
+import { logger } from '../../shared/observability/logger';
 import { firestoreBuddyGroupRepository } from '../../data/firebase/firestoreBuddyGroupRepository';
 import PageLayout from '../../shared/components/PageLayout';
 import type { BuddyGroupMember, GameSession } from '../../data/types';
@@ -135,6 +136,10 @@ const GroupDetailPage: Component = () => {
       onSnapshot(collection(firestore, 'buddyGroups', gid, 'members'), (snap) => {
         setMembers(snap.docs.map((d) => d.data() as BuddyGroupMember));
         setMembersLoading(false);
+      }, (err) => {
+        logger.warn('Failed to listen to group members', err);
+        setMembers([]);
+        setMembersLoading(false);
       }),
     );
 
@@ -148,6 +153,10 @@ const GroupDetailPage: Component = () => {
     unsubs.push(
       onSnapshot(sessionsQuery, (snap) => {
         setSessions(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as GameSession));
+        setSessionsLoading(false);
+      }, (err) => {
+        logger.warn('Failed to listen to group sessions', err);
+        setSessions([]);
         setSessionsLoading(false);
       }),
     );

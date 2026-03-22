@@ -49,7 +49,7 @@ describe('useBuddyGroups', () => {
     expect(mockCollectionGroup).toHaveBeenCalledWith({}, 'members');
     expect(mockWhere).toHaveBeenCalledWith('userId', '==', 'user-123');
     expect(mockQuery).toHaveBeenCalledWith('collectionGroupRef', 'whereClause');
-    expect(mockOnSnapshot).toHaveBeenCalledWith('queryRef', expect.any(Function));
+    expect(mockOnSnapshot).toHaveBeenCalledWith('queryRef', expect.any(Function), expect.any(Function));
   });
 
   it('cleans up subscription on unmount', () => {

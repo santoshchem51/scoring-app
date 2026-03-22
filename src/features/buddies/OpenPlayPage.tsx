@@ -4,6 +4,7 @@ import { A } from '@solidjs/router';
 import { Calendar, MapPin, Users } from 'lucide-solid';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { firestore } from '../../data/firebase/config';
+import { logger } from '../../shared/observability/logger';
 import { getSessionDisplayStatus } from './engine/sessionHelpers';
 import type { GameSession } from '../../data/types';
 
@@ -96,6 +97,10 @@ const OpenPlayPage: Component = () => {
 
     unsubscribe = onSnapshot(q, (snapshot) => {
       setSessions(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as GameSession));
+      setLoading(false);
+    }, (err) => {
+      logger.warn('Failed to listen to open play sessions', err);
+      setSessions([]);
       setLoading(false);
     });
   });
