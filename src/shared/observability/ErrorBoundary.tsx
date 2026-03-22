@@ -12,11 +12,8 @@ export function ObservableErrorBoundary(props: Props) {
   return (
     <ErrorBoundary
       fallback={(err, reset) => {
-        logger.error('ErrorBoundary caught error', {
-          feature: props.feature,
-          error: err instanceof Error ? err : new Error(String(err)),
-          errorString: String(err),
-        });
+        logger.info('ErrorBoundary triggered', { feature: props.feature });
+        logger.error('ErrorBoundary caught error', err instanceof Error ? err : new Error(String(err)));
 
         if (props.fallback) {
           return props.fallback(err, reset);
