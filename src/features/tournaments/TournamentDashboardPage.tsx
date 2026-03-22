@@ -117,7 +117,7 @@ const TournamentDashboardPage: Component = () => {
       try {
         return await firestoreRegistrationRepository.getByUser(source.tournamentId, source.userId);
       } catch {
-        return null;
+        return undefined;
       }
     },
     { initialValue: undefined },
