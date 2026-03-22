@@ -16,7 +16,11 @@ const TournamentListPage: Component = () => {
     () => user()?.uid,
     async (uid) => {
       if (!uid) return [];
-      return firestoreTournamentRepository.getByOrganizer(uid);
+      try {
+        return await firestoreTournamentRepository.getByOrganizer(uid);
+      } catch {
+        return [];
+      }
     },
   );
 

@@ -38,7 +38,13 @@ const GroupInvitePage: Component = () => {
   // Fetch group by share code
   const [group] = createResource(
     () => params.code,
-    (code) => firestoreBuddyGroupRepository.getByShareCode(code),
+    async (code) => {
+      try {
+        return await firestoreBuddyGroupRepository.getByShareCode(code);
+      } catch {
+        return null;
+      }
+    },
   );
 
   // Check membership once group is loaded and user is available

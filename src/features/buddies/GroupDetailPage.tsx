@@ -96,7 +96,13 @@ const GroupDetailPage: Component = () => {
   // Group data
   const [group] = createResource(
     () => params.groupId,
-    (groupId) => firestoreBuddyGroupRepository.get(groupId),
+    async (groupId) => {
+      try {
+        return await firestoreBuddyGroupRepository.get(groupId);
+      } catch {
+        return null;
+      }
+    },
   );
 
   // Members (live via onSnapshot)

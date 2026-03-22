@@ -112,9 +112,13 @@ const TournamentDashboardPage: Component = () => {
       if (!u || !id) return null;
       return { tournamentId: id, userId: u.uid };
     },
-    (source) => {
-      if (!source) return Promise.resolve(undefined);
-      return firestoreRegistrationRepository.getByUser(source.tournamentId, source.userId);
+    async (source) => {
+      if (!source) return undefined;
+      try {
+        return await firestoreRegistrationRepository.getByUser(source.tournamentId, source.userId);
+      } catch {
+        return null;
+      }
     },
     { initialValue: undefined },
   );
@@ -195,18 +199,34 @@ const TournamentDashboardPage: Component = () => {
     () => live.tournament()?.staffUids,
     async (uids) => {
       if (!uids || uids.length === 0) return [];
-      return firestoreUserRepository.getByIds(uids);
+      try {
+        return await firestoreUserRepository.getByIds(uids);
+      } catch {
+        return [];
+      }
     },
   );
 
   const [auditEntries] = createResource(
     () => live.tournament()?.id,
-    async (id) => getAuditLog(id),
+    async (id) => {
+      try {
+        return await getAuditLog(id);
+      } catch {
+        return [];
+      }
+    },
   );
 
   const [disputes, { refetch: refetchDisputes }] = createResource(
     () => live.tournament()?.id,
-    async (id) => getDisputesByTournament(id),
+    async (id) => {
+      try {
+        return await getDisputesByTournament(id);
+      } catch {
+        return [];
+      }
+    },
   );
 
   const handleResolveDispute = async (disputeId: string, matchId: string, type: 'edited' | 'dismissed') => {

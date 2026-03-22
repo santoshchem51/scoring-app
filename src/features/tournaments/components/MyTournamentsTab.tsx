@@ -34,50 +34,54 @@ const MyTournamentsTab: Component<Props> = (props) => {
   const [entries, { refetch }] = createResource(
     () => props.userId,
     async (uid) => {
-      // Fire three queries in parallel
-      const [organized, participantResult, scorekeeping] = await Promise.all([
-        firestoreTournamentRepository.getByOrganizer(uid),
-        firestoreTournamentRepository.getByParticipant(uid),
-        firestoreTournamentRepository.getByStaff(uid),
-      ]);
+      try {
+        // Fire three queries in parallel
+        const [organized, participantResult, scorekeeping] = await Promise.all([
+          firestoreTournamentRepository.getByOrganizer(uid),
+          firestoreTournamentRepository.getByParticipant(uid),
+          firestoreTournamentRepository.getByStaff(uid),
+        ]);
 
-      const { tournamentIds: participantIds, registrationStatuses } = participantResult;
+        const { tournamentIds: participantIds, registrationStatuses } = participantResult;
 
-      // Collect IDs already fetched from organized/scorekeeping
-      const knownIds = new Set<string>([
-        ...organized.map((t) => t.id),
-        ...scorekeeping.map((t) => t.id),
-      ]);
+        // Collect IDs already fetched from organized/scorekeeping
+        const knownIds = new Set<string>([
+          ...organized.map((t) => t.id),
+          ...scorekeeping.map((t) => t.id),
+        ]);
 
-      // Fetch tournament docs for participant IDs not already known
-      const unknownParticipantIds = participantIds.filter((id) => !knownIds.has(id));
-      const participantTournaments: Tournament[] = [];
+        // Fetch tournament docs for participant IDs not already known
+        const unknownParticipantIds = participantIds.filter((id) => !knownIds.has(id));
+        const participantTournaments: Tournament[] = [];
 
-      if (unknownParticipantIds.length > 0) {
-        const fetched = await Promise.all(
-          unknownParticipantIds.map((id) => firestoreTournamentRepository.getById(id)),
-        );
-        for (const t of fetched) {
-          if (t) participantTournaments.push(t);
+        if (unknownParticipantIds.length > 0) {
+          const fetched = await Promise.all(
+            unknownParticipantIds.map((id) => firestoreTournamentRepository.getById(id)),
+          );
+          for (const t of fetched) {
+            if (t) participantTournaments.push(t);
+          }
         }
+
+        // Also include tournaments from organized/scorekeeping that appear in participant IDs
+        const knownParticipantTournaments = participantIds
+          .filter((id) => knownIds.has(id))
+          .map((id) => {
+            return organized.find((t) => t.id === id) ?? scorekeeping.find((t) => t.id === id);
+          })
+          .filter((t): t is Tournament => t !== undefined);
+
+        const allParticipating = [...participantTournaments, ...knownParticipantTournaments];
+
+        return mergeMyTournaments({
+          organized,
+          participating: allParticipating,
+          scorekeeping,
+          registrationStatuses,
+        });
+      } catch {
+        return [];
       }
-
-      // Also include tournaments from organized/scorekeeping that appear in participant IDs
-      const knownParticipantTournaments = participantIds
-        .filter((id) => knownIds.has(id))
-        .map((id) => {
-          return organized.find((t) => t.id === id) ?? scorekeeping.find((t) => t.id === id);
-        })
-        .filter((t): t is Tournament => t !== undefined);
-
-      const allParticipating = [...participantTournaments, ...knownParticipantTournaments];
-
-      return mergeMyTournaments({
-        organized,
-        participating: allParticipating,
-        scorekeeping,
-        registrationStatuses,
-      });
     },
   );
 

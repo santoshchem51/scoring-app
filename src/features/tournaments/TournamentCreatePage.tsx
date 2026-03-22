@@ -52,7 +52,13 @@ const TournamentCreatePage: Component = () => {
 
   const [templates] = createResource(
     () => user()?.uid,
-    async (uid) => getTemplates(uid),
+    async (uid) => {
+      try {
+        return await getTemplates(uid);
+      } catch {
+        return [];
+      }
+    },
   );
 
   const handleTemplateSelect = (tpl: TournamentTemplate) => {
@@ -73,8 +79,12 @@ const TournamentCreatePage: Component = () => {
   createResource(
     () => user()?.uid,
     async (uid) => {
-      const groups = await firestoreBuddyGroupRepository.getGroupsByUser(uid);
-      setBuddyGroups(groups.map((g) => ({ id: g.id, name: g.name })));
+      try {
+        const groups = await firestoreBuddyGroupRepository.getGroupsByUser(uid);
+        setBuddyGroups(groups.map((g) => ({ id: g.id, name: g.name })));
+      } catch {
+        // fall back to empty — buddyGroups signal already defaults to []
+      }
     },
   );
 

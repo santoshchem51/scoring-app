@@ -13,8 +13,12 @@ const BottomNav: Component = () => {
     () => user()?.uid,
     async (uid) => {
       if (!uid) return 0;
-      const pending = await firestoreInvitationRepository.getPendingForUser(uid);
-      return pending.length;
+      try {
+        const pending = await firestoreInvitationRepository.getPendingForUser(uid);
+        return pending.length;
+      } catch {
+        return 0;
+      }
     },
   );
 

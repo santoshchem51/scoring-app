@@ -26,7 +26,13 @@ const CreateSessionPage: Component = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [group] = createResource(() => params.groupId, (gid) => firestoreBuddyGroupRepository.get(gid));
+  const [group] = createResource(() => params.groupId, async (gid) => {
+    try {
+      return await firestoreBuddyGroupRepository.get(gid);
+    } catch {
+      return null;
+    }
+  });
 
   // Form signals
   const [title, setTitle] = createSignal('');
