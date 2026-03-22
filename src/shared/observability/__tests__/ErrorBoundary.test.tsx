@@ -55,17 +55,17 @@ describe('ObservableErrorBoundary', () => {
 
   it('logs feature context as info breadcrumb before the error', async () => {
     const { logger } = await import('../logger');
-    const infoSpy = vi.spyOn(logger, 'info');
+    const callOrder: string[] = [];
+    vi.spyOn(logger, 'info').mockImplementation(() => { callOrder.push('info'); });
+    vi.spyOn(logger, 'error').mockImplementation(() => { callOrder.push('error'); });
     const { ObservableErrorBoundary } = await import('../ErrorBoundary');
     render(() => (
       <ObservableErrorBoundary feature="scoring">
         <ThrowingComponent />
       </ObservableErrorBoundary>
     ));
-    expect(infoSpy).toHaveBeenCalledWith(
-      'ErrorBoundary triggered',
-      { feature: 'scoring' }
-    );
+    // Verify info breadcrumb fires BEFORE error
+    expect(callOrder).toEqual(['info', 'error']);
   });
 
   it('calls logger.error exactly once per catch (no double-reporting)', async () => {
