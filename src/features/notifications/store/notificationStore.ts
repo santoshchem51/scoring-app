@@ -64,6 +64,7 @@ export function startNotificationListener(uid: string): void {
       logger.warn('Notification listener error', err);
       setNotifications([]);
       setUnreadCount(0);
+      setNotificationsReady(true);
     },
   );
 }
